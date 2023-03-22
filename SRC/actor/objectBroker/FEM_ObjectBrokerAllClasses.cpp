@@ -199,6 +199,10 @@
 #include "CycLiqCPSP3D.h"
 #include "CycLiqCPSPPlaneStrain.h"
 
+// Data-driven multi-scale materials (DMM) - Onur Deniz Akan, IUSS
+#include "DataDrivenMaterials/VonMisesDMM.h"
+#include "DataDrivenMaterials/DruckerPragerDMM.h"
+#include "DataDrivenMaterials/MatsuokaNakaiDMM.h"
 
 #include "soil/FluidSolidPorousMaterial.h"
 #include "soil/PressureDependMultiYield.h"
@@ -1818,6 +1822,15 @@ FEM_ObjectBrokerAllClasses::getNewNDMaterial(int classTag)
 
   case ND_TAG_ASDConcrete3DMaterial:
       return new ASDConcrete3DMaterial();
+
+  case ND_TAG_VonMisesDMM:
+      return new VonMisesDMM();
+
+  case ND_TAG_DruckerPragerDMM:
+      return new DruckerPragerDMM();
+
+  case ND_TAG_MatsuokaNakaiDMM:
+      return new MatsuokaNakaiDMM();
     
   default:
     opserr << "FEM_ObjectBrokerAllClasses::getNewNDMaterial - ";

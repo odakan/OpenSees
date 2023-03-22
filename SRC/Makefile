@@ -922,6 +922,16 @@ MATERIAL_LIBS   =  $(FE)/material/Material.o \
 	$(FE)/material/nD/VonPapaDamage.o \
 	$(FE)/material/nD/J2PlaneStress.o \
 	$(FE)/material/nD/J2PlaneStrain.o \
+	$(FE)/material/nD/DataDrivenMaterials/MaterialTensorOperations.o \
+	$(FE)/material/nD/DataDrivenMaterials/MaterialStateVariables.o \
+	$(FE)/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.o \
+	$(FE)/material/nD/DataDrivenMaterials/MultiYieldSurfaceHardeningSoftening.o \
+	$(FE)/material/nD/DataDrivenMaterials/OPS_VonMisesDMM.o \
+	$(FE)/material/nD/DataDrivenMaterials/OPS_DruckerPragerDMM.o \
+	$(FE)/material/nD/DataDrivenMaterials/OPS_MatsuokaNakaiDMM.o \
+	$(FE)/material/nD/DataDrivenMaterials/VonMisesDMM.o \
+	$(FE)/material/nD/DataDrivenMaterials/DruckerPragerDMM.o \
+	$(FE)/material/nD/DataDrivenMaterials/MatsuokaNakaiDMM.o \
 	$(FE)/material/nD/J2AxiSymm.o \
 	$(FE)/material/nD/J2ThreeDimensional.o \
 	$(FE)/material/nD/J2PlateFiber.o \

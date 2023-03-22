@@ -529,6 +529,11 @@
 
 #define ND_TAG_ASDConcrete3DMaterial 7017 // Massimo Petracca ASDEA Software
 
+// Data-driven multi-scale materials (DMM) - Onur Deniz Akan, IUSS
+#define ND_TAG_VonMisesDMM            	11115
+#define ND_TAG_DruckerPragerDMM         11116
+#define ND_TAG_MatsuokaNakaiDMM			11117
+
 #define FIBER_TAG_Uniaxial2d	1
 #define FIBER_TAG_Uniaxial3d	2
 #define FIBER_TAG_ND2d	3
