@@ -46,6 +46,8 @@ OPS_VonMisesDMM(void)
 	// initialize pointers
 	NDMaterial* theMaterial = nullptr;					// Pointer to an nD material to be returned
 	DataDrivenNestedSurfaces* theSurfaces = nullptr;	// Pointer to a nested yield surface object
+	double params[5]; params[0] = 0.; params[1] = 0.; params[2] = 0.; params[3] = 0.; params[4] = 0.;
+	double hyperbolic_params[2]; hyperbolic_params[0] = 0.; hyperbolic_params[1] = 0.;
 
 	int numArgs = OPS_GetNumRemainingInputArgs();
 
@@ -79,7 +81,6 @@ OPS_VonMisesDMM(void)
 	}
 
 	// recieve Kref, Gref, Pref, nmod, cohesion
-	double params[5]; params[0] = 0.; params[1] = 0.; params[2] = 0.; params[3] = 0.; params[4] = 0.;
 	numData = 5;
 	if (OPS_GetDoubleInput(&numData, &params[0]) < 0) 
 	{
@@ -134,6 +135,23 @@ OPS_VonMisesDMM(void)
 			return theMaterial;
 		}
 	}
+	else if (TNYS > 0)  // if TNYS is positive
+	{
+		// recieve peak shear strain and friction angle for hyperbolic backbone
+		numData = 2;
+		if (OPS_GetDoubleInput(&numData, &hyperbolic_params[0]) < 0)
+		{
+			opserr << "OPS_VonMisesDMM: WARNING: invalid peakShearStrain? frictionAngle? (must be doubles)\n";
+			return theMaterial;
+		}
+
+	}
+	else  // if TNYS is zero
+	{
+		opserr << "OPS_VonMisesDMM: WARNING: invalid TNYS? (TNYS cannot be 0!)\n";
+		return theMaterial;
+
+	}
 
 		//other inputs
 	int integrationType = 0;                                                        // implicit by default
@@ -151,7 +169,15 @@ OPS_VonMisesDMM(void)
 	// all inputs recieved!
 
 	// create a nested yield surface object
-	theSurfaces = new DataDrivenNestedSurfaces(TNYS, params[0], params[1], params[2], params[3], params[4], HModuli, HParams);
+	if (TNYS < 0)
+	{
+		theSurfaces = new DataDrivenNestedSurfaces(TNYS, params[0], params[1], params[2], params[3], params[4], HModuli, HParams);
+	}
+	else
+	{
+		opserr << "OPS_VonMisesDMM: Works until here!\n";
+		theSurfaces = new DataDrivenNestedSurfaces(TNYS, params[0], params[1], params[2], params[3], params[4], hyperbolic_params[0], hyperbolic_params[0]);
+	}
 
 	// create a VonMisesDMM nDmaterial object
 	theMaterial = new VonMisesDMM(tag, rho, theSurfaces, integrationType);

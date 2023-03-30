@@ -34,14 +34,47 @@
 
 #include "DataDrivenNestedSurfaces.h"
 
+#define LARGE_NUMBER 1.0e30
+
 // Public methods
 	// full constructors
+		// traditional hyperbolic surface constructors
+DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// von Mises constructor
+	double n, double c, double peakStrain, double Phi)
+{
+	// initialize variables
+	TNYS = tnys; Kref = k; Gref = g;
+	Pref = p; modn = n; cohesion = c;
+	Phi = Phi; peakStrain = peakStrain;
+	use_custom_surface = false;
+	
+	// generate yield surfaces
+	generateYieldSurfaces();
+}
+
+
+DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Drucker-Prager constructor
+	double n, double c, double peakStrain, double Phi, double dilationAngle)
+{
+
+}
+
+
+DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Matsuoka-Nakai constructor
+	double n, double peakStrain, double Phi)
+{
+
+}
+
+
+		// data-driven surface constructors
 DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// von Mises constructor
 	double n, double c, double* gp, double* hp)
 {
 	// initialize variables
 	TNYS = tnys; Kref = k; Gref = g;
 	Pref = p; modn = n; cohesion = c;
+	use_custom_surface = true;
 
 	// handle user defined surfaces
 	if (TNYS < 0)
@@ -134,6 +167,59 @@ double DataDrivenNestedSurfaces::getDP(int num) { return DilatParams(num); }
 	// generate methods
 void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
 {
+	// generate plastic modulus and hardening parameter sets
+	// based on the hyperbolic backbone model
+	opserr << "generateYieldSurfaces: Works until here!\n";
+
+	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
+	double refStrain, peakShear, coneHeight;
+
+	if (use_custom_surface)
+	{
+
+	}
+	else
+	{
+		if (Phi > 0) {
+			double sinPhi = sin(Phi * M_PI / 180.);
+			double Mnys = 6. * sinPhi / (3. - sinPhi);
+			residualPressure = 3. * cohesion / (sqrt(2.) * Mnys);
+			coneHeight = -(Pref - residualPressure);
+			peakShear = sqrt(2.) * coneHeight * Mnys / 3.;
+			refStrain = (peakStrain * peakShear) / (Gref * peakStrain - peakShear);
+		}
+
+		else if (Phi == 0.0) { // cohesion = peakShearStrength
+			peakShear = 2 * sqrt(2.) * cohesion / 3;
+			refStrain = (peakStrain * peakShear) / (Gref * peakStrain - peakShear);
+			residualPressure = 0.;
+		}
+
+		double stressInc = peakShear / TNYS;
+
+		for (int ii = 1; ii <= TNYS; ii++) {
+			stress1 = ii * stressInc;
+			stress2 = stress1 + stressInc;
+			strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+			strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
+			if (Phi > 0.) size = 3. * stress1 / sqrt(2.) / coneHeight;
+			else if (Phi == 0.) size = 3. * stress1 / sqrt(2.);
+
+			Hep_ref = 2. * (stress2 - stress1) / (strain2 - strain1);
+
+			if ((2. * Gref - Hep_ref) <= 0)
+				Href = LARGE_NUMBER;
+			else
+				Href = (2. * Gref * Hep_ref) /
+				(2. * Gref - Hep_ref);
+			if (Href < 0) Href = 0;
+			if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
+			if (ii == TNYS) Href = 0;
+
+			static Vector temp(6);
+			committedSurfaces[ii] = MultiYieldSurface(temp, size, Href);
+		}
+	}
 
 }
 

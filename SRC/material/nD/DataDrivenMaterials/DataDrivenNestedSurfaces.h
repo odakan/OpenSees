@@ -24,6 +24,7 @@
 
 #ifndef DataDrivenNestedSurfaces_h
 #define DataDrivenNestedSurfaces_h
+#define _USE_MATH_DEFINES
 
 // Written by:	Onur Deniz Akan		(onur.akan@iusspavia.it)
 //				Guido Camata      
@@ -33,6 +34,7 @@
 // Created in:	September 2022
 //
 
+#include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
 
@@ -42,7 +44,15 @@ public:
 	DataDrivenNestedSurfaces(void) = default;
 
 	// full constructors
-	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;				// default constructor
+	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;		// default constructor
+		// traditional hyperbolic surface constructors
+	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
+		double modn, double cohesion, double peakShearStrain, double frictionAngle);
+	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
+		double modn, double cohesion, double peakShearStrain, double frictionAngle, double dilationAngle);
+	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
+		double modn, double peakShearStrain, double frictionAngle);
+		// data-driven surface constructors
 	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
 		double modn, double cohesion, double* Href, double* HardParams);
 	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
@@ -60,7 +70,7 @@ public:
 	bool canDelete(void);													// return true if no other material is using the object
 	void checkin(void);														// increase how_many counter
 	void checkout(void);													// decrease how_many counter
-	DataDrivenNestedSurfaces* getCopy(void);										// retun a copy of the object
+	DataDrivenNestedSurfaces* getCopy(void);								// retun a copy of the object
 
 	// update methods
 	void updateTNYS(int var);
@@ -92,13 +102,15 @@ public:
 private:
 	// yield surface input variables
 	int TNYS = 0;								// total number of yield surfaces
-	double Kref = 0.;							// Reference bulk modulus
-	double Gref = 0.;							// Reference shear modulus
-	double Pref = 0.;							// Reference pressure
-	double modn = 0.;							// Modulus update power n
-	double Phi = 0.;							// internal friction angle (reference)
-	double cohesion = 0.;						// cohesion (reference)
-	double Psi = 0.;							// dilation angle (reference)
+	double Kref = 0.0;							// Reference bulk modulus
+	double Gref = 0.0;							// Reference shear modulus
+	double Pref = 0.0;							// Reference pressure
+	double modn = 0.0;							// Modulus update power n
+	double Phi = 0.0;							// internal friction angle (reference)
+	double cohesion = 0.0;						// cohesion (reference)
+	double peakStrain = 0.0;					// peak shear strain for the hyperbolic backbone
+	double Psi = 0.0;							// dilation angle (reference)
+	double residualPressure = 0.0;
 	Vector Href;								// plastic shear moduli
 	Vector HardParams;							// hardening parameters
 	Vector DilatParams;							// dilation parameters
@@ -107,7 +119,7 @@ private:
 	bool use_custom_surface = false;			// use user defined yield surface parameters
 
 	// operational variables
-	int how_many = 0;							// number of materials using the object
+	int how_many = 0;							// number of materials using this surface object
 
 	// generate methods
 	void generateYieldSurfaces(void);
