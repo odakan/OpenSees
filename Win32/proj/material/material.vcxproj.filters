@@ -1379,6 +1379,9 @@
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.cpp">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
+	<ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.cpp">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
@@ -2613,6 +2616,9 @@
       <Filter>section</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+	<ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.h">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.h">

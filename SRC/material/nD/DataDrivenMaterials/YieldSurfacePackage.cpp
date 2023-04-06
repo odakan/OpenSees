@@ -18,7 +18,7 @@
 **                                                                    **
 ** ****************************************************************** */
 
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.cpp$
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/YieldSurfacePackage.cpp$
 // $Revision: 1.0 $
 // $Date: 2022-XX-XX XX:XX:XX $
 
@@ -29,17 +29,17 @@
 //
 // Created in:	September 2022
 //
-// Description: This file contains the implementation for the DataDrivenNestedSurfaces class.
+// Description: This file contains the implementation for the YieldSurfacePackage class.
 
 
-#include "DataDrivenNestedSurfaces.h"
+#include "YieldSurfacePackage.h"
 
 #define LARGE_NUMBER 1.0e30
 
 // Public methods
 	// full constructors
 		// traditional hyperbolic surface constructors
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// von Mises constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// von Mises constructor
 	double n, double c, double peakStrain, double Phi)
 {
 	// initialize variables
@@ -53,14 +53,14 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g,
 }
 
 
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Drucker-Prager constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// Drucker-Prager constructor
 	double n, double c, double peakStrain, double Phi, double dilationAngle)
 {
 
 }
 
 
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Matsuoka-Nakai constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// Matsuoka-Nakai constructor
 	double n, double peakStrain, double Phi)
 {
 
@@ -68,7 +68,7 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g,
 
 
 		// data-driven surface constructors
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// von Mises constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// von Mises constructor
 	double n, double c, double* gp, double* hp)
 {
 	// initialize variables
@@ -96,8 +96,8 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g,
 		}
 		else
 		{
-			opserr << "WARNING: DataDrivenNestedSurfaces::DataDrivenNestedSurfaces: vector parameters returned NULLPTR!\n";
-			opserr << "WARNING: DataDrivenNestedSurfaces::DataDrivenNestedSurfaces: Generating automatic surfaces instead!\n";
+			opserr << "WARNING: YieldSurfacePackage::YieldSurfacePackage: vector parameters returned NULLPTR!\n";
+			opserr << "WARNING: YieldSurfacePackage::YieldSurfacePackage: Generating automatic surfaces instead!\n";
 			use_custom_surface = false;
 		}
 	}
@@ -107,14 +107,14 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g,
 }
 
 
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Drucker-Prager constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// Drucker-Prager constructor
 	double n, double c)
 {
 
 }
 
 
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g, double p,			// Matsuoka-Nakai constructor
+YieldSurfacePackage::YieldSurfacePackage(int tnys, double k, double g, double p,			// Matsuoka-Nakai constructor
 	double n)
 {
 
@@ -122,50 +122,50 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tnys, double k, double g,
 
 
 	// destructor
-DataDrivenNestedSurfaces::~DataDrivenNestedSurfaces(void) 
+YieldSurfacePackage::~YieldSurfacePackage(void) 
 {
 }
 
 	// operational methods
-bool DataDrivenNestedSurfaces::canDelete(void) { return (how_many < 2); }
-void DataDrivenNestedSurfaces::checkin(void) { how_many++;}
-void DataDrivenNestedSurfaces::checkout(void) { how_many--;}
+bool YieldSurfacePackage::canDelete(void) { return (how_many < 2); }
+void YieldSurfacePackage::checkin(void) { how_many++;}
+void YieldSurfacePackage::checkout(void) { how_many--;}
 
-DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void) 
+YieldSurfacePackage* YieldSurfacePackage::getCopy(void) 
 {
-	DataDrivenNestedSurfaces* copy = new DataDrivenNestedSurfaces(*this);
+	YieldSurfacePackage* copy = new YieldSurfacePackage(*this);
 	return copy;
 }
 
 	// update methods
-void DataDrivenNestedSurfaces::updateTNYS(int var) { TNYS = var; }
-void DataDrivenNestedSurfaces::updateKref(double var) { Kref = var; }
-void DataDrivenNestedSurfaces::updateGref(double var) { Gref = var; }
-void DataDrivenNestedSurfaces::updatePref(double var) { Pref = var; }
-void DataDrivenNestedSurfaces::updateModn(double var) { modn = var; }
-void DataDrivenNestedSurfaces::updatePhi(double var) { Phi = var; }
-void DataDrivenNestedSurfaces::updatePsi(double var) { Psi = var; }
-void DataDrivenNestedSurfaces::updateCohesion(double var) { cohesion = var; }
-void DataDrivenNestedSurfaces::updateHardParams(Vector& var) { HardParams = var; }
-void DataDrivenNestedSurfaces::updateHardParams(double var, int nYs_active) { HardParams(nYs_active) = var; }
-void DataDrivenNestedSurfaces::updateDilatParams(Vector& var) { DilatParams = var; }
-void DataDrivenNestedSurfaces::updateDilatParams(double var, int nYs_active) { DilatParams(nYs_active) = var; }
+void YieldSurfacePackage::updateTNYS(int var) { TNYS = var; }
+void YieldSurfacePackage::updateKref(double var) { Kref = var; }
+void YieldSurfacePackage::updateGref(double var) { Gref = var; }
+void YieldSurfacePackage::updatePref(double var) { Pref = var; }
+void YieldSurfacePackage::updateModn(double var) { modn = var; }
+void YieldSurfacePackage::updatePhi(double var) { Phi = var; }
+void YieldSurfacePackage::updatePsi(double var) { Psi = var; }
+void YieldSurfacePackage::updateCohesion(double var) { cohesion = var; }
+void YieldSurfacePackage::updateHardParams(Vector& var) { HardParams = var; }
+void YieldSurfacePackage::updateHardParams(double var, int nYs_active) { HardParams(nYs_active) = var; }
+void YieldSurfacePackage::updateDilatParams(Vector& var) { DilatParams = var; }
+void YieldSurfacePackage::updateDilatParams(double var, int nYs_active) { DilatParams(nYs_active) = var; }
 
 // get methods
-int DataDrivenNestedSurfaces::getTNYS(void) { return TNYS; }
-double DataDrivenNestedSurfaces::getKref(void) { return Kref; }
-double DataDrivenNestedSurfaces::getGref(void) { return Gref; }
-double DataDrivenNestedSurfaces::getPref(void) { return Pref; }
-double DataDrivenNestedSurfaces::getModn(void) { return modn; }
-double DataDrivenNestedSurfaces::getPhi(void) { return Phi; }
-double DataDrivenNestedSurfaces::getPsi(void) { return Psi; }
-double DataDrivenNestedSurfaces::getCohesion(void) { return cohesion; }
-double DataDrivenNestedSurfaces::getHref(int num) { return Href(num); }
-double DataDrivenNestedSurfaces::getHP(int num) { return HardParams(num); }
-double DataDrivenNestedSurfaces::getDP(int num) { return DilatParams(num); }
+int YieldSurfacePackage::getTNYS(void) { return TNYS; }
+double YieldSurfacePackage::getKref(void) { return Kref; }
+double YieldSurfacePackage::getGref(void) { return Gref; }
+double YieldSurfacePackage::getPref(void) { return Pref; }
+double YieldSurfacePackage::getModn(void) { return modn; }
+double YieldSurfacePackage::getPhi(void) { return Phi; }
+double YieldSurfacePackage::getPsi(void) { return Psi; }
+double YieldSurfacePackage::getCohesion(void) { return cohesion; }
+double YieldSurfacePackage::getHref(int num) { return Href(num); }
+double YieldSurfacePackage::getHP(int num) { return HardParams(num); }
+double YieldSurfacePackage::getDP(int num) { return DilatParams(num); }
 
 	// generate methods
-void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
+void YieldSurfacePackage::generateYieldSurfaces(void)
 {
 	// generate plastic modulus and hardening parameter sets
 	// based on the hyperbolic backbone model

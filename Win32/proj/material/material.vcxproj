@@ -449,6 +449,7 @@
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialTensorOperations.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialStateVariables.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.cpp" />
+	<ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_VonMisesDMM.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_DruckerPragerDMM.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_MatsuokaNakaiDMM.cpp" />
@@ -868,6 +869,7 @@
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialTensorOperations.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialStateVariables.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.h" />
+	<ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MultiYieldSurfaceHardeningSoftening.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\VonMisesDMM.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.h" />

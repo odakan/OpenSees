@@ -138,6 +138,7 @@
       <AssemblerListingLocation>.\..\..\obj\damage\release/</AssemblerListingLocation>
       <ObjectFileName>.\..\..\obj\damage\release/</ObjectFileName>
       <ProgramDataBaseFileName>.\..\..\obj\damage\release/</ProgramDataBaseFileName>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Lib>
       <OutputFile>.\..\..\lib\release\damage.lib</OutputFile>

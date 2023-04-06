@@ -9,6 +9,7 @@ target_sources(OPS_Material
       MaterialTensorOperations.cpp
       MaterialStateVariables.cpp
       DataDrivenNestedSurfaces.cpp
+	  YieldSurfacePackage.cpp
       MultiYieldSurfaceHardeningSoftening.cpp
       VonMisesDDM.cpp
       DruckerPragerDMM.cpp
@@ -20,6 +21,7 @@ target_sources(OPS_Material
       MaterialTensorOperations.h
       MaterialStateVariables.h
       DataDrivenNestedSurfaces.h
+	  YieldSurfacePackage.h
       MultiYieldSurfaceHardeningSoftening.h
       VonMisesDMM.h
       DruckerPragerDMM.h

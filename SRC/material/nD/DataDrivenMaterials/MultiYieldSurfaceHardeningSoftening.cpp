@@ -18,7 +18,7 @@
 **                                                                    **
 ** ****************************************************************** */
 
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/MYSHSmaterials/MultiYieldSurfaceHardeningSoftening.cpp$
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/MultiYieldSurfaceHardeningSoftening.cpp$
 // $Revision: 1.0 $
 // $Date: 2022-XX-XX XX:XX:XX $
 

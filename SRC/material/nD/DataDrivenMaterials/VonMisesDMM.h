@@ -18,7 +18,7 @@
 **                                                                    **
 ** ****************************************************************** */
 
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/MYSHSmaterials/VonMisesDMM.h$
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/VonMisesDMM.h$
 // $Revision: 1.0 $
 // $Date: 2022-XX-XX XX:XX:XX $
 

@@ -18,7 +18,7 @@
 **                                                                    **
 ** ****************************************************************** */
 
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/MYSHSmaterials/MultiYieldSurfaceHardeningSoftening.h$
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/MultiYieldSurfaceHardeningSoftening.h$
 // $Revision: 1.0 $
 // $Date: 2022-XX-XX XX:XX:XX $
 
@@ -95,6 +95,7 @@ constexpr bool DEBUG = true;
 #include <NDMaterial.h>
 #include <Information.h>
 #include <FEM_ObjectBroker.h>
+#include "YieldSurfacePackage.h"
 #include "MaterialStateVariables.h"
 #include "MaterialTensorOperations.h"
 #include "DataDrivenNestedSurfaces.h"

@@ -18,12 +18,12 @@
 **                                                                    **
 ** ****************************************************************** */
 
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.h$
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/YieldSurfacePackage.h$
 // $Revision: 1.0 $
 // $Date: 2022-XX-XX XX:XX:XX $
 
-#ifndef DataDrivenNestedSurfaces_h
-#define DataDrivenNestedSurfaces_h
+#ifndef YieldSurfacePackage_h
+#define YieldSurfacePackage_h
 #define _USE_MATH_DEFINES
 
 // Written by:	Onur Deniz Akan		(onur.akan@iusspavia.it)
@@ -39,39 +39,39 @@
 #include <Matrix.h>
 #include "YieldSurfacePackage.h"
 
-class DataDrivenNestedSurfaces {
+class YieldSurfacePackage {
 public:
 	// null constructor
-	DataDrivenNestedSurfaces(void) = default;
+	YieldSurfacePackage(void) = default;
 
 	// full constructors
-	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;		// default constructor
+	YieldSurfacePackage(const YieldSurfacePackage&) = default;		// default constructor
 		// traditional hyperbolic surface constructors
-	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
+	YieldSurfacePackage(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
 		double modn, double cohesion, double peakShearStrain, double frictionAngle);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
+	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
 		double modn, double cohesion, double peakShearStrain, double frictionAngle, double dilationAngle);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
+	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
 		double modn, double peakShearStrain, double frictionAngle);
 		// data-driven surface constructors
-	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
+	YieldSurfacePackage(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
 		double modn, double cohesion, double* Href, double* HardParams);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
+	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
 		double modn, double cohesion);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
+	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
 		double modn);
 
 	// destructor
-	~DataDrivenNestedSurfaces(void);
+	~YieldSurfacePackage(void);
 
 	// operator overloading
-	DataDrivenNestedSurfaces& operator=(const DataDrivenNestedSurfaces&) = default;	// one-to-one assignment
+	YieldSurfacePackage& operator=(const YieldSurfacePackage&) = default;	// one-to-one assignment
 
 	// operational methods
 	bool canDelete(void);													// return true if no other material is using the object
 	void checkin(void);														// increase how_many counter
 	void checkout(void);													// decrease how_many counter
-	DataDrivenNestedSurfaces* getCopy(void);								// retun a copy of the object
+	YieldSurfacePackage* getCopy(void);								// retun a copy of the object
 
 	// update methods
 	void updateTNYS(int var);

@@ -925,6 +925,7 @@ MATERIAL_LIBS   =  $(FE)/material/Material.o \
 	$(FE)/material/nD/DataDrivenMaterials/MaterialTensorOperations.o \
 	$(FE)/material/nD/DataDrivenMaterials/MaterialStateVariables.o \
 	$(FE)/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.o \
+	$(FE)/material/nD/DataDrivenMaterials/YieldSurfacePackage.o \
 	$(FE)/material/nD/DataDrivenMaterials/MultiYieldSurfaceHardeningSoftening.o \
 	$(FE)/material/nD/DataDrivenMaterials/OPS_VonMisesDMM.o \
 	$(FE)/material/nD/DataDrivenMaterials/OPS_DruckerPragerDMM.o \
