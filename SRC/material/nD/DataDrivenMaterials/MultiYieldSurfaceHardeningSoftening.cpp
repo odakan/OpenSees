@@ -58,50 +58,71 @@ constexpr double SMALL_PERTURBATION = 1.0e-9;
 // Public methods
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
-	double density, DataDrivenNestedSurfaces* YieldSurfaces, bool itype)
-	:NDMaterial(tag, classTag),
-	rho(density), theSurface(YieldSurfaces), use_implex(itype)
+	DataDrivenNestedSurfaces* ys, int ddtype, int itype)
+	:NDMaterial(tag, classTag), theData(ys)
 {
+	
+	// handle solution options
+	if (itype == 1) {
+		use_implex = true;
+	}
+	else {
+		use_implex = true;
+	}
+
+	if (ddtype == 2) {
+		use_online_approach = true;
+		use_data_driven_surface = true;
+	}
+	else if (ddtype == 1) {
+		use_online_approach = false;
+		use_data_driven_surface = true;
+	}
+	else {
+		use_online_approach = false;
+		use_data_driven_surface = false;
+	}
+
 	// do some checks
-	if (theSurface == nullptr) {
+	if (theSurfaces == nullptr) {
 		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening:: yield surfaces are missing!\n";
-		opserr << "The pointer that points at the yield surface: theSurface = " << theSurface << "\n";
+		opserr << "The pointer that points at the yield surface: theSurfaces = " << theSurfaces << "\n";
 		exit(-1);
 	}
 	else {
 		// inform the yield surface object about the new instance
-		theSurface->checkin(); // do check-in
+		theSurfaces->checkin(); // do check-in
 	}
 	if (nOrd != 3 && nOrd != 6) {
 		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening:: dimension error\n";
 		opserr << "Material order has to be 3 or 6, but it is nOrd = " << nOrd << "\n";
 		exit(-1);
 	}
-	if (theSurface->getKref() <= 0) {
+	if (theSurfaces->getKref() <= 0) {
 		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening: Kref <= 0\n";
 		exit(-1);
 	}
-	if (theSurface->getGref() <= 0) {
+	if (theSurfaces->getGref() <= 0) {
 		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening: Gref <= 0\n";
 		exit(-1);
 	}
-	if (theSurface->getPref() <= 0) {
+	if (theSurfaces->getPref() <= 0) {
 		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: Pref <= 0\n";
 		opserr << "Use Pref = 101.325 kPa?\n";
 		exit(-1);
 	}
-	if (theSurface->getModn() < 0) {
+	if (theSurfaces->getModn() < 0) {
 		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: modn < 0\n";
 		opserr << "modn is assumed to be zero...\n";
-		theSurface->updateModn(0.);
+		theSurfaces->updateModn(0.);
 	}
-	if (theSurface->getCohesion() < 0) {
+	if (theSurfaces->getCohesion() < 0) {
 		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: cohesion < 0\n";
 		opserr << "Cohesion is assumed to be zero...\n";
-		theSurface->updateCohesion(0.);
+		theSurfaces->updateCohesion(0.);
 	}
 	if (rho < 0) {
-		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: mass density < 0\n";
+		opserr << "WARNING:VonMisesDMM: mass density < 0\n";
 		opserr << "mass density (rho) is assumed to be zero...\n";
 		rho = 0.;
 	}
@@ -118,18 +139,21 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(void)
 	// destructor
 MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening(void)
 {
-	// free the memory allocated to the nested yield surface object
-	if (theSurface != nullptr)
-	{
-		if (theSurface->canDelete())	// make sure that no other material
-		{								// is using the object.
-			delete[] theSurface;		// if permitted, delete the object
-			theSurface = nullptr;		// and reset pointer to nullptr.
+	// free the memory allocated to the yield surface package object
+	if (theSurfaces != nullptr) {
+		delete[] theSurfaces;		// delete the object
+		theSurfaces = nullptr;		// and reset pointer to nullptr.
+	}
+
+	// free the memory allocated to the data-driven nested yield surface object
+	if (theData != nullptr) {
+		if (theData->canDelete()) {	// make sure that no other material is using the object.
+			delete[] theData;		// if permitted, delete the object
+			theData = nullptr;		// and reset pointer to nullptr.
 		}
-		else							// if not, inform the object about
-		{								// leave and check this instance out.
-			theSurface->checkout();
-			theSurface = nullptr;
+		else {						// if not, inform the object about								
+			theData->checkout();	// leave and check this instance out
+			theData = nullptr;		// and reset pointer to nullptr.
 		}
 	}
 }
@@ -183,7 +207,7 @@ int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
 
 int MultiYieldSurfaceHardeningSoftening::revertToStart(void) {
 	// reset state variables
-	sv = MaterialStateVariables(theSurface->getTNYS());
+	sv = MaterialStateVariables(theSurfaces->getTNYS());
 
 	// reset elastoplastic stiffness
 	updateModulus(sv.sig, sv.nYs_active);
@@ -318,6 +342,17 @@ Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
 
 	return mState;
 }
+
+double MultiYieldSurfaceHardeningSoftening::getRho(void) { return rho; }
+double MultiYieldSurfaceHardeningSoftening::getKref(void) { return Kref; }
+double MultiYieldSurfaceHardeningSoftening::getGref(void) { return Gref; }
+double MultiYieldSurfaceHardeningSoftening::getPref(void) { return Pref; }
+double MultiYieldSurfaceHardeningSoftening::getModn(void) { return Modn; }
+double MultiYieldSurfaceHardeningSoftening::getPhi(void) { return Phi; }
+double MultiYieldSurfaceHardeningSoftening::getPsi(void) { return Psi; }
+double MultiYieldSurfaceHardeningSoftening::getCohesion(void) { return Cohesion; }
+double MultiYieldSurfaceHardeningSoftening::getPeakStrain(void) { return PeakStrain; }
+
 
 	// return stress & strain
 const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
@@ -487,14 +522,11 @@ int MultiYieldSurfaceHardeningSoftening::setParameter(const char** argv, int arg
 }
 
 int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Information& info) {
-	if (responseID == 1) {
-		materialStage = info.theInt;
-	}
-	else if (responseID == 10) {
-		theSurface->updateGref(info.theDouble);
+	if (responseID == 10) {
+		theSurfaces->updateGref(info.theDouble);
 	}
 	else if (responseID == 11) {
-		theSurface->updateKref(info.theDouble);
+		theSurfaces->updateKref(info.theDouble);
 	}
 	else if (responseID == 109) {
 		if (info.theInt == 0) {
@@ -545,7 +577,7 @@ double MultiYieldSurfaceHardeningSoftening::getK(void) { return sv.Kmod; }
 double MultiYieldSurfaceHardeningSoftening::getG(void) { return sv.Gmod; }
 double MultiYieldSurfaceHardeningSoftening::getRho(void) { return rho; }
 double MultiYieldSurfaceHardeningSoftening::getNumActiveYS(void) { return sv.nYs_active_commit; }
-double MultiYieldSurfaceHardeningSoftening::getHardParam(void) { return theSurface->getHP(sv.nYs_active_commit); }
+double MultiYieldSurfaceHardeningSoftening::getHardParam(void) { return theSurfaces->getHP(sv.nYs_active_commit); }
 double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_yield_surface) { return yieldFunction(sv.sig, num_yield_surface, true); }
 double MultiYieldSurfaceHardeningSoftening::getMeanStress(const Vector& stress) { return 1. / 3. * (stress(0) + stress(1) + stress(2)); }
 const Vector MultiYieldSurfaceHardeningSoftening::getStressVector(void) { return sv.sig_commit; }
@@ -603,11 +635,11 @@ void MultiYieldSurfaceHardeningSoftening::updateStress(Vector& stress, const dou
 
 void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, int num_yield_surface) {
 	// get parameters
-	double Gref = theSurface->getGref();
-	double Kref = theSurface->getKref();
-	double Pref = theSurface->getPref();
-	double modn = theSurface->getModn();
-	double Href = theSurface->getHref(num_yield_surface);
+	double Gref = theSurfaces->getGref();
+	double Kref = theSurfaces->getKref();
+	double Pref = theSurfaces->getPref();
+	double modn = theSurfaces->getModn();
+	double Href = theSurfaces->getHref(num_yield_surface);
 
 	sv.Gmod = Gref;
 	sv.Kmod = Kref;
@@ -726,7 +758,7 @@ void MultiYieldSurfaceHardeningSoftening::updateFailureSurface(const Vector& str
 	//DO YOU NEED ZETA OR SIJ BELOW????
 
 	// get some constants
-	double TNYS = theSurface->getTNYS();
+	double TNYS = theSurfaces->getTNYS();
 
 	// initialize variables 
 	Vector alpha = tools::getColumnVector(TNYS, sv.alpha);
@@ -834,7 +866,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& eps
 	int converged = -1;
 
 	// get some constants
-	double TNYS = theSurface->getTNYS();
+	double TNYS = theSurfaces->getTNYS();
 	double curr_yf_value = 0;
 
 	// Algorithm 7.2 Prevost (1985)

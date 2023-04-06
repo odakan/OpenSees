@@ -35,10 +35,15 @@
 
 // Public methods
 	// full constructor
-VonMisesDMM::VonMisesDMM(int tag, double density, DataDrivenNestedSurfaces* YieldSurfaces, bool itype)
-	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_VonMisesDMM, density, YieldSurfaces, itype)
+VonMisesDMM::VonMisesDMM(int tag, double r0,
+	double K0, double G0, double P0, double m0,
+	int T0, DataDrivenNestedSurfaces* ys,
+	int ddtype, int itype)
+	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_VonMisesDMM, ys, ddtype, itype)
 {
-	if (theSurface->getCohesion() < 0) {
+	rho = r0;  TNYS = T0; Kref = K0; Gref = G0;
+	Pref = P0; Modn = m0; 
+	if (theSurfaces->getCohesion() < 0) {
 		opserr << "FATAL:VonMisesDMM: cohesion <= 0\n";
 		opserr << "Yield strength (cohesion) cannot be zero...\n";
 		exit(-1);
@@ -58,6 +63,7 @@ VonMisesDMM::~VonMisesDMM(void)
 
 // return object info
 NDMaterial* VonMisesDMM::getCopy(void) {
+
 	VonMisesDMM* copy = nullptr;
 	// set material type and order
 	if (OPS_GetNDM() == 2) {		// PlaneStrain
@@ -71,7 +77,7 @@ NDMaterial* VonMisesDMM::getCopy(void) {
 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theSurface->checkin(); // do check-in
+		theSurfaces->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -84,6 +90,7 @@ NDMaterial* VonMisesDMM::getCopy(void) {
 }
 
 NDMaterial* VonMisesDMM::getCopy(const char* type) {
+
 	VonMisesDMM* copy = nullptr;
 	if (strcmp(type, "VonMisesDMM") == 0 || strcmp(type, "ThreeDimensional") == 0) {
 		nOrd = 6; // ThreeDimensional
@@ -102,7 +109,7 @@ NDMaterial* VonMisesDMM::getCopy(const char* type) {
 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theSurface->checkin(); // do check-in
+		theSurfaces->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -116,6 +123,7 @@ NDMaterial* VonMisesDMM::getCopy(const char* type) {
 
 // parallel message passing
 int VonMisesDMM::sendSelf(int commitTag, Channel& theChannel) {
+
 	int res = 0;
 
 	// place data in a vector
@@ -133,6 +141,7 @@ int VonMisesDMM::sendSelf(int commitTag, Channel& theChannel) {
 }
 
 int VonMisesDMM::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker) {
+
 	int res = 0;
 
 	// receive data
@@ -156,6 +165,7 @@ void VonMisesDMM::Print(OPS_Stream& s, int flag) {
 }
 
 int VonMisesDMM::setParameter(const char** argv, int argc, Parameter& param) {
+
 	if (argc < 2)
 		return -1;
 
@@ -178,11 +188,20 @@ int VonMisesDMM::setParameter(const char** argv, int argc, Parameter& param) {
 }
 
 int VonMisesDMM::updateParameter(int responseID, Information& info) {
-	if (responseID == 12) {
+
+	if (responseID == 1) {
+		// update material stage and if nonlinear set up yield surfaces 
+		materialStage = info.theInt;
+		if (materialStage > 0) {
+			// set-up yield surfaces
+			theSurfaces = theData->setUpYieldSurfaces(this);
+		}
+	}
+	else if (responseID == 12) {
 		//frictionAnglex[matN] = info.theDouble;
 	}
 	else if (responseID == 13) {
-		theSurface->updateCohesion(info.theDouble);
+		theSurfaces->updateCohesion(info.theDouble);
 	}
 
 	// also go through the base-class method
@@ -193,8 +212,8 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 	// yield surface operations
 double VonMisesDMM::yieldFunction(const Vector& stress, const int num_yield_surface, bool yield_Stress = false) {
 	// get material constants
-	double Pc = theSurface->getCohesion();
-	double M = theSurface->getHP(num_yield_surface);
+	double Pc = theSurfaces->getCohesion();
+	double M = theSurfaces->getHP(num_yield_surface);
 
 	// Evaluate and return the yield surface value
 	double yf = sqrt(2./3.) * M * Pc;
@@ -231,7 +250,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 		opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
 		opserr << "curr_sz = 0  \n";
 		opserr << "N_active_ys: " << num_yield_surface << "\n";
-		opserr << "Total theSurface  : " << theSurface->getTNYS() << "\n";
+		opserr << "Total theSurfaces  : " << theSurfaces->getTNYS() << "\n";
 		opserr << "\n";
 		exit(-1);
 	}
@@ -242,13 +261,13 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 	Vector zeta = getStressDeviator(stress, num_yield_surface);
 	Vector Q_prime = zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
-	if (num_yield_surface >= theSurface->getTNYS()) {
-		double H_prime = theSurface->getHref(theSurface->getTNYS());
+	if (num_yield_surface >= theSurfaces->getTNYS()) {
+		double H_prime = theSurfaces->getHref(theSurfaces->getTNYS());
 		dhda = (H_prime / Pavg) * Q_prime;
 	}
 	else {
 		double next_radius = getSizeYS(num_yield_surface + 1);
-		double H_prime = theSurface->getHref(num_yield_surface);
+		double H_prime = theSurfaces->getHref(num_yield_surface);
 		Vector next_zeta = getStressDeviator(stress, num_yield_surface + 1);
 
 		dhda = ((next_radius / radius) * (zeta)) - (next_zeta);
@@ -259,7 +278,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 			opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
 			opserr << "denominator = 0  \n";
 			opserr << "N_active_ys: " << num_yield_surface << "\n";
-			opserr << "Total theSurface  : " << theSurface->getTNYS() << "\n";
+			opserr << "Total theSurfaces  : " << theSurfaces->getTNYS() << "\n";
 			opserr << "\n";
 			exit(-1);
 		}

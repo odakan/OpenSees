@@ -39,27 +39,14 @@
 #include <Matrix.h>
 #include "YieldSurfacePackage.h"
 
+
 class YieldSurfacePackage {
 public:
 	// null constructor
 	YieldSurfacePackage(void) = default;
 
 	// full constructors
-	YieldSurfacePackage(const YieldSurfacePackage&) = default;		// default constructor
-		// traditional hyperbolic surface constructors
-	YieldSurfacePackage(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
-		double modn, double cohesion, double peakShearStrain, double frictionAngle);
-	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
-		double modn, double cohesion, double peakShearStrain, double frictionAngle, double dilationAngle);
-	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
-		double modn, double peakShearStrain, double frictionAngle);
-		// data-driven surface constructors
-	YieldSurfacePackage(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
-		double modn, double cohesion, double* Href, double* HardParams);
-	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
-		double modn, double cohesion);
-	YieldSurfacePackage(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
-		double modn);
+	YieldSurfacePackage(const YieldSurfacePackage&) = default;				// default constructor
 
 	// destructor
 	~YieldSurfacePackage(void);
@@ -71,7 +58,7 @@ public:
 	bool canDelete(void);													// return true if no other material is using the object
 	void checkin(void);														// increase how_many counter
 	void checkout(void);													// decrease how_many counter
-	YieldSurfacePackage* getCopy(void);								// retun a copy of the object
+	YieldSurfacePackage* getCopy(void);										// retun a copy of the object
 
 	// update methods
 	void updateTNYS(int var);
@@ -117,7 +104,8 @@ private:
 	Vector DilatParams;							// dilation parameters
 
 	// surface generation options
-	bool use_custom_surface = false;			// use user defined yield surface parameters
+	bool use_data_driven_surface = false;			// yield surface flag [true: use data driven yield surfaces, false: use hyperbolic backbone]
+	bool use_online_approach = false;				// yield surface update approach flag [true: online, false: offline]
 
 	// operational variables
 	int how_many = 0;							// number of materials using this surface object

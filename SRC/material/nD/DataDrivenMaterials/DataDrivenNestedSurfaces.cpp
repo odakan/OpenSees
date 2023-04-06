@@ -36,6 +36,7 @@
 
 #define LARGE_NUMBER 1.0e30
 
+
 // Public methods
 	// full constructors
 		// traditional hyperbolic surface constructors
@@ -126,10 +127,12 @@ DataDrivenNestedSurfaces::~DataDrivenNestedSurfaces(void)
 {
 }
 
+
 	// operational methods
 bool DataDrivenNestedSurfaces::canDelete(void) { return (how_many < 2); }
 void DataDrivenNestedSurfaces::checkin(void) { how_many++;}
 void DataDrivenNestedSurfaces::checkout(void) { how_many--;}
+
 
 DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void) 
 {
@@ -137,35 +140,50 @@ DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void)
 	return copy;
 }
 
+
 	// update methods
-void DataDrivenNestedSurfaces::updateTNYS(int var) { TNYS = var; }
-void DataDrivenNestedSurfaces::updateKref(double var) { Kref = var; }
-void DataDrivenNestedSurfaces::updateGref(double var) { Gref = var; }
-void DataDrivenNestedSurfaces::updatePref(double var) { Pref = var; }
-void DataDrivenNestedSurfaces::updateModn(double var) { modn = var; }
-void DataDrivenNestedSurfaces::updatePhi(double var) { Phi = var; }
-void DataDrivenNestedSurfaces::updatePsi(double var) { Psi = var; }
-void DataDrivenNestedSurfaces::updateCohesion(double var) { cohesion = var; }
 void DataDrivenNestedSurfaces::updateHardParams(Vector& var) { HardParams = var; }
 void DataDrivenNestedSurfaces::updateHardParams(double var, int nYs_active) { HardParams(nYs_active) = var; }
 void DataDrivenNestedSurfaces::updateDilatParams(Vector& var) { DilatParams = var; }
 void DataDrivenNestedSurfaces::updateDilatParams(double var, int nYs_active) { DilatParams(nYs_active) = var; }
 
+
 // get methods
-int DataDrivenNestedSurfaces::getTNYS(void) { return TNYS; }
-double DataDrivenNestedSurfaces::getKref(void) { return Kref; }
-double DataDrivenNestedSurfaces::getGref(void) { return Gref; }
-double DataDrivenNestedSurfaces::getPref(void) { return Pref; }
-double DataDrivenNestedSurfaces::getModn(void) { return modn; }
-double DataDrivenNestedSurfaces::getPhi(void) { return Phi; }
-double DataDrivenNestedSurfaces::getPsi(void) { return Psi; }
-double DataDrivenNestedSurfaces::getCohesion(void) { return cohesion; }
 double DataDrivenNestedSurfaces::getHref(int num) { return Href(num); }
 double DataDrivenNestedSurfaces::getHP(int num) { return HardParams(num); }
 double DataDrivenNestedSurfaces::getDP(int num) { return DilatParams(num); }
 
+
+// setup nested yield surface package
+YieldSurfacePackage* DataDrivenNestedSurfaces::setUpYieldSurfaces(VonMisesDMM* theMaterial) {
+
+	YieldSurfacePackage* theSurface = nullptr;
+	theSurface = new YieldSurfacePackage();
+	generateYieldSurfaces(theMaterial);
+
+	return theSurface;
+}
+
+
+YieldSurfacePackage* DataDrivenNestedSurfaces::setUpYieldSurfaces(DruckerPragerDMM* theMaterial) {
+	YieldSurfacePackage* theSurface = nullptr;
+
+
+	return theSurface;
+}
+
+
+YieldSurfacePackage* DataDrivenNestedSurfaces::setUpYieldSurfaces(MatsuokaNakaiDMM* theMaterial) {
+	YieldSurfacePackage* theSurface = nullptr;
+
+
+	return theSurface;
+}
+
+
+// Private methods
 	// generate methods
-void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
+void DataDrivenNestedSurfaces::generateYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial)
 {
 	// generate plastic modulus and hardening parameter sets
 	// based on the hyperbolic backbone model
@@ -180,7 +198,7 @@ void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
 	}
 	else
 	{
-		if (Phi > 0) {
+		if (theMaterial->Phi > 0) {
 			double sinPhi = sin(Phi * M_PI / 180.);
 			double Mnys = 6. * sinPhi / (3. - sinPhi);
 			residualPressure = 3. * cohesion / (sqrt(2.) * Mnys);
@@ -218,8 +236,8 @@ void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
 				Href = (2. * Gref * Hep_ref) / (2. * Gref - Hep_ref);
 			}
 
-			if (Href < 0) { 
-				Href = 0; 
+			if (Href < 0) {
+				Href = 0;
 			}
 
 			if (Href > LARGE_NUMBER) {
@@ -236,5 +254,3 @@ void DataDrivenNestedSurfaces::generateYieldSurfaces(void)
 	}
 
 }
-
-// Private methods

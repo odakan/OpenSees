@@ -105,11 +105,10 @@ class VonMisesDMM : public MultiYieldSurfaceHardeningSoftening
 {
 public:
 	//full constructor
-	VonMisesDMM( int tag,				// nD material tag
-		double rho,						// mass density
-		DataDrivenNestedSurfaces* nys,	// nested yield surfaces
-		bool itype						// integration type (true = implex, false = implicit)		
-	);
+	VonMisesDMM(int tag, double rho,
+		double Kref, double Gref, double Pref, double modn,
+		int TNYS, DataDrivenNestedSurfaces* theData,
+		int dataDriverType, int integrationType);
 
 	//null constructor
 	VonMisesDMM();
@@ -138,5 +137,6 @@ private:
 	Vector get_dF_dA(const Vector& stress, const int num_yield_surface);		// Return normal to the yield surface w.r.t alpha (backstress)
 	Vector get_dH_dA(const Vector& stress, const int num_yield_surface);		// Return normal to the hardening potential w.r.t alpha (backstress)
 	Vector get_dP_dS(const Vector& stress, const int num_yield_surface);		// Return normal to the plastic potential w.r.t stress
+
 };
 #endif

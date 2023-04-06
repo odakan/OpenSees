@@ -37,7 +37,11 @@
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
+#include "VonMisesDMM.h"
+#include "DruckerPragerDMM.h"
+#include "MatsuokaNakaiDMM.h"
 #include "YieldSurfacePackage.h"
+
 
 class DataDrivenNestedSurfaces {
 public:
@@ -45,27 +49,19 @@ public:
 	DataDrivenNestedSurfaces(void) = default;
 
 	// full constructors
-	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;		// default constructor
-		// traditional hyperbolic surface constructors
-	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
-		double modn, double cohesion, double peakShearStrain, double frictionAngle);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
-		double modn, double cohesion, double peakShearStrain, double frictionAngle, double dilationAngle);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
-		double modn, double peakShearStrain, double frictionAngle);
-		// data-driven surface constructors
-	DataDrivenNestedSurfaces(int tnys, double Kref, double Gref, double Pref,	// von Mises type constructor
-		double modn, double cohesion, double* Href, double* HardParams);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Drucker-Prager type constructor
-		double modn, double cohesion);
-	DataDrivenNestedSurfaces(int TNYS, double Kref, double Gref, double Pref,	// Matsuoka-Nakai type constructor
-		double modn);
+	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;											// copy constructor
+	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double peakShearStrain,							// von Mises type constructor
+		double* HModuli, double* HParams);	
+	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// Drucker-Prager type constructor
+		double* HModuli, double* HParams);	
+	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// Matsuoka-Nakai type constructor
+		double* HModuli, double* HParams);	
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
 
 	// operator overloading
-	DataDrivenNestedSurfaces& operator=(const DataDrivenNestedSurfaces&) = default;	// one-to-one assignment
+	DataDrivenNestedSurfaces& operator=(const DataDrivenNestedSurfaces&) = default;		// one-to-one assignment
 
 	// operational methods
 	bool canDelete(void);													// return true if no other material is using the object
@@ -100,17 +96,13 @@ public:
 	double getHP(int num);
 	double getDP(int num);
 
+	// setup yield surface
+	YieldSurfacePackage* setUpYieldSurfaces(VonMisesDMM* theMaterial);
+	YieldSurfacePackage* setUpYieldSurfaces(DruckerPragerDMM* theMaterial);
+	YieldSurfacePackage* setUpYieldSurfaces(MatsuokaNakaiDMM* theMaterial);
+
+
 private:
-	// yield surface input variables
-	int TNYS = 0;								// total number of yield surfaces
-	double Kref = 0.0;							// Reference bulk modulus
-	double Gref = 0.0;							// Reference shear modulus
-	double Pref = 0.0;							// Reference pressure
-	double modn = 0.0;							// Modulus update power n
-	double Phi = 0.0;							// internal friction angle (reference)
-	double cohesion = 0.0;						// cohesion (reference)
-	double peakStrain = 0.0;					// peak shear strain for the hyperbolic backbone
-	double Psi = 0.0;							// dilation angle (reference)
 	double residualPressure = 0.0;
 	Vector Href;								// plastic shear moduli
 	Vector HardParams;							// hardening parameters
@@ -123,7 +115,7 @@ private:
 	int how_many = 0;							// number of materials using this surface object
 
 	// generate methods
-	void generateYieldSurfaces(void);
+	void generateYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial);
 
 };
 #endif
