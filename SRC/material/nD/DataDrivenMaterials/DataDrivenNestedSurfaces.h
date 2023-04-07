@@ -37,10 +37,8 @@
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
-#include "VonMisesDMM.h"
-#include "DruckerPragerDMM.h"
-#include "MatsuokaNakaiDMM.h"
 #include "YieldSurfacePackage.h"
+#include "MultiYieldSurfaceHardeningSoftening.h"
 
 
 class DataDrivenNestedSurfaces {
@@ -50,12 +48,10 @@ public:
 
 	// full constructors
 	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;											// copy constructor
-	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double peakShearStrain,							// von Mises type constructor
-		double* HModuli, double* HParams);	
-	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// Drucker-Prager type constructor
-		double* HModuli, double* HParams);	
-	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// Matsuoka-Nakai type constructor
-		double* HModuli, double* HParams);	
+	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double peakShearStrain,							// pressure-independent type constructor
+		double tnys, double* HModuli, double* HParams);
+	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// pressure-dependent type constructor
+		double tnys, double* HModuli, double* HParams);
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
@@ -64,57 +60,32 @@ public:
 	DataDrivenNestedSurfaces& operator=(const DataDrivenNestedSurfaces&) = default;		// one-to-one assignment
 
 	// operational methods
-	bool canDelete(void);													// return true if no other material is using the object
-	void checkin(void);														// increase how_many counter
-	void checkout(void);													// decrease how_many counter
-	DataDrivenNestedSurfaces* getCopy(void);								// retun a copy of the object
-
-	// update methods
-	void updateTNYS(int var);
-	void updateKref(double var);
-	void updateGref(double var);
-	void updatePref(double var);
-	void updateModn(double var);
-	void updatePhi(double var);
-	void updatePsi(double var);
-	void updateCohesion(double var);
-	void updateHardParams(Vector& var);
-	void updateHardParams(double var, int num);
-	void updateDilatParams(Vector& var);
-	void updateDilatParams(double var, int num);
-
-	// get methods
-	int getTNYS(void);
-	double getKref(void);
-	double getGref(void);
-	double getPref(void);
-	double getModn(void);
-	double getPhi(void);
-	double getPsi(void);
-	double getCohesion(void);
-	double getHref(int num);
-	double getHP(int num);
-	double getDP(int num);
+	bool canDelete(void);						// return true if no material is using the object
+	void checkin(void);							// increase how_many counter
+	void checkout(void);						// decrease how_many counter
+	DataDrivenNestedSurfaces* getCopy(void);	// retun a copy of the object
 
 	// setup yield surface
-	YieldSurfacePackage* setUpYieldSurfaces(VonMisesDMM* theMaterial);
-	YieldSurfacePackage* setUpYieldSurfaces(DruckerPragerDMM* theMaterial);
-	YieldSurfacePackage* setUpYieldSurfaces(MatsuokaNakaiDMM* theMaterial);
-
+	YieldSurfacePackage* setUpYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial);
 
 private:
+	// yield surface paramters
+	int TNYS = 0;
+	double cohesion = 0.0;
+	double frictionAngle = 0.0;
+	double dilatancyAngle = 0.0;
+	double peakShearStrain = 0.0;
 	double residualPressure = 0.0;
-	Vector Href;								// plastic shear moduli
-	Vector HardParams;							// hardening parameters
-	Vector DilatParams;							// dilation parameters
-
-	// surface generation options
-	bool use_custom_surface = false;			// use user defined yield surface parameters
 
 	// operational variables
 	int how_many = 0;							// number of materials using this surface object
 
-	// generate methods
+	// representative volume element data
+	Vector HModuli;
+	Vector HParams;
+
+private:
+	// generate automatic yield surfaces
 	void generateYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial);
 
 };

@@ -128,6 +128,7 @@ public:
 	virtual NDMaterial* getCopy(void) = 0;
 	virtual NDMaterial* getCopy(const char* type) = 0;
 	const char* getType(void) const;
+	int getDataDriver(void);		// return yield surface data driver preference
 	int getOrder(void) const;
 	Vector getState(void);
 	double getRho(void);			// return mass density

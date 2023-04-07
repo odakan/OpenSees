@@ -324,6 +324,22 @@ const char* MultiYieldSurfaceHardeningSoftening::getType(void) const {
 	}
 }
 
+
+int MultiYieldSurfaceHardeningSoftening::getDataDriver(void) {
+
+	int preference = 0;  // automatic backbone genration
+
+	if (use_data_driven_surface) {
+		preference = 1;  // offline: do not update once generated
+		if (use_online_approach) {
+			preference = 2;  // online: update on the fly using the data
+		}
+	}
+
+	return preference;
+}
+
+
 int MultiYieldSurfaceHardeningSoftening::getOrder(void) const {
 
 	if (nOrd != 3 && nOrd != 6)

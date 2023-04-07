@@ -98,7 +98,7 @@
 #include "MultiYieldSurfaceHardeningSoftening.h"
 
 // Associated flow von Mises material definition
-// IMPL-EXVonMisesDMM internal integration with Cutting plane (forward-euler) algorithm
+// IMPL-EX VonMisesDMM internal integration with Cutting plane (forward-euler) algorithm
 // Stress-space defintion
 
 class VonMisesDMM : public MultiYieldSurfaceHardeningSoftening
