@@ -104,8 +104,10 @@ constexpr bool DEBUG = true;
 class MultiYieldSurfaceHardeningSoftening : public NDMaterial {
 public:
 	// Full Constructor
-	MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
+	MultiYieldSurfaceHardeningSoftening(int tag, int classTag, double r0,
+		double K0, double G0, double P0, double m0, int T0,
 		DataDrivenNestedSurfaces* ys, int dtype, int itype);
+
 
 	// Null Constructor
 	MultiYieldSurfaceHardeningSoftening(void);
@@ -123,6 +125,8 @@ public:
 	int setTrialStrain(const Vector& strain, const Vector& rate);
 	int setTrialStrainIncr(const Vector& strain);
 	int setTrialStrainIncr(const Vector& strain, const Vector& rate);
+		// used by the surface generator
+	void setTheSurfaces(YieldSurfacePackage* theSurfaces);
 
 	// return object info
 	virtual NDMaterial* getCopy(void) = 0;
@@ -131,15 +135,11 @@ public:
 	int getDataDriver(void);		// return yield surface data driver preference
 	int getOrder(void) const;
 	Vector getState(void);
-	double getRho(void);			// return mass density
-	double getKref(void);			// return reference bulk modulus
+		// used by the yield surface objects
+	double getNAYS(void);			// number of active yield surface
 	double getGref(void);			// return reference shear modulus
 	double getPref(void);			// return reference pressure
-	double getModn(void);			// return elastic modulus update power
-	double getPhi(void);			// return initial angle of internal friction
-	double getPsi(void);			// return initial angle of dilation
-	double getCohesion(void);		// return initial cohesion
-	double getPeakStrain(void);		// return peak strain
+	double getTNYS(void);			// return total number of yield surfaces
 
 	// return stress & strain
 	const Vector& getStress(void);
@@ -171,13 +171,9 @@ protected:
 	double Gref = 0.0;								// Reference shear modulus
 	double Pref = 0.0;								// Reference pressure
 	double Modn = 0.0;								// Modulus update power n
-	double Phi = 0.0;								// Internal friction angle (reference)
-	double Psi = 0.0;								// Dilation angle (reference)
-	double Cohesion = 0.0;							// Cohesion (reference)
-	double PeakStrain = 0.0;						// Peak shear strain for the hyperbolic backbone
 	MaterialStateVariables sv;						// Material state variables
-	YieldSurfacePackage* theSurfaces = nullptr;		// Pointer to the nested yield surface package
-	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to the material response database (the glorious lookup table)
+	YieldSurfacePackage ys;							// Nested yield surface package (free memory before exit)
+	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to the material response database (the glorious lookup table) (free memory before exit)
 
 	// solution options
 	bool use_data_driven_surface = false;			// yield surface flag [true: use data driven yield surfaces, false: use hyperbolic backbone]
@@ -191,8 +187,6 @@ protected:
 	// the get methods
 	double getK(void);																	// bulk modulus
 	double getG(void);																	// shear modulus
-	double getNumActiveYS(void);														// number of active yield surface
-	double getHardParam(void);															// committed hardening parameter
 	double getSizeYS(const int num_yield_surface);										// committed yield surface radius
 	double getMeanStress(const Vector& stress);											// mean volumetric stress
 	const Vector getStressVector(void);													// committed stress vector
@@ -211,7 +205,7 @@ protected:
 	// material internal operations
 		// update methods
 	void updateStress(Vector& stress, const double lambda, const int num_yield_surface);			// Update stress
-	void updateModulus(const Vector& stress, const int num_yield_surface);							// Update elastic modulus
+	void updateModulus(const Vector& stress, const int num_yield_surface);														// Update elastic modulus
 	void updateInternal(bool do_implex, bool do_tangent);											// Update materal internal state
 	void updatePlasticStrain(Vector& pstrain, const Vector& stress,									// Update plastic strain
 		const double lambda, const int num_yield_surface);

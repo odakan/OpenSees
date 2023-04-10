@@ -128,13 +128,13 @@ OPS_MatsuokaNakaiDMM(void)
 	// all inputs recieved!
 
 	// create a nested yield surfaces object
-	theSurfaces = new DataDrivenNestedSurfaces(TNYS, params[0], params[1], params[2], params[3], params[4]);
+	theSurfaces = new DataDrivenNestedSurfaces();
 
 	// free the memory
 	delete[] HParams;
 
 	// create a MatsuokaNakaiDMM nDmaterial object
-	theMaterial = new MatsuokaNakaiDMM(tag, rho, theSurfaces, integrationType);
+	theMaterial = new MatsuokaNakaiDMM();
 
 	if (theMaterial == nullptr) {
 		opserr << "FATAL!-- > OPS_MatsuokaNakaiDMM: cannot create MatsuokaNakaiDMM material with tag: " << tag << "\n";

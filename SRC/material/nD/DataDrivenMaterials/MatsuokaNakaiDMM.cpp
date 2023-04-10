@@ -31,8 +31,12 @@
 
 // Public methods
 	// full constructor
-MatsuokaNakaiDMM::MatsuokaNakaiDMM(int tag, double density, DataDrivenNestedSurfaces* YieldSurfaces, bool itype)
-	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_MatsuokaNakaiDMM, density, YieldSurfaces, itype)
+MatsuokaNakaiDMM::MatsuokaNakaiDMM(int tag, double r0,
+	double K0, double G0, double P0, double m0,
+	int T0, DataDrivenNestedSurfaces* ys,
+	int ddtype, int itype)
+	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_MatsuokaNakaiDMM, r0,
+		K0, G0, P0, m0, T0, ys, ddtype, itype)
 {
 
 }
@@ -63,7 +67,7 @@ NDMaterial* MatsuokaNakaiDMM::getCopy(void) {
 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theSurface->checkin(); // do check-in
+		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -94,7 +98,7 @@ NDMaterial* MatsuokaNakaiDMM::getCopy(const char* type) {
 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theSurface->checkin(); // do check-in
+		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -174,7 +178,7 @@ int MatsuokaNakaiDMM::updateParameter(int responseID, Information& info) {
 		//frictionAnglex[matN] = info.theDouble;
 	}
 	else if (responseID == 13) {
-		theSurface->updateCohesion(info.theDouble);
+		ys.setCohesion(info.theDouble);
 	}
 
 	// also go through the base-class method

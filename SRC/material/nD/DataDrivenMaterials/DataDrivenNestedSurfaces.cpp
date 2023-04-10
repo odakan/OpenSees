@@ -27,52 +27,40 @@
 //				Enrico Spacone
 //				Carlo G. Lai
 //
-// Created in:	September 2022
+// Created in:	April 2023
 //
 // Description: This file contains the implementation for the DataDrivenNestedSurfaces class.
 
 
 #include "DataDrivenNestedSurfaces.h"
 
+
 #define LARGE_NUMBER 1.0e30
 
 
 // Public methods
 	// full constructors
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(double c0, double phi0,			// pressure-independent type constructor
-	double s0, double tnys, double* pm, double* hp)
+DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double phi0,			// full constructor
+	double psi0, double s0, double nys, double* pm, double* hp)
 {
 	// initialize variables
-	cohesion = c0; frictionAngle = phi0; peakShearStrain = s0;
-	TNYS = tnys;
+	cohesion_init = c0; frictionAngle_init = phi0; peakShearStrain_init = s0;
+	tnys_init = nys;
 
 	// allocate space for the lookup table
-	HParams = Vector(TNYS + 1);
-	HModuli = Vector(TNYS + 1);
+	HParams = Vector(tnys_init + 1);
+	HModuli = Vector(tnys_init + 1);
 
 	// load data into RAM
 	if (pm != nullptr && hp != nullptr)
 	{
-		for (int i = 0; i < TNYS; i++)
+		for (int i = 0; i < tnys_init; i++)
 		{
 			HParams(i + 1) = hp[i];
 			HModuli(i) = pm[i];
 		}
 		HParams(0) = 0.1;
 	}
-	else
-	{
-		opserr << "WARNING: DataDrivenNestedSurfaces::DataDrivenNestedSurfaces: vector parameters returned NULLPTR!\n";
-		opserr << "WARNING: DataDrivenNestedSurfaces::DataDrivenNestedSurfaces: Generating automatic surfaces instead!\n";
-	}
-
-}
-
-
-DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(double c0, double phi0,			// pressure-dependent type constructor
-	double psi0, double s0, double tnys, double* pm, double* hp)
-{
-
 }
 
 
@@ -87,73 +75,103 @@ bool DataDrivenNestedSurfaces::canDelete(void) { return (how_many < 2); }
 void DataDrivenNestedSurfaces::checkin(void) { how_many++;}
 void DataDrivenNestedSurfaces::checkout(void) { how_many--;}
 
+DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void)  {
 
-DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void) 
-{
 	DataDrivenNestedSurfaces* copy = new DataDrivenNestedSurfaces(*this);
 	return copy;
 }
 
 
-// setup nested yield surface package
-YieldSurfacePackage* DataDrivenNestedSurfaces::setUpYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial) {
+// get methods
+int DataDrivenNestedSurfaces::getTNYS(void) { return tnys_init; }
+double DataDrivenNestedSurfaces::getCohesion(void) { return cohesion_init; }
+double DataDrivenNestedSurfaces::getPhi(void) { return frictionAngle_init; }
+double DataDrivenNestedSurfaces::getPsi(void) { return dilatancyAngle_init; }
+double DataDrivenNestedSurfaces::getPeakStrain(void) { return peakShearStrain_init; }
+double DataDrivenNestedSurfaces::getPref(void) { return referencePressure_init; }
 
-	YieldSurfacePackage* theSurface = nullptr;
-	theSurface = new YieldSurfacePackage();
 
-	generateYieldSurfaces(theMaterial);
-
-	return theSurface;
+// generate nested yield surface package
+YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref, const double TNYS) {
+	
+	// initialize the yield surface package
+	YieldSurfacePackage yieldSurface;
+	
+	// set up surfaces
+	if (dataDriver == 2) {
+		yieldSurface = YieldSurfacePackage(matid);
+		setUpOnlineSurfaces(yieldSurface);
+	}
+	else if (dataDriver == 1) {
+		yieldSurface = YieldSurfacePackage(matid, tnys_init);
+		setUpOfflineSurfaces(yieldSurface);
+	} 
+	else {
+		yieldSurface = YieldSurfacePackage(matid, tnys_init, cohesion_init, frictionAngle_init,
+			dilatancyAngle_init, peakShearStrain_init, residualPressure_init, referencePressure_init);
+		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, TNYS);
+		yieldSurface.printStats(false);
+	}
+	return yieldSurface;
 }
 
 
 // Private methods
-	// generate methods
-void DataDrivenNestedSurfaces::generateYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial) {
-// generate plastic modulus and hardening parameter sets
-// based on the hyperbolic backbone model
-opserr << "generateYieldSurfaces: Works until here!\n";
-
-double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
-double refStrain, peakShear, coneHeight;
+	// set up yield surfaces
+void DataDrivenNestedSurfaces::setUpOnlineSurfaces(YieldSurfacePackage& theSurface) {
 
 
-	if (theMaterial->getPhi() > 0) {
-		double sinPhi = sin(theMaterial->getPhi() * M_PI / 180.);
-		double Mnys = 6. * sinPhi / (3. - sinPhi);
-		residualPressure = 3. * cohesion / (sqrt(2.) * Mnys);
-		coneHeight = -(theMaterial->getPref() - residualPressure);
-		peakShear = sqrt(2.) * coneHeight * Mnys / 3.;
-		refStrain = (theMaterial->getPeakStrain() * peakShear) / (theMaterial->getGref() * theMaterial->getPeakStrain() - peakShear);
+
+
+}
+
+void DataDrivenNestedSurfaces::setUpOfflineSurfaces(YieldSurfacePackage& theSurface) {
+
+
+
+}
+
+void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Pref, const double Gref, const int tnys) {
+	// set up plastic modulus and hardening parameter sets based on the hyperbolic backbone model
+
+	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
+	double refStrain, peakShear, coneHeight;
+	
+	if (yieldSurface.getPhi() > 0) {
+		double sinPhi = sin(yieldSurface.getPhi() * M_PI / 180.);
+		double MnyieldSurface = 6. * sinPhi / (3. - sinPhi);
+		yieldSurface.setPresid(3. * yieldSurface.getCohesion() / (sqrt(2.) * MnyieldSurface));
+		coneHeight = -(Pref - yieldSurface.getPresid());
+		peakShear = sqrt(2.) * coneHeight * MnyieldSurface / 3.;
+		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
+	}
+	else if (yieldSurface.getPhi() == 0.0) {			// cohesion = peakShearStrength
+		peakShear = 2 * sqrt(2.) * yieldSurface.getCohesion() / 3;
+		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
+		yieldSurface.setPresid(0.0);
 	}
 
-	else if (theMaterial->getPhi() == 0.0) { // cohesion = peakShearStrength
-		peakShear = 2 * sqrt(2.) * cohesion / 3;
-		refStrain = (theMaterial->getPeakStrain() * peakShear) / (theMaterial->getGref() * theMaterial->getPeakStrain() - peakShear);
-		residualPressure = 0.;
-	}
+	double stressInc = peakShear / tnys;
 
-	double stressInc = peakShear / TNYS;
-
-	for (int ii = 1; ii <= TNYS; ii++) {
+	for (int ii = 0; ii <= tnys; ii++) {
 		stress1 = ii * stressInc;
 		stress2 = stress1 + stressInc;
-		strain1 = stress1 * refStrain / (theMaterial->getGref() * refStrain - stress1);
-		strain2 = stress2 * refStrain / (theMaterial->getGref() * refStrain - stress2);
-		if (theMaterial->getPhi() > 0.) {
+		strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+		strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
+		if (yieldSurface.getPhi() > 0.) {
 			size = 3. * stress1 / sqrt(2.) / coneHeight;
 		}
-		else if (theMaterial->getPhi() == 0.) {
+		else if (yieldSurface.getPhi() == 0.) {
 			size = 3. * stress1 / sqrt(2.);
 		}
 
 		Hep_ref = 2. * (stress2 - stress1) / (strain2 - strain1);
 
-		if ((2. * theMaterial->getGref() - Hep_ref) <= 0) {
+		if ((2. * Gref - Hep_ref) <= 0) {
 			Href = LARGE_NUMBER;
 		}
 		else {
-			Href = (2. * theMaterial->getGref() * Hep_ref) / (2. * theMaterial->getGref() - Hep_ref);
+			Href = (2. * Gref * Hep_ref) / (2. * Gref - Hep_ref);
 		}
 
 		if (Href < 0) {
@@ -164,12 +182,15 @@ double refStrain, peakShear, coneHeight;
 			Href = LARGE_NUMBER;
 		}
 
-		if (ii == TNYS) {
+		if (ii == tnys) {
 			Href = 0;
 		}
 
-		static Vector temp(6);
-		//committedSurfaces[ii] = MultiYieldSurface(temp, size, Href);
+		if (ii == 0) {
+			size = stressInc * 0.1;
+		}
 
+		yieldSurface.setTau(size, ii);
+		yieldSurface.setEta(Href, ii);
 	}
 }

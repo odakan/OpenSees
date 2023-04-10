@@ -31,15 +31,13 @@
 //				Enrico Spacone
 //				Carlo G. Lai
 //
-// Created in:	September 2022
+// Created in:	April 2023
 //
 
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
 #include "YieldSurfacePackage.h"
-#include "MultiYieldSurfaceHardeningSoftening.h"
-
 
 class DataDrivenNestedSurfaces {
 public:
@@ -47,11 +45,9 @@ public:
 	DataDrivenNestedSurfaces(void) = default;
 
 	// full constructors
-	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;											// copy constructor
-	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double peakShearStrain,							// pressure-independent type constructor
-		double tnys, double* HModuli, double* HParams);
-	DataDrivenNestedSurfaces(double cohesion, double frictionAngle, double dilationAngle, double peakShearStrain,	// pressure-dependent type constructor
-		double tnys, double* HModuli, double* HParams);
+	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;								// copy constructor
+	DataDrivenNestedSurfaces(int tag, double cohesion, double frictionAngle, double dilationAngle,		// full constructor
+		double peakShearStrain,	double tnys, double* HModuli, double* HParams);
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
@@ -65,28 +61,40 @@ public:
 	void checkout(void);						// decrease how_many counter
 	DataDrivenNestedSurfaces* getCopy(void);	// retun a copy of the object
 
-	// setup yield surface
-	YieldSurfacePackage* setUpYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial);
+	// get methods
+	int getTNYS(void);
+	double getCohesion(void);
+	double getPhi(void);
+	double getPsi(void);
+	double getPeakStrain(void);
+	double getPref(void);
+
+	// generate yield surface
+	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref, const double TNYS);
 
 private:
-	// yield surface paramters
-	int TNYS = 0;
-	double cohesion = 0.0;
-	double frictionAngle = 0.0;
-	double dilatancyAngle = 0.0;
-	double peakShearStrain = 0.0;
-	double residualPressure = 0.0;
+	// default yield surface paramters
+	int tnys_init = 0;
+	double cohesion_init = 0.0;
+	double frictionAngle_init = 0.0;
+	double dilatancyAngle_init = 0.0;
+	double peakShearStrain_init = 0.0;
+	double residualPressure_init = 0.0;
+	double referencePressure_init = 0.0;
 
 	// operational variables
-	int how_many = 0;							// number of materials using this surface object
+	int matID = 0;								// tag of the attached inital material object
+	int how_many = 0;							// number of material sub-objects using this nested surface super-object
 
 	// representative volume element data
 	Vector HModuli;
 	Vector HParams;
 
 private:
-	// generate automatic yield surfaces
-	void generateYieldSurfaces(MultiYieldSurfaceHardeningSoftening* theMaterial);
+	// set up yield surfaces
+	void setUpOnlineSurfaces(YieldSurfacePackage& yieldSurface);
+	void setUpOfflineSurfaces(YieldSurfacePackage& yieldSurface);
+	void setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Pref, const double Gref, const int tnys);
 
 };
 #endif

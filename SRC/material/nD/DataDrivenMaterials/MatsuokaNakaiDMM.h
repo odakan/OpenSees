@@ -30,11 +30,10 @@ class MatsuokaNakaiDMM : public MultiYieldSurfaceHardeningSoftening
 {
 public:
 	//full constructor
-	MatsuokaNakaiDMM(int tag,		// nD material tag
-		double rho,					// mass density
-		DataDrivenNestedSurfaces* nys,	// nested yield surfaces
-		bool itype					// integration type (true = implex, false = implicit)		
-	);
+	MatsuokaNakaiDMM(int tag, double rho,
+		double Kref, double Gref, double Pref, double modn,
+		int TNYS, DataDrivenNestedSurfaces* theData,
+		int dataDriverType, int integrationType);
 
 
 	//null constructor

@@ -113,12 +113,9 @@ public:
 	Vector xs = Vector(6);					// equivalent plastic strain
 	Vector xs_commit = Vector(6);			// committed equivalent plastic strain
 	Vector xs_commit_old = Vector(6);		// previously committed equivalent plastic strain
-	Matrix alpha = Matrix(6, 1);			// backstress (TNYS + 1)
-	Matrix alpha_commit = Matrix(6, 1);		// commited backstress (TNYS + 1)
-	Matrix alpha_commit_old = Matrix(6, 6);	// previously commited backstress (TNYS + 1)
-	int nYs_active = 0.0;					// number of active yield surface
-	int nYs_active_commit = 0.0;			// committed number of active yield surface
-	int nYs_active_commit_old = 0.0;		// previously committed number of active yield surface
+	int iYs = 0;							// number of active yield surface
+	int iYs_commit = 0;						// committed number of active yield surface
+	int iYs_commit_old = 0;					// previously committed number of active yield surface
 	double dtime_n = 0.0;					// time factor
 	double dtime_n_commit = 0.0;			// committed time factor
 	bool dtime_is_user_defined = false;
@@ -129,8 +126,7 @@ public:
 	Vector sig_implex = Vector(3);			// only for output
 	double Kmod = 0;						// Current bulk modulus
 	double Gmod = 0;						// Current shear modulus
-	double Hmod = 0;						// Current plastic shear modulus
-
+	double Hmod = 0;						// Current plastic modulus
 
 	// null constructor
 	MaterialStateVariables(void) = default;
@@ -147,8 +143,8 @@ public:
 
 	// operator overloading
 	MaterialStateVariables& operator= (const MaterialStateVariables&) = default;
-	void operator+= (const MaterialStateVariables& A);
-	void operator-= (const MaterialStateVariables& A);
+	//void operator+= (const MaterialStateVariables& A);
+	//void operator-= (const MaterialStateVariables& A);
 
 
 	// pack and unpack state variables (vectorize) for message passing

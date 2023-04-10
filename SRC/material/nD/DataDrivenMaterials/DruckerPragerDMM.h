@@ -27,11 +27,10 @@ class DruckerPragerDMM : public MultiYieldSurfaceHardeningSoftening
 {
 public:
 	//full constructor
-	DruckerPragerDMM(int tag,		// nD material tag
-		double rho,					// mass density
-		DataDrivenNestedSurfaces* nys,	// nested yield surfaces
-		bool itype					// integration type (true = implex, false = implicit)		
-	);
+	DruckerPragerDMM(int tag, double rho,
+		double Kref, double Gref, double Pref, double modn,
+		int TNYS, DataDrivenNestedSurfaces* theData,
+		int dataDriverType, int integrationType);
 
 	//null constructor
 	DruckerPragerDMM();

@@ -128,13 +128,13 @@ OPS_DruckerPragerDMM(void)
 	// all inputs recieved!
 
 	// create a nested yield surfaces object
-	theSurfaces = new DataDrivenNestedSurfaces(TNYS, params[0], params[1], params[2], params[3], params[4]);
+	theSurfaces = new DataDrivenNestedSurfaces();
 
 	// free the memory
 	delete[] HParams;
 
 	// create a DruckerPragerDMM nDmaterial object
-	theMaterial = new DruckerPragerDMM(tag, rho, theSurfaces, integrationType);
+	theMaterial = new DruckerPragerDMM();
 
 	if (theMaterial == nullptr) {
 		opserr << "FATAL!-- > OPS_DruckerPragerDMM: cannot create DruckerPragerDMM material with tag: " << tag << "\n";
