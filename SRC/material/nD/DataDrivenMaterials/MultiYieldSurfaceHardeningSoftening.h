@@ -79,8 +79,6 @@
 		Methods Appl. Mech. Eng., 197, 1865-1889 (2008)
  */
 
-constexpr bool DEBUG = true;
-
 #include <ID.h>
 #include <math.h> 
 #include <float.h>
@@ -105,8 +103,8 @@ class MultiYieldSurfaceHardeningSoftening : public NDMaterial {
 public:
 	// Full Constructor
 	MultiYieldSurfaceHardeningSoftening(int tag, int classTag, double r0,
-		double K0, double G0, double P0, double m0, int T0,
-		DataDrivenNestedSurfaces* ys, int dtype, int itype);
+		double K0, double G0, double P0, double m0,
+		DataDrivenNestedSurfaces* ys, int dtype, int itype, bool verbosity);
 
 
 	// Null Constructor
@@ -164,7 +162,6 @@ public:
 protected:
 	// material parameters & constants
 	int nOrd = 6;									// Material order (dimension) [3 or 6] (3D by default)
-	int TNYS = 0;									// Total number of yield surfaces
 	double rho = 0.0;								// Mass density
 	double Kref = 0.0;								// Reference bulk modulus
 	double Gref = 0.0;								// Reference shear modulus
@@ -173,6 +170,9 @@ protected:
 	MaterialStateVariables sv;						// Material state variables
 	YieldSurfacePackage ys;							// Nested yield surface package (free memory before exit)
 	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to the material response database (the glorious lookup table) (free memory before exit)
+
+	// operational paramaters
+	bool beVerbose = false;							// be verbose about internal processes (use for debugging) (no by default)
 
 	// solution options
 	bool use_data_driven_surface = false;			// yield surface flag [true: use data driven yield surfaces, false: use hyperbolic backbone]

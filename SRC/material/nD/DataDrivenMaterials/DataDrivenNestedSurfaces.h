@@ -47,7 +47,7 @@ public:
 	// full constructors
 	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;								// copy constructor
 	DataDrivenNestedSurfaces(int tag, double cohesion, double frictionAngle, double dilationAngle,		// full constructor
-		double peakShearStrain,	double tnys, double* HModuli, double* HParams);
+		double peakShearStrain,	double tnys, double* HModuli, double* HParams, bool verbosity);
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
@@ -59,6 +59,7 @@ public:
 	bool canDelete(void);						// return true if no material is using the object
 	void checkin(void);							// increase how_many counter
 	void checkout(void);						// decrease how_many counter
+	bool isAOK(int dataDriver);					// whether the desired yield surface package is allowed or not 
 	DataDrivenNestedSurfaces* getCopy(void);	// retun a copy of the object
 
 	// get methods
@@ -70,7 +71,7 @@ public:
 	double getPref(void);
 
 	// generate yield surface
-	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref, const double TNYS);
+	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref);
 
 private:
 	// default yield surface paramters
@@ -83,8 +84,12 @@ private:
 	double referencePressure_init = 0.0;
 
 	// operational variables
-	int matID = 0;								// tag of the attached inital material object
-	int how_many = 0;							// number of material sub-objects using this nested surface super-object
+	bool isAutomaticOK = false;
+	bool isOfflineOK = false;
+	bool isOnlineOK = false;
+	bool beVerbose = false;		// be verbose about internal processes (use for debugging) (no by default)					
+	int matID = 0;				// tag of the attached inital material object
+	int how_many = 0;			// number of material sub-objects using this nested surface super-object
 
 	// representative volume element data
 	Vector HModuli;

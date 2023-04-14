@@ -96,15 +96,12 @@ public:
 
 	// full constructors
 	MaterialStateVariables(const MaterialStateVariables&) = default;
-	MaterialStateVariables(int alpha_size);
 
 	// destructor
 	~MaterialStateVariables(void);
 
 	// operator overloading
 	MaterialStateVariables& operator= (const MaterialStateVariables&) = default;
-	//void operator+= (const MaterialStateVariables& A);
-	//void operator-= (const MaterialStateVariables& A);
 
 	// pack and unpack state variables (vectorize) for message passing
 	Vector& pack(void);
@@ -115,7 +112,6 @@ public:
 private:
 	// un/pack methods
 	int getSize(void);
-	int getTnys(const Vector& data);
 	void vectorvector(int& N, Vector& A, Vector& B, bool forward = true);
 	void vectormatrix(int& N, Matrix& A, Vector& B, bool forward = true);
 };
