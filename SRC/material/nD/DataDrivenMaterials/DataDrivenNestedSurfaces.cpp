@@ -42,25 +42,68 @@ const bool DEBUG = true;
 // Public methods
 	// full constructors
 DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double phi0,			// full constructor
-	double psi0, double s0, double nys, double* pm, double* hp)
+	double psi0, double s0, double nys, double* pm, double* hp, bool verbosity)
 {
 	// initialize variables
+	beVerbose = verbosity;
 	cohesion_init = c0; frictionAngle_init = phi0; peakShearStrain_init = s0;
 	tnys_init = nys;
 
-	// allocate space for the lookup table
-	HParams = Vector(tnys_init + 1);
-	HModuli = Vector(tnys_init + 1);
+	// evaluate if yield surface generation is possible
+		// check data-driven yield surface generation
+	if (pm != nullptr && hp != nullptr) {
+		isOfflineOK = true;
+		isOnlineOK = true;
+	}
+	else {
+		if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - no material response database is provided. Data-driven yield surfaces are NOT allowed...\n"; }
+		isOfflineOK = false;
+		isOnlineOK = false;
+	}
 
-	// load data into RAM
-	if (pm != nullptr && hp != nullptr)
-	{
-		for (int i = 0; i < tnys_init; i++)
-		{
-			HParams(i + 1) = hp[i];
-			HModuli(i) = pm[i];
+		// check automatic and offline surface generation
+	if (tnys_init <= 0) {
+		// if total number of yield surfaces is less than one, prohibit automatic and offline surfaces
+		if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - TNYS <= 0: AUTOMATIC and OFFLINE data-driven yield surfaces are NOT allowed...\n"; }
+		isAutomaticOK = false;
+		isOfflineOK = false;
+	}
+	else {
+		// check automatic surfaces
+		if (peakShearStrain_init <= 0) {
+			// if peak shear strain is zero or less than zero, prohibit automatic surfaces
+			if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - peakShearStrain <= 0: AUTOMATIC yield surfaces are NOT allowed...\n"; }
+			isAutomaticOK = false;;
 		}
-		HParams(0) = 0.1;
+		else {
+			if (frictionAngle_init > 0) {
+				isAutomaticOK = true;
+			}
+			else if (cohesion_init > 0) {
+				isAutomaticOK = true;
+			}
+			else {
+				if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - either cohesion or friction angle must be > 0: AUTOMATIC yield surfaces are NOT allowed...\n"; }
+				isAutomaticOK = false;
+			}
+		}
+	}
+
+	if (isOfflineOK) {
+		// allocate space for the lookup table
+		HParams = Vector(tnys_init + 1);
+		HModuli = Vector(tnys_init + 1);
+
+		// load data into RAM
+		if (pm != nullptr && hp != nullptr)
+		{
+			for (int i = 0; i < tnys_init; i++)
+			{
+				HParams(i + 1) = hp[i];
+				HModuli(i) = pm[i];
+			}
+			HParams(0) = 0.1;
+		}
 	}
 }
 
@@ -75,6 +118,26 @@ DataDrivenNestedSurfaces::~DataDrivenNestedSurfaces(void)
 bool DataDrivenNestedSurfaces::canDelete(void) { return (how_many < 2); }
 void DataDrivenNestedSurfaces::checkin(void) { how_many++;}
 void DataDrivenNestedSurfaces::checkout(void) { how_many--;}
+
+bool DataDrivenNestedSurfaces::isAOK(int dataDriver) {
+	
+	bool aok = false;
+
+	if (dataDriver == 0 && isAutomaticOK) {
+		aok = true;
+	}
+	else if (dataDriver == 1 && isOfflineOK) {
+		aok = true;
+	}
+	else if (dataDriver == 2 && isOnlineOK) {
+		aok = true;
+	}
+	else {
+		opserr << "WARNING: DataDrivenNestedSurfaces::isAOK() - none of the yield surface generation approaches is available!\n";
+	}
+
+	return aok;
+}
 
 DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void)  {
 
@@ -102,18 +165,18 @@ YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int ma
 	if (dataDriver == 2) {
 		yieldSurface = YieldSurfacePackage(matid);
 		setUpOnlineSurfaces(yieldSurface);
-		if (DEBUG) { yieldSurface.printStats(true); }
+		if (beVerbose) { yieldSurface.printStats(true); }
 	}
 	else if (dataDriver == 1) {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init);
 		setUpOfflineSurfaces(yieldSurface);
-		if (DEBUG) { yieldSurface.printStats(true); }
+		if (beVerbose) { yieldSurface.printStats(true); }
 	} 
 	else {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init, cohesion_init, frictionAngle_init,
 			dilatancyAngle_init, peakShearStrain_init, residualPressure_init, referencePressure_init);
 		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, TNYS);
-		if (DEBUG) { yieldSurface.printStats(true); }
+		if (beVerbose) { yieldSurface.printStats(true); }
 	}
 	return yieldSurface;
 }

@@ -108,7 +108,7 @@ public:
 	VonMisesDMM(int tag, double rho,
 		double Kref, double Gref, double Pref, double modn,
 		int TNYS, DataDrivenNestedSurfaces* theData,
-		int dataDriverType, int integrationType);
+		int dataDriverType, int integrationType, bool verbosity);
 
 	//null constructor
 	VonMisesDMM();

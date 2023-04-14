@@ -112,8 +112,7 @@ YieldSurfacePackage* YieldSurfacePackage::getCopy(void) {
 
 void YieldSurfacePackage::printStats(bool detail) {
 	if (detail) {
-		opserr << "\n";
-		opserr << "YieldSurfacePackage::printStats:\n";
+		opserr << "YieldSurfacePackage::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
 		opserr << "Limit Stresses				=  " << tau;
 		opserr << "Plastic Moduli				=  " << eta;
@@ -123,8 +122,7 @@ void YieldSurfacePackage::printStats(bool detail) {
 		opserr << "Commited Back-stress			=  " << alpha_commit;
 	}
 	else {
-		opserr << "\n";
-		opserr << "YieldSurfacePackage::printStats:\n";
+		opserr << "YieldSurfacePackage::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
 		opserr << "Active Y-Surface	=  " << nYs_commit << "\n";
 		opserr << "Back-stress		=  " << alpha_commit;

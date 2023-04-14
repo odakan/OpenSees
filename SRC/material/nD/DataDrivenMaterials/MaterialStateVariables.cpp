@@ -21,21 +21,6 @@
 #include "MaterialStateVariables.h"
 
 // Public methods
-	// full constructors
-MaterialStateVariables::MaterialStateVariables(int alpha_size) 
-{
-	/*
-	// resize the alpha matrix
-	alpha.resize(6, (alpha_size + 1));
-	alpha_commit.resize(6, (alpha_size + 1));
-	alpha_commit_old.resize(6, (alpha_size + 1));
-	// fill with zeros
-	alpha.Zero();
-	alpha_commit.Zero();
-	alpha_commit_old.Zero();
-	*/
-}
-
 	// destructor
 MaterialStateVariables::~MaterialStateVariables(void)
 {
@@ -44,36 +29,6 @@ MaterialStateVariables::~MaterialStateVariables(void)
 	   no memory was allocated in the memory-land to free... 
 	*/
 }
-
-	// operator overloading
-/*
-void MaterialStateVariables::operator+= (const MaterialStateVariables& A)
-{
-	if (A.alpha.noCols() == alpha.noCols()) {
-		MaterialStateVariables B = MaterialStateVariables(alpha.noCols());
-		alpha += A.alpha;
-		// ...
-	}
-	else {
-		opserr << "MaterialStateVariables::operator+= object alpha matrix sizes must be equal!\n";
-		exit(-1);
-	}
-}
-*/
-
-/*
-void MaterialStateVariables::operator-= (const MaterialStateVariables& A)
-{
-	if (A.alpha.noCols() == alpha.noCols()) {
-		alpha -= A.alpha;
-		// ...
-	}
-	else {
-		opserr << "MaterialStateVariables::operator-= object alpha matrix sizes must be equal!\n";
-		exit(-1);
-	}
-}
-*/
 
 	// pack and unpack state variables (vectorize) for message passing
 Vector& MaterialStateVariables::pack(void) {
@@ -94,16 +49,6 @@ Vector& MaterialStateVariables::pack(void) {
 	vectorvector(N, xs_commit, data, forward);
 	vectorvector(N, xs_commit_old, data, forward);
 
-	/*
-	vectormatrix(N, alpha, data, forward);
-	vectormatrix(N, alpha_commit, data, forward);
-	vectormatrix(N, alpha_commit_old, data, forward);
-
-	data(N) = iYs;
-	data(N + 1) = iYs_commit;
-	data(N + 2) = iYs_commit_old;
-	*/
-
 	data(N + 3) = dtime_n;
 	data(N + 4) = dtime_n_commit;
 	data(N + 5) = dtime_is_user_defined;
@@ -113,13 +58,7 @@ Vector& MaterialStateVariables::pack(void) {
 
 void MaterialStateVariables::unpack(Vector& data) {
 	int N = 0;
-	int alphasz = getTnys(data);
 	bool backward = false;
-	/*
-	alpha = Matrix(6, alphasz);
-	alpha_commit = Matrix(6, alphasz);
-	alpha_commit_old = Matrix(6, alphasz);
-	*/
 
 	vectorvector(N, eps, data, backward);
 	vectorvector(N, eps_commit, data, backward);
@@ -133,16 +72,6 @@ void MaterialStateVariables::unpack(Vector& data) {
 	vectorvector(N, xs_commit, data, backward);
 	vectorvector(N, xs_commit_old, data, backward);
 
-	/*
-	vectormatrix(N, alpha, data, backward);
-	vectormatrix(N, alpha_commit, data, backward);
-	vectormatrix(N, alpha_commit_old, data, backward);
-
-	iYs = data(N);
-	iYs_commit = data(N + 1);
-	iYs_commit_old = data(N + 2);
-	*/
-
 	dtime_n = data(N + 3);
 	dtime_n_commit = data(N + 4);
 	dtime_is_user_defined = data(N + 5);
@@ -151,8 +80,7 @@ void MaterialStateVariables::unpack(Vector& data) {
 
 void MaterialStateVariables::printStats(bool detail) {
 	if (detail) {
-		opserr << "\n";
-		opserr << "MaterialStateVariables::printStats:\n";
+		opserr << "MaterialStateVariables::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
 		opserr << "Stress                    =  " << sig;
 		opserr << "Comitted Stress           =  " << sig_commit;
@@ -161,55 +89,24 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "-------------------- Pastic Internal Variables --------------------\n";
 		opserr << "Plastic Strain            =  " << xs;
 		opserr << "Commited Plastic Strain   =  " << xs_commit;
-		//opserr << "Back-stress               =  " << tools::getColumnVector(iYs, alpha) << "\n";
-		//opserr << "Commited Back-stress      =  " << tools::getColumnVector(iYs_commit, alpha_commit) << "\n";
-		//opserr << "\n";
-		//opserr << "Active Y-Surface          =  " << iYs << "\n";
-		//opserr << "Commited Active Y-Surface =  " << iYs_commit << "\n";
 		opserr << "------------------ Consistent Tangent Operator ------------------\n";
 		opserr << "Kt = " << Cep;
 	}
 	else {
-		opserr << "\n";
-		opserr << "MaterialStateVariables::printStats:\n";
+		opserr << "MaterialStateVariables::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
 		opserr << "Stress                    =  " << sig;
 		opserr << "Strain                    =  " << eps;
-		opserr << "Plastic Strain            =  " << xs;
-		//opserr << "Back-stress               =  " << tools::getColumnVector(iYs, alpha) << "";
-		//opserr << "Active Y-Surface          =  " << iYs << "\n";
-		opserr << "\n";
+		opserr << "Plastic Strain            =  " << xs << "\n";
 	}
 }
 
 // Private methods
 	// un/pack-self
 int MaterialStateVariables::getSize(void) {
-	int size = 0;
-	int sz_alpha = 0;
-	/*
-	try {
-		sz_alpha = alpha.noCols();
-	}
-	catch (const std::exception&) {
-		opserr << "WARNING: MaterialStateVariables are not initialized! --> Assuming sz_alpha = 0!";
-	}
-	*/
-	size = 7 + 9 * 6 + 3 * 6 * (sz_alpha);
-	return size;
-}
 
-int MaterialStateVariables::getTnys(const Vector& data) {
-	int size = 0;
-	int tnys = 0;
-	try {
-		size = data.Size();
-	}
-	catch (const std::exception&) {
-		opserr << "WARNING: MaterialStateVariables vector is not initialized! --> Assuming tnys = 0!";
-	}
-	tnys = tools::macaulay(((size - 8 + 12 * 6) / (4 * 6)));
-	return tnys;
+	int size = 9 * 6 + 4;
+	return size;
 }
 
 void MaterialStateVariables::vectorvector(int& N, Vector& A, Vector& B, bool forward) {

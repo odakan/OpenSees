@@ -100,6 +100,16 @@
 
 #include "VonMisesDMM.h"
 
+void Help(void) {
+	opserr << "\n";
+	opserr << "vonMisesDMM Help: \n";
+	opserr << "----------------------------------------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "nDMaterial VonMisesDMM tag? -K Kref? -G Gref? -P Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -d dilatancyAngle -s peakShearStrain? -implex?>\n";
+	opserr << "         and other optional parameters for data-driven material modeling:\n";
+	opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+	opserr << "\n";
+}
+
 #define OPS_Export 
 OPS_Export void*
 
@@ -115,6 +125,7 @@ OPS_VonMisesDMM(void)
 	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to a nested yield surface object
 
 	// initialize material parameters
+	bool beVerbose = false;
 	int maxTNYS = 1000;
 	int tag = 0; int TNYS = 0; double rho = 0.0;
 	double Kref = 0.0; double Gref = 0.0; double Pref = 0.0; double modn = 0.0;
@@ -133,19 +144,28 @@ OPS_VonMisesDMM(void)
 	int numArgs = OPS_GetNumRemainingInputArgs();
 	int numData = 1;
 
-	// recieve mandatory inputs
-	if (numArgs < 4) {
-		opserr << "OPS_VonMisesDMM: \n";
-		opserr << "Please define at least: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? for linear elastic analysis...\n\n";
-		opserr << "Want: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -d dilatancyAngle -s peakShearStrain? -implex?>\n";
-		opserr << "         and other optional parameters for data-driven material modeling:\n";
-		opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+	// check if help is requested
+	if (numArgs < 3) {
+		while (OPS_GetNumRemainingInputArgs() > 0) {
+			const char* inputstring = OPS_GetString();
+			// recive print help flag, print material command use and quit
+			if (strcmp(inputstring, "-help") == 0) {
+				Help();
+				exit(-1);
+			}
+		}
+	}
+
+	// check mandatory inputs
+	if (numArgs < 7) {
+		opserr << "FATAL: OPS_VonMisesDMM() - please define at least -> nDMaterial VonMisesDMM tag? -K Kref? -G Gref? -P Pref? for linear elastic analysis...\n";
+		Help();
 		return theMaterial;
 	}
 
 	// input #1 - recieve unique material tag
 	if (OPS_GetInt(&numData, &tag) != 0) {
-		opserr << "OPS_VonMisesDMM: WARNING: invalid tag? (must be an integer)" << endln;
+		opserr << "FATAL: OPS_VonMisesDMM() - invalid tag? (must be an integer)\n";
 		return theMaterial;
 	}
 
@@ -156,7 +176,7 @@ OPS_VonMisesDMM(void)
 		// input #2 - recieve material bulk modulus at reference pressure
 		if (strcmp(inputstring, "-K") == 0) {
 			if (OPS_GetDoubleInput(&numData, &Kref) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid Kref value after flag: -K (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid Kref value after flag: -K (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -164,7 +184,7 @@ OPS_VonMisesDMM(void)
 		// input #3 - recieve material shear modulus at reference pressure
 		if (strcmp(inputstring, "-G") == 0) {
 			if (OPS_GetDoubleInput(&numData, &Gref) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid Gref value after flag: -G (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid Gref value after flag: -G (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -172,7 +192,7 @@ OPS_VonMisesDMM(void)
 		// input #4 - recieve material reference pressure
 		if (strcmp(inputstring, "-P") == 0) {
 			if (OPS_GetDoubleInput(&numData, &Pref) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid Pref value after flag: -P (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid Pref value after flag: -P (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -180,7 +200,7 @@ OPS_VonMisesDMM(void)
 		// input #5 - recieve material mass density
 		if (strcmp(inputstring, "-R") == 0) {
 			if (OPS_GetDoubleInput(&numData, &rho) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid rho value after flag: -r (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid rho value after flag: -r (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -188,7 +208,7 @@ OPS_VonMisesDMM(void)
 		// input #6 - recieve material elastic modulus update power
 		if (strcmp(inputstring, "-M") == 0) {
 			if (OPS_GetDoubleInput(&numData, &modn) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid modn value after flag: -m (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid modn value after flag: -m (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -196,11 +216,11 @@ OPS_VonMisesDMM(void)
 		// input #7 - recieve total number of yield surfaces
 		if (strcmp(inputstring, "-t") == 0) {
 			if (OPS_GetIntInput(&numData, &TNYS) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid TNYS value after flag: -T (must be integer)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid TNYS value after flag: -T (must be integer)\n";
 				return theMaterial;
 			}
 			if (abs(TNYS) > maxTNYS || TNYS == 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid TNYS value! (must be an integer -" << maxTNYS << " <= TNYS <= " << maxTNYS << " && TNYS != 0)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid TNYS value! (must be an integer -" << maxTNYS << " <= TNYS <= " << maxTNYS << " && TNYS != 0)\n";
 				return theMaterial;
 			}
 		}
@@ -208,7 +228,7 @@ OPS_VonMisesDMM(void)
 		// input #8 - recieve yield surface cohesion
 		if (strcmp(inputstring, "-c") == 0) {
 			if (OPS_GetDoubleInput(&numData, &cohesion) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid cohesion value after flag: -c (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid cohesion value after flag: -c (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -216,7 +236,7 @@ OPS_VonMisesDMM(void)
 		// input #9 - recieve yield surface friction angle
 		if (strcmp(inputstring, "-f") == 0) {
 			if (OPS_GetDoubleInput(&numData, &frictionAngle) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid frictionAngle value after flag: -f (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid frictionAngle value after flag: -f (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -224,7 +244,7 @@ OPS_VonMisesDMM(void)
 		// input #10 - recieve yield surface dilatancy angle
 		if (strcmp(inputstring, "-d") == 0) {
 			if (OPS_GetDoubleInput(&numData, &dilatancyAngle) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid dilatancyAngle value after flag: -d (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid dilatancyAngle value after flag: -d (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -232,7 +252,7 @@ OPS_VonMisesDMM(void)
 		// input #11 - recieve yield surface peak shear strain
 		if (strcmp(inputstring, "-s") == 0) {
 			if (OPS_GetDoubleInput(&numData, &peakShearStrain) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid peakShearStrain value after flag: -s (must be double)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid peakShearStrain value after flag: -s (must be double)\n";
 				return theMaterial;
 			}
 		}
@@ -245,8 +265,8 @@ OPS_VonMisesDMM(void)
 		// input #13 - recieve yield surface data driver type
 		if (strcmp(inputstring, "-ddType") == 0) {
 			if (OPS_GetIntInput(&numData, &dataDriverType) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid data driver type after flag: -ddType (must be integer)\n";
-				opserr << "OPS_VonMisesDMM: WARNING:                                  [0: backbone, 1: offline, 2:online]\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid data driver type after flag: -ddType (must be integer)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() -                                  [0: backbone, 1: offline, 2:online]\n";
 				return theMaterial;
 			}
 		}
@@ -256,14 +276,14 @@ OPS_VonMisesDMM(void)
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "Want: nDMaterial VonMisesDMM: please enter $HModuli vector for each yield surface after flag: -hRatio (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter $HModuli vector for each yield surface after flag: -hRatio (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HModuli = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HModuli) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hRatio)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hRatio)\n";
 				return theMaterial;
 			}
 
@@ -274,52 +294,52 @@ OPS_VonMisesDMM(void)
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "Want: nDMaterial VonMisesDMM: please enter HParams vector for each yield surface after flag: -hStrain (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter HParams vector for each yield surface after flag: -hStrain (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HParams = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HParams) < 0) {
-				opserr << "OPS_VonMisesDMM: WARNING: invalid HParams! (must be " << TNYS << " many doubles  after flag: -hStrain)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid HParams! (must be " << TNYS << " many doubles  after flag: -hStrain)\n";
 				return theMaterial;
 			}
+		}
+
+		// operational flags
+			// recive print help flag, print material command use, make verbose and continue
+		if (strcmp(inputstring, "-help") == 0) {
+			Help();
+		}
+
+			// recive verbosity flag
+		if (strcmp(inputstring, "-debug") == 0) {
+			beVerbose = true;
 		}
 
 	} // all inputs recieved!
 
 	// check mandatory parameters
 	if (Kref == 0) {
-		opserr << "FATAL:OPS_VonMisesDMM: Please enter a valid Kref value!\n\n";
-		opserr << "OPS_VonMisesDMM: \n";
-		opserr << "Please define at least: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? for linear elastic analysis...\n\n";
-		opserr << "Want: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -s peakShearStrain? -implex?>\n";
-		opserr << "         and other optional parameters for data-driven material modeling:\n";
-		opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+		opserr << "FATAL: OPS_VonMisesDMM() - please enter a valid Kref value! Current Kref = " << Kref << ". Kref cannot be 0!\n";
+		Help();
 		return theMaterial;
 	}
 
 	if (Gref == 0) {
-		opserr << "FATAL:OPS_VonMisesDMM: Please enter a valid Gref value!\n\n";
-		opserr << "OPS_VonMisesDMM: \n";
-		opserr << "Please define at least: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? for linear elastic analysis...\n\n";
-		opserr << "Want: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -s peakShearStrain? -implex?>\n";
-		opserr << "         and other optional parameters for data-driven material modeling:\n";
-		opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+		opserr << "FATAL: OPS_VonMisesDMM() - please enter a valid Gref value! Current Gref = " << Gref << ". Gref cannot be 0!\n";
+		Help();
 		return theMaterial;
 	}
 
-	if (Pref == 0) {
-		opserr << "WARNING:OPS_VonMisesDMM: Please check entered Reference Pressure value! Pref is 0.0! Analysis will continue using zero.\n\n";
-		opserr << "OPS_VonMisesDMM: \n";
-		opserr << "Please define at least: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? for linear elastic analysis...\n\n";
-		opserr << "Want: nDMaterial VonMisesDMM tag? Kref? Gref? Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -s peakShearStrain? -implex?>\n";
-		opserr << "         and other optional parameters for data-driven material modeling:\n";
-		opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+	if (Pref < 101) {
+		// Pref is kPa in most cases, though it is not a must. Just invite the user to double check the input value  
+		opserr << "WARNING: OPS_VonMisesDMM() - please double check the Pref value in use! Current Pref = " << Pref << "!\n";
 	}
 	
-	if (DEBUG) {
-		opserr << "OPS_VonMisesDMM:\n";
+	if (beVerbose) {
+		opserr << "\nOPS_VonMisesDMM:\n";
+		opserr << "-----------------\n";
 		opserr << "tag             : " << tag << "\n";
 		opserr << "rho             : " << rho << "\n";
 		opserr << "Kref            : " << Kref << "\n";
@@ -334,24 +354,24 @@ OPS_VonMisesDMM(void)
 		opserr << "HModuli         : " << HModuli << "\n";
 		opserr << "HParams         : " << HModuli << "\n";
 		opserr << "driverType      : " << dataDriverType << "\n";
-		opserr << "integrationType : " << integrationType << "\n";
+		opserr << "integrationType : " << integrationType << "\n\n";
 	}
 	
 	// create a nested yield surface object
-	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, HModuli, HParams);
+	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, HModuli, HParams, beVerbose);
 	
 	if (theData == nullptr) {
-		opserr << "FATAL: OPS_VonMisesDMM: cannot create VonMisesDMM material with tag: " << tag << "\n";
-		opserr << "FATAL: OPS_VonMisesDMM: yield surface data yielded bad result...";
-		exit(-1);
+		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";
+		opserr << "FATAL: OPS_VonMisesDMM() - yield surface data yielded bad result...";
+		return theMaterial;
 	}
 	
 	// create a VonMisesDMM nDmaterial object
-	theMaterial = new VonMisesDMM(tag, rho, Kref, Gref, Pref, modn, TNYS, theData, dataDriverType, integrationType);
+	theMaterial = new VonMisesDMM(tag, rho, Kref, Gref, Pref, modn, TNYS, theData, dataDriverType, integrationType, beVerbose);
 
 	if (theMaterial == nullptr) {
-		opserr << "FATAL: OPS_VonMisesDMM: cannot create VonMisesDMM material with tag: " << tag << "\n";
-		exit(-1);
+		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";
+		return theMaterial;
 	}
 	
 	// free the memory
@@ -366,6 +386,7 @@ OPS_VonMisesDMM(void)
 		HParams = nullptr;
 	}
 
+	// break link after passing theData to theMaterial
 	theData = nullptr;
 	
 	return theMaterial;

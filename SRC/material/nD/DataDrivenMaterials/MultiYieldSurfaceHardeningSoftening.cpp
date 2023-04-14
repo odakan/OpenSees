@@ -59,9 +59,9 @@ constexpr double SMALL_PERTURBATION = 1.0e-9;
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
 	double r0, double K0, double G0, double P0, double m0, int T0,
-	DataDrivenNestedSurfaces* data, int ddtype, int itype)
+	DataDrivenNestedSurfaces* data, int ddtype, int itype, bool verbosity)
 	:NDMaterial(tag, classTag), rho(r0), Kref(K0), Gref(G0), 
-	Pref(P0), Modn(m0), TNYS(T0), theData(data)
+	Pref(P0), Modn(m0), TNYS(T0), theData(data), beVerbose(verbosity)
 {
 	
 	// handle solution options
@@ -87,7 +87,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 
 	// do some checks
 	if (theData == nullptr) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening:: yield surfaces are missing!\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - yield surfaces are missing!\n";
 		opserr << "The pointer that points at the yield surface: ys = " << theData << "\n";
 		exit(-1);
 	}
@@ -96,38 +96,33 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		theData->checkin(); // do check-in
 	}
 	if (nOrd != 3 && nOrd != 6) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening:: dimension error\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - dimension error\n";
 		opserr << "Material order has to be 3 or 6, but it is nOrd = " << nOrd << "\n";
 		exit(-1);
 	}
 	if (Kref <= 0) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening: Kref <= 0\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - Kref <= 0\n";
 		exit(-1);
 	}
 	if (Gref <= 0) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening: Gref <= 0\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - Gref <= 0\n";
 		exit(-1);
 	}
 	if (Pref <= 0) {
-		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: Pref <= 0\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - Pref <= 0\n";
 		opserr << "Use Pref = 101.325 kPa?\n";
 		exit(-1);
 	}
 	if (Modn < 0) {
-		opserr << "WARNING:MultiYieldSurfaceHardeningSoftening: modn < 0\n";
+		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening() - modn < 0\n";
 		opserr << "modn is assumed to be zero...\n";
 		Modn = 0.0;
 	}
 	if (rho < 0) {
-		opserr << "WARNING:VonMisesDMM: mass density < 0\n";
+		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening() - mass density < 0\n";
 		opserr << "mass density (rho) is assumed to be zero...\n";
 		rho = 0.;
 	}
-	if (theData->getCohesion() < 0) {
-		opserr << "FATAL:VonMisesDMM: cohesion <= 0\n";
-		opserr << "Yield strength (cohesion) cannot be zero...\n";
-		exit(-1);
-	}	
 
 	revertToStart();
 }
@@ -171,11 +166,11 @@ int MultiYieldSurfaceHardeningSoftening::commitState(void) {
 	sv.xs_commit_old = sv.xs_commit;
 	sv.xs_commit = sv.xs;
 	if (ys.commitState()) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::commitState: Yield surface object failed commit!\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::commitState() - yield surface object failed commit!\n";
 		exit(-1);
 	}
 
-	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::commitState:\n"; sv.printStats(false); ys.printStats(false); }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::commitState() -> printStats() ->\n"; sv.printStats(false); ys.printStats(false); }
 
 	// done
 	return 0;
@@ -183,7 +178,7 @@ int MultiYieldSurfaceHardeningSoftening::commitState(void) {
 
 int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
 
-	if (DEBUG) { opserr << "MYSHS::revertToLastCommit! \n"; }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::revertToLastCommit()\n"; }
 
 	// restore committed internal variables
 	sv.eps = sv.eps_commit;
@@ -193,7 +188,7 @@ int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
 	sv.xs = sv.xs_commit;
 	sv.xs_commit = sv.xs_commit_old;
 	if (ys.revertToLastCommit()) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::revertToLastCommit: Yield surface object failed reverting to last commit!\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::revertToLastCommit() - yield surface object failed reverting to last commit!\n";
 		exit(-1);
 	}
 
@@ -233,8 +228,8 @@ int MultiYieldSurfaceHardeningSoftening::setTrialStrain(const Vector& strain) {
 		sv.eps = strain;
 	}
 	else {
-		opserr << "MultiYieldSurfaceHardeningSoftening:: Material type is: " << getType() << "\n";
-		opserr << "But strain vector size is: " << strain.Size() << "\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::::setTrialStrain() - material type is: " << getType() << "\n";
+		opserr << "But the strain vector size is: " << strain.Size() << "\n";
 		exit(-1);
 	}
 
@@ -299,13 +294,13 @@ void MultiYieldSurfaceHardeningSoftening::setTheSurfaces(YieldSurfacePackage* th
 
 	// return material info
 NDMaterial* MultiYieldSurfaceHardeningSoftening::getCopy(void) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::getCopy(void) -- subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getCopy(void) -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 NDMaterial* MultiYieldSurfaceHardeningSoftening::getCopy(const char* type) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::getCopy(const char* type) -- subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getCopy(char*) -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
@@ -319,7 +314,7 @@ const char* MultiYieldSurfaceHardeningSoftening::getType(void) const {
 		return "PlaneStrain";
 	}
 	else {
-		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getType -- unknown type!\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getType() - unknown type!\n";
 		exit(-1);
 		return 0;
 	}
@@ -345,7 +340,7 @@ int MultiYieldSurfaceHardeningSoftening::getOrder(void) const {
 
 	if (nOrd != 3 && nOrd != 6)
 	{
-		opserr << "MultiYieldSurfaceHardeningSoftening::getType -- unknown order!\n";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getOrder() - unknown order!\n";
 		exit(-1);
 		return 0;
 	}
@@ -376,7 +371,7 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
 		stress = sv.sig;
 	}
 
-	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress: " << stress; }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress() -> " << stress; }
 
 	// done
 	return stress;
@@ -393,7 +388,7 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStrain(void) {
 		strain = sv.eps;
 	}
 
-	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain: " << strain; }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain() -> " << strain; }
 
 	// done
 	return strain;
@@ -413,7 +408,7 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getTangent(void) {
 		stiff = sv.Cep;
 	}
 
-	if (DEBUG) { opserr << "MYSHS::getTangent Cep = " << stiff; }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getTangent() -> " << stiff; }
 
 	return stiff;
 }
@@ -434,7 +429,7 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getInitialTangent(void) {
 		stiff = sv.Ce;
 	}
 
-	if (DEBUG) { opserr << "MYSHS::getInitialTangent Ce = " << stiff; }
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getInitialTangent() -> " << stiff; }
 
 	return stiff;
 }
@@ -483,20 +478,20 @@ int MultiYieldSurfaceHardeningSoftening::getResponse(int responseID, Information
 
 	// parallel message passing
 int MultiYieldSurfaceHardeningSoftening::sendSelf(int commitTag, Channel& theChannel) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::sendSelf -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::sendSelf() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 int MultiYieldSurfaceHardeningSoftening::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::recvSelf -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::recvSelf() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 	// miscellaneous
 void MultiYieldSurfaceHardeningSoftening::Print(OPS_Stream& s, int flag) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::Print -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Print() -> subclass responsibility\n";
 	exit(-1);
 }
 
@@ -528,9 +523,6 @@ int MultiYieldSurfaceHardeningSoftening::setParameter(const char** argv, int arg
 		else if (strcmp(argv[0], "timeFactor") == 0) {
 			return param.addObject(111, this);
 		}
-		else if (strcmp(argv[0], "resetPlasticInternalVariables") == 0) {
-			return param.addObject(112, this);
-		}
 	}
 
 	// done
@@ -541,15 +533,22 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 
 	if (responseID == 1) {
 		// update material stage and if nonlinear set up yield surfaces 
-		materialStage = info.theInt;
-		if (materialStage > 0) {
+		if (info.theInt > 0) {
 			// set-up yield surfaces
 			if (theData == nullptr) {
-				opserr << "FATAL:MultiYieldSurfaceHardeningSoftening: Could not access yield surface database!";
+				opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << getTag() <<
+					" could not access the yield surface database!";
 				exit(-1);
 			}
 			else {
-				ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Pref, Gref, TNYS);
+				if (theData->isAOK(getDataDriver())) {
+					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Pref, Gref, TNYS);
+					materialStage = info.theInt;
+				}
+				else {
+					opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << getTag() << 
+						" could not update material stage! Keeping the current stage = " << materialStage << " ...\n";
+				}
 			}
 		}
 	}
@@ -575,7 +574,7 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 			nOrd = 3;
 		}
 		else {
-			opserr << "WARNING: MultiYieldSurfaceHardeningSoftening updateParameter: unsupported material type = " << info.theString << "\n";
+			opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - unsupported material type = " << info.theString << "\n";
 			opserr << "MultiYieldSurfaceHardeningSoftening materialType can be --> ThreeDimensional (1), PlaneStrain (0)\n";
 			opserr << "-----> CONTINUE WITHOUT UPDATING THE MATERIAL TYPE <-----\n";
 		}
@@ -616,35 +615,35 @@ const Vector MultiYieldSurfaceHardeningSoftening::getStressDeviator(const Vector
 
 	// yield surface operations
 double MultiYieldSurfaceHardeningSoftening::yieldFunction(const Vector& stress, const int num_yield_surface, bool yield_stress = false) {
-	opserr << "MultiYieldSurfaceHardeningSoftening::yieldFunction -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldFunction() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dF_dS(const Vector& stress, const int num_yield_surface) {
 	Vector zero(6);
-	opserr << "MultiYieldSurfaceHardeningSoftening::get_dF_dS -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dF_dS() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dF_dA(const Vector& stress, const int num_yield_surface) {
 	Vector zero(6);
-	opserr << "MultiYieldSurfaceHardeningSoftening::get_dF_dS -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dF_dA() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dH_dA(const Vector& stress, const int num_yield_surface) {
 	Vector zero(6);
-	opserr << "MultiYieldSurfaceHardeningSoftening::get_dH_dA -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dH_dA() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dP_dS(const Vector& stress, const int num_yield_surface) {
 	Vector zero(6);
-	opserr << "MultiYieldSurfaceHardeningSoftening::plasticFlowDirect -> Subclass responsibility\n";
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dP_dS() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
@@ -740,12 +739,12 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 					converged = closestPointProjection(ST);				// backward-euler
 				}
 				else {
-					opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::updateInternal: Unknown return mapping algorithm!\n";
+					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - unknown return mapping algorithm!\n";
 					exit(-1);
 				}
 				if (converged != 0)
 				{
-					opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::updateInternal: Return mapping algorithm did not converge!\n";
+					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - return mapping algorithm did not converge!\n";
 					exit(-1);
 				}
 			}
@@ -776,9 +775,8 @@ void MultiYieldSurfaceHardeningSoftening::updatePlasticStrain(Vector& pstrain, c
 }
 
 void MultiYieldSurfaceHardeningSoftening::updateFailureSurface(const Vector& stress) {
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::updateFailureSurface in! \n"; }
-	//////////////////////////////
+	
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::updateFailureSurface()\n"; }
 
 	//DO YOU NEED ZETA OR SIJ BELOW????
 
@@ -818,9 +816,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces(int num_yield
 	}
 	else {
 		if (curr_radius == 0) {
-			opserr << "\n";
-			opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces()\n";
-			opserr << "Denominator -- curr_radius = 0...\n\n";
+			opserr << "\nWARNING: MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces() - Denominator: curr_radius = 0!\n";
 		}
 	}
 }
@@ -845,7 +841,7 @@ void MultiYieldSurfaceHardeningSoftening::computeElastoplasticTangent(int num_yi
 	double denominator = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) - TensorM::dotdot(xi, rr);
 
 	if (denominator == 0 ){
-	    opserr << "DruckerPragerMYSHS::computeElastoplasticTangent" << "\n";
+	    opserr << "\nWARNING: MultiYieldSurfaceHardeningSoftening::computeElastoplasticTangent() -" << "\n";
 		opserr << "Error denominator                          = 0 " << "\n";
 		opserr << "LEFT  = nn(i,j) : sv.Ce(i,j,k,l) : mm(k,l) = " << TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) << "\n";
 		opserr << "RIGHT = xi(o,t) : rr(o,t)                  = " << TensorM::dotdot(xi, rr) << "\n";
@@ -865,7 +861,7 @@ double MultiYieldSurfaceHardeningSoftening::computePlasticLoadingFunction(const 
 	double denominator = 0;
 	denominator = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) - TensorM::dotdot(xi, rr);
 	if (denominator == 0) {
-		opserr << "MultiYieldSurfaceHardeningSoftening::computePlasticLoadingFunction():\n";
+		opserr << "\nWARNING: MultiYieldSurfaceHardeningSoftening::computePlasticLoadingFunction():\n";
 		opserr << "Error denominator == 0 \n";
 		opserr << "LEFT  = curr_nn * Ce * curr_mm == " << TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) << "\n";
 		opserr << "RIGHT = curr_xi * bar_alpha    == " << TensorM::dotdot(xi, rr) << "\n";
@@ -912,7 +908,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		// Step 6 - check for overshooting of the next yield surface
 		curr_yf_value = yieldFunction(sv.sig, ys.getNYS() + 1);	// next yf_value
 		if ((ys.getNYS() == TNYS) || (curr_yf_value < ABSOLUTE_TOLERANCE)) {
-			if (DEBUG) { opserr << "MYSHS::cuttingPlaneAlgorithm: cuting-plane solver converged after " << iteration_counter << " iterations!\n"; }
+			if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() -> return-mapping converged after " << iteration_counter << " iterations!\n"; }
 			converged = 0;
 			break; // end while loop: algorithm is done...
 		}
@@ -929,7 +925,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 	}
 
 	if (iteration_counter == maxIter)
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm: return mapping failed!\n";
+		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - return-mapping failed!\n";
 
 	return converged;
 }
@@ -941,35 +937,27 @@ return 0;
 
 		// correct methods
 void MultiYieldSurfaceHardeningSoftening::correctStress(Vector& stress, const double lambda1, const double lambda2, const int num_yield_surface) {
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::correctUpdateStress in! \n"; }
-	////////////////////////////
+	
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::correctUpdateStress()\n"; }
 
 	// After overshooting, Correct the overshooting stress
 	Vector curr_mm = get_dF_dS(stress, num_yield_surface);		// curr_nn
 	Vector next_mm = get_dF_dS(stress, num_yield_surface + 1);	// next_nn
 
 	// correct stress
-//updateModulus(stress, num_yield_surface);
+	//updateModulus(stress, num_yield_surface);
 	stress = stress + lambda1 * TensorM::inner(sv.Ce, curr_mm) - lambda2 * TensorM::inner(sv.Ce, next_mm);
-
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::correctUpdateStress out! \n"; }
-	//////////////////////////////
 }
 
 void MultiYieldSurfaceHardeningSoftening::correctPlasticStrain(Vector& pstrain, const Vector& stress,
 	const double lambda1, const double lambda2, const int num_yield_surface) {
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::correctPlasticStrain in! \n"; }
-	//////////////////////////////
+	
+	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::correctPlasticStrain()\n"; }
+	
 	// After the overshooting, Correct the plastic strain
 	Vector curr_mm = get_dP_dS(stress, num_yield_surface);			// curr_mm
 	Vector next_mm = get_dP_dS(stress, num_yield_surface + 1);		// next_mm
 	pstrain = pstrain - lambda1 * curr_mm + lambda2 * next_mm;		// lambda * plastic_flow
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::correctPlasticStrain out! \n"; }
-	//////////////////////////////
 }
 
 void MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction(Vector& stress, double& lambda1, double& lambda2, const int num_yield_surface) {
@@ -981,9 +969,7 @@ void MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction(Vector& 
 	double curr_H_prime = TensorM::dotdot((-1 * curr_xi), curr_rr);		// curr_H_prime
 
 	if (curr_H_prime == 0) {
-		opserr << "\n";
-		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction\n ";
-		opserr << "Denominator --> curr_H_prime = 0\n ";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction() - Denominator: curr_H_prime = 0\n ";
 		exit(-1);
 	}
 
@@ -998,9 +984,7 @@ void MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction(Vector& 
 	double next_H0 = TensorM::dotdot(TensorM::inner(next_nn, sv.Ce), next_nn);
 
 	if ((next_H0 + next_H_prime) == 0) {
-		opserr << "\n";
-		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction\n ";
-		opserr << "Denominator --> (next_H0 + next_H_prime) = 0\n ";
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::correctPlasticLoadingFunction() - Denominator: (next_H0 + next_H_prime) = 0\n";
 		exit(-1);
 	}
 
