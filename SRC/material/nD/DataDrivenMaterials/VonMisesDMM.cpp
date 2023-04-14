@@ -200,7 +200,7 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 	// yield surface operations
 double VonMisesDMM::yieldFunction(const Vector& stress, const int num_yield_surface, bool yield_Stress = false) {
 	// get material constants
-	double yf = ys.getTau(num_yield_surface, sv.iYs_commit);
+	double yf = ys.getTau(num_yield_surface, ys.getNYS_commit());
 
 	// Evaluate and return the yield surface value
 	if (!yield_Stress) {
@@ -213,7 +213,7 @@ double VonMisesDMM::yieldFunction(const Vector& stress, const int num_yield_surf
 Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_yield_surface) {
 	// Return the normal to the yield surface w.r.t stress
 	Vector zeta = getStressDeviator(stress, num_yield_surface);
-	Vector alpha = ys.getAlpha(num_yield_surface, sv.iYs_commit);
+	Vector alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
 	Vector dfds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
 	dfds = dfds - (1. / 3.) * (TensorM::dotdot(dfds, alpha)) * TensorM::I(6);
 	return dfds;
@@ -222,7 +222,7 @@ Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_yield_surface)
 Vector VonMisesDMM::get_dF_dA(const Vector& stress, const int num_yield_surface) {
 	// Return the normal to the yield surface w.r.t alpha(backstress)
 	Vector zeta = getStressDeviator(stress, num_yield_surface);
-	Vector alpha = ys.getAlpha(num_yield_surface, sv.iYs_commit);
+	Vector alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
 	Vector dfda = -1 * getMeanStress(stress) * (zeta / sqrt(TensorM::dotdot(zeta, zeta)));
 	return dfda;
 }
@@ -248,12 +248,12 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 	Vector Q_prime = zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
 	if (num_yield_surface >= TNYS) {
-		double H_prime = ys.getEta(TNYS, sv.iYs_commit);
+		double H_prime = ys.getEta(TNYS, ys.getNYS_commit());
 		dhda = (H_prime / Pavg) * Q_prime;
 	}
 	else {
 		double next_radius = getSizeYS(num_yield_surface + 1);
-		double H_prime = ys.getEta(num_yield_surface, sv.iYs_commit);
+		double H_prime = ys.getEta(num_yield_surface, ys.getNYS_commit());
 		Vector next_zeta = getStressDeviator(stress, num_yield_surface + 1);
 
 		dhda = ((next_radius / radius) * (zeta)) - (next_zeta);

@@ -47,7 +47,6 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 	eta = Vector(3);
 	alpha = Matrix(6, 3);
 	alpha_commit = Matrix(6, 3);
-	alpha_commit_old = Matrix(6, 3);
 }
 
 YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
@@ -60,7 +59,6 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
 	eta = Vector(tnys + 1);
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
-	alpha_commit_old = Matrix(6, tnys + 1);
 }
 
 YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
@@ -77,7 +75,6 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 	eta = Vector(tnys + 1);
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
-	alpha_commit_old = Matrix(6, tnys + 1);
 }
 
 
@@ -92,6 +89,7 @@ YieldSurfacePackage::~YieldSurfacePackage(void)
 int YieldSurfacePackage::commitState(void) {
 
 	alpha_commit = alpha;
+	nYs_commit = nYs;
 
 	return 0;
 }
@@ -99,6 +97,7 @@ int YieldSurfacePackage::commitState(void) {
 int YieldSurfacePackage::revertToLastCommit(void) {
 
 	alpha = alpha_commit;
+	nYs = nYs_commit;
 
 	return 0;
 }
@@ -116,32 +115,31 @@ void YieldSurfacePackage::printStats(bool detail) {
 		opserr << "\n";
 		opserr << "YieldSurfacePackage::printStats:\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "\n";
-		opserr << "Limit Stresses       =  " << tau << "\n";
-		opserr << "Plastic Moduli       =  " << eta << "\n";
-		opserr << "\n";
-		opserr << "Back-stress          =  " << alpha << "\n";
-		opserr << "Commited Back-stress =  " << alpha_commit << "\n";
-		opserr << "\n";
+		opserr << "Limit Stresses				=  " << tau;
+		opserr << "Plastic Moduli				=  " << eta;
+		opserr << "Active Y-Surface				=  " << nYs << "\n";
+		opserr << "Commited Active Y-Surface	=  " << nYs_commit << "\n";
+		opserr << "Back-stress					=  " << alpha;
+		opserr << "Commited Back-stress			=  " << alpha_commit;
 	}
 	else {
 		opserr << "\n";
 		opserr << "YieldSurfacePackage::printStats:\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "\n";
-		opserr << "Limit Stresses =  " << tau << "\n";
-		opserr << "Plastic Moduli =  " << eta << "\n";
-		opserr << "\n";
+		opserr << "Active Y-Surface	=  " << nYs_commit << "\n";
+		opserr << "Back-stress		=  " << alpha_commit;
 	}
 }
 
 
 	// get methods
-double YieldSurfacePackage::getCohesion(void) { return cohesion; }
+int YieldSurfacePackage::getNYS(void) { return nYs; }
 double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
 double YieldSurfacePackage::getPsi(void) { return dilatancyAngle; }
-double YieldSurfacePackage::getPeakStrain(void) { return peakShearStrain; }
 double YieldSurfacePackage::getPresid(void) { return residualPressure; }
+int YieldSurfacePackage::getNYS_commit(void) { return nYs_commit; }
+double YieldSurfacePackage::getCohesion(void) { return cohesion; }
+double YieldSurfacePackage::getPeakStrain(void) { return peakShearStrain; }
 
 double YieldSurfacePackage::getTau(const int index, const int num_surface_commit) {
 
@@ -299,58 +297,18 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index, const int num_surfa
 	return Vect;
 }
 
-Vector YieldSurfacePackage::getAlpha_commit_old(const int index, const int num_surface_commit) {
-
-	Vector Vect = Vector(6);
-
-	if (index < 0) {
-		opserr << "FATAL:YieldSurfacePackage::getZeta: A yield surface with negative number was requested!";
-		exit(-1);
-	}
-
-	if (do_online) {
-		if (index == (num_surface_commit + 1)) {
-			for (int i = 0; i < 6; i++) {
-				Vect(i) = alpha_commit_old(i, 2);
-			}
-		}
-		else if (index == num_surface_commit) {
-			for (int i = 0; i < 6; i++) {
-				Vect(i) = alpha_commit_old(i, 1);
-			}
-		}
-		else if (index == (num_surface_commit - 1)) {
-			for (int i = 0; i < 6; i++) {
-				Vect(i) = alpha_commit_old(i, 0);
-			}
-		}
-		else {
-			opserr << "FATAL:YieldSurfacePackage::getZeta: A yield surface that is older than two steps was requested!";
-			exit(-1);
-		}
-	}
-	else {
-		if (index < tnys) {
-			for (int i = 0; i < 6; i++) {
-				Vect(i) = alpha_commit_old(i, index);
-			}
-		}
-		else {
-			for (int i = 0; i < 6; i++) {
-				Vect(i) = alpha_commit_old(i, tnys);
-			}
-		}
-	}
-
-	return Vect;
-}
-
 
 	// set methods
-void YieldSurfacePackage::setCohesion(double value) { 
-
-	cohesion = value;
-	// ask for re-compuation of yield surfaces with new value
+void YieldSurfacePackage::incrementNYS(void) {
+	
+	if (do_online) {
+		nYs++;
+	}
+	else {
+		if (nYs < tnys) {
+			nYs++;
+		}
+	}
 }
 
 void YieldSurfacePackage::setPhi(double value) { 
@@ -368,6 +326,12 @@ void YieldSurfacePackage::setPsi(double value) {
 void YieldSurfacePackage::setPresid(double value) {
 
 	residualPressure = value;
+	// ask for re-compuation of yield surfaces with new value
+}
+
+void YieldSurfacePackage::setCohesion(double value) {
+
+	cohesion = value;
 	// ask for re-compuation of yield surfaces with new value
 }
 
@@ -459,31 +423,8 @@ void YieldSurfacePackage::setAlpha_commit(const Vector value, const int index) {
 	}
 }
 
-void YieldSurfacePackage::setAlpha_commit_old(const Vector value, const int index) {
-
-	if (index < 0) {
-		opserr << "FATAL:YieldSurfacePackage::setAlpha: A yield surface with negative number was requested!";
-		exit(-1);
-	}
-
-	if (do_online) {
-
-	}
-	else {
-		if (index <= tnys) {
-			for (int i = 0; i < 6; i++) {
-				alpha_commit_old(i, index) = value(i);
-			}
-		}
-		else {
-			opserr << "FATAL:YieldSurfacePackage::setAlpha: A yield surface further than TNYS was requested!";
-			exit(-1);
-		}
-	}
-}
 
 // Private methods
-
 void YieldSurfacePackage::update(void) {
 
 }

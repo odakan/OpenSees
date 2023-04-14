@@ -136,7 +136,6 @@ public:
 	int getOrder(void) const;
 	Vector getState(void);
 		// used by the yield surface objects
-	double getNAYS(void);			// number of active yield surface
 	double getGref(void);			// return reference shear modulus
 	double getPref(void);			// return reference pressure
 	double getTNYS(void);			// return total number of yield surfaces
@@ -213,17 +212,14 @@ protected:
 	void updateInnerYieldSurfaces(int num_yield_surface, const Vector& stress);						// Update the inner yield surfaces (alpha)
 	void updateCurrentYieldSurface(int num_yield_surface, double lambda, const Vector& stress);		// Update current active yield surface (alpha)
 
-		// reset methods
-	void resetPlasticInternalVariables(void);
-
 		// compute methods
 	void computeElastoplasticTangent(int num_yield_surface, const Vector& stress);				// Compute the algorithmic tangent operator
 	double computePlasticLoadingFunction(const Vector& stress,									// Compute the consistency parameter (by linearizing F)
 		const double yf_value, const int num_yield_surface);
 
-		// solution strategies
-	int cuttingPlaneAlgorithm(const Vector& strain_incr);
-	int closestPointProjection(const Vector& strain_incr);
+		// return-mapping
+	int cuttingPlaneAlgorithm(const Vector& sigma_trial);
+	int closestPointProjection(const Vector& sigma_trial);
 
 		// correct methods
 	void correctStress(Vector& stress, const double lambda1, const double lambda2,				// After overshooting, correct the overshooting stress
