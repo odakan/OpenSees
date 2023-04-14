@@ -367,7 +367,7 @@ OPS_VonMisesDMM(void)
 	}
 	
 	// create a VonMisesDMM nDmaterial object
-	theMaterial = new VonMisesDMM(tag, rho, Kref, Gref, Pref, modn, TNYS, theData, dataDriverType, integrationType, beVerbose);
+	theMaterial = new VonMisesDMM(tag, rho, Kref, Gref, Pref, modn, theData, dataDriverType, integrationType, beVerbose);
 
 	if (theMaterial == nullptr) {
 		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";

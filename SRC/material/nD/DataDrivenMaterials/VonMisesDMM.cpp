@@ -37,10 +37,10 @@
 	// full constructor
 VonMisesDMM::VonMisesDMM(int tag, double r0,
 	double K0, double G0, double P0, double m0,
-	int T0, DataDrivenNestedSurfaces* ys,
+	DataDrivenNestedSurfaces* ys,
 	int ddtype, int itype, bool verbosity)
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_VonMisesDMM, r0,
-		K0, G0, P0, m0, T0, ys, ddtype, itype, verbosity)
+		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
 	
 
@@ -236,7 +236,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 		opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
 		opserr << "curr_sz = 0  \n";
 		opserr << "N_active_ys: " << num_yield_surface << "\n";
-		opserr << "Total theSurfaces  : " << TNYS << "\n";
+		opserr << "Total theSurfaces  : " << ys.getTNYS() << "\n";
 		opserr << "\n";
 		exit(-1);
 	}
@@ -247,8 +247,8 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 	Vector zeta = getStressDeviator(stress, num_yield_surface);
 	Vector Q_prime = zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
-	if (num_yield_surface >= TNYS) {
-		double H_prime = ys.getEta(TNYS, ys.getNYS_commit());
+	if (num_yield_surface >= ys.getTNYS()) {
+		double H_prime = ys.getEta(ys.getTNYS(), ys.getNYS_commit());
 		dhda = (H_prime / Pavg) * Q_prime;
 	}
 	else {
@@ -264,7 +264,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface)
 			opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
 			opserr << "denominator = 0  \n";
 			opserr << "N_active_ys: " << num_yield_surface << "\n";
-			opserr << "Total theSurfaces  : " << TNYS << "\n";
+			opserr << "Total theSurfaces  : " << ys.getTNYS() << "\n";
 			opserr << "\n";
 			exit(-1);
 		}

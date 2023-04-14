@@ -67,6 +67,7 @@ public:
 
 	// get methods
 	int getNYS(void);
+	int getTNYS(void);
 	double getPhi(void);
 	double getPsi(void);
 	double getPresid(void);
@@ -80,6 +81,7 @@ public:
 
 	// set methods
 	void incrementNYS(void);									// increment number of active yield surface (nYs)
+	void setTNYS(int value);
 	void setPhi(double value);
 	void setPsi(double value);
 	void setPresid(double value);
@@ -100,9 +102,9 @@ private:
 	double referencePressure = 0.0;
 
 	// operational parameters
-	int matID = 0;
-	int tnys = 0;
-	bool do_online = false;
+	int matID = 0;						// tag of the attached material
+	int tnys = 0;						// total number of yield surfaces
+	bool do_online = false;				// activate on-the-fly update of the data-driven surfaces
 
 	// yield surface state variables
 	Vector tau = Vector(1);					// limit isotropic stress

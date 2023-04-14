@@ -71,7 +71,7 @@ public:
 	double getPref(void);
 
 	// generate yield surface
-	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref, const double TNYS);
+	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref);
 
 private:
 	// default yield surface paramters

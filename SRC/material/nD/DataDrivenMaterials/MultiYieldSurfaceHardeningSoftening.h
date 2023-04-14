@@ -103,7 +103,7 @@ class MultiYieldSurfaceHardeningSoftening : public NDMaterial {
 public:
 	// Full Constructor
 	MultiYieldSurfaceHardeningSoftening(int tag, int classTag, double r0,
-		double K0, double G0, double P0, double m0, int T0,
+		double K0, double G0, double P0, double m0,
 		DataDrivenNestedSurfaces* ys, int dtype, int itype, bool verbosity);
 
 
@@ -162,7 +162,6 @@ public:
 protected:
 	// material parameters & constants
 	int nOrd = 6;									// Material order (dimension) [3 or 6] (3D by default)
-	int TNYS = 0;									// Total number of yield surfaces
 	double rho = 0.0;								// Mass density
 	double Kref = 0.0;								// Reference bulk modulus
 	double Gref = 0.0;								// Reference shear modulus

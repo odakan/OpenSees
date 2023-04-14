@@ -132,6 +132,7 @@ void YieldSurfacePackage::printStats(bool detail) {
 
 	// get methods
 int YieldSurfacePackage::getNYS(void) { return nYs; }
+int YieldSurfacePackage::getTNYS(void) { return tnys; }
 double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
 double YieldSurfacePackage::getPsi(void) { return dilatancyAngle; }
 double YieldSurfacePackage::getPresid(void) { return residualPressure; }
@@ -307,6 +308,12 @@ void YieldSurfacePackage::incrementNYS(void) {
 			nYs++;
 		}
 	}
+}
+
+void YieldSurfacePackage::setTNYS(int value) {
+
+	tnys = value;
+	// ask for re-compuation of yield surfaces with new value
 }
 
 void YieldSurfacePackage::setPhi(double value) { 

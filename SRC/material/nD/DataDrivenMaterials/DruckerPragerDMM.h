@@ -29,7 +29,7 @@ public:
 	//full constructor
 	DruckerPragerDMM(int tag, double rho,
 		double Kref, double Gref, double Pref, double modn,
-		int TNYS, DataDrivenNestedSurfaces* theData,
+		DataDrivenNestedSurfaces* theData,
 		int dataDriverType, int integrationType, bool verbosity);
 
 	//null constructor

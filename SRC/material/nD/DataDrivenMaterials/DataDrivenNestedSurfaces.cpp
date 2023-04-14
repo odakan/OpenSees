@@ -156,7 +156,7 @@ double DataDrivenNestedSurfaces::getPref(void) { return referencePressure_init; 
 
 
 // generate nested yield surface package
-YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref, const double TNYS) {
+YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref) {
 	
 	// initialize the yield surface package
 	YieldSurfacePackage yieldSurface;
@@ -175,7 +175,7 @@ YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int ma
 	else {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init, cohesion_init, frictionAngle_init,
 			dilatancyAngle_init, peakShearStrain_init, residualPressure_init, referencePressure_init);
-		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, TNYS);
+		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, tnys_init);
 		if (beVerbose) { yieldSurface.printStats(true); }
 	}
 	return yieldSurface;

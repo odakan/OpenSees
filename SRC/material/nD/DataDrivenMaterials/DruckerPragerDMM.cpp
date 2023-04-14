@@ -29,10 +29,10 @@
 	// full constructor
 DruckerPragerDMM::DruckerPragerDMM(int tag, double r0,
 	double K0, double G0, double P0, double m0,
-	int T0, DataDrivenNestedSurfaces* ys,
+	DataDrivenNestedSurfaces* ys,
 	int ddtype, int itype, bool verbosity)
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_DruckerPragerDMM, r0,
-		K0, G0, P0, m0, T0, ys, ddtype, itype, verbosity)
+		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
 
 }

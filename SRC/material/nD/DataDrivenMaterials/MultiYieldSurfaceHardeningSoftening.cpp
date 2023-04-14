@@ -58,10 +58,10 @@ constexpr double SMALL_PERTURBATION = 1.0e-9;
 // Public methods
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
-	double r0, double K0, double G0, double P0, double m0, int T0,
+	double r0, double K0, double G0, double P0, double m0,
 	DataDrivenNestedSurfaces* data, int ddtype, int itype, bool verbosity)
 	:NDMaterial(tag, classTag), rho(r0), Kref(K0), Gref(G0), 
-	Pref(P0), Modn(m0), TNYS(T0), theData(data), beVerbose(verbosity)
+	Pref(P0), Modn(m0), theData(data), beVerbose(verbosity)
 {
 	
 	// handle solution options
@@ -357,7 +357,6 @@ Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
 
 double MultiYieldSurfaceHardeningSoftening::getGref(void) { return Gref; }
 double MultiYieldSurfaceHardeningSoftening::getPref(void) { return Pref; }
-double MultiYieldSurfaceHardeningSoftening::getTNYS(void) { return TNYS; }
 
 	// return stress & strain
 const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
@@ -542,7 +541,7 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 			}
 			else {
 				if (theData->isAOK(getDataDriver())) {
-					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Pref, Gref, TNYS);
+					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Pref, Gref);
 					materialStage = info.theInt;
 				}
 				else {
@@ -781,19 +780,19 @@ void MultiYieldSurfaceHardeningSoftening::updateFailureSurface(const Vector& str
 	//DO YOU NEED ZETA OR SIJ BELOW????
 
 	// initialize variables 
-	Vector alpha = ys.getAlpha(TNYS, ys.getNYS_commit());
-	Vector nn = get_dF_dS(stress, TNYS);
-	Vector zeta = getStressDeviator(stress, TNYS);
+	Vector alpha = ys.getAlpha(ys.getTNYS(), ys.getNYS_commit());
+	Vector nn = get_dF_dS(stress, ys.getTNYS());
+	Vector zeta = getStressDeviator(stress, ys.getTNYS());
 
 	// direction
 	Vector unitdir = nn.Normalize();
 
 	// magnitude
-	alpha = zeta - sqrt(2. / 3.) * getSizeYS(TNYS) * unitdir;
+	alpha = zeta - sqrt(2. / 3.) * getSizeYS(ys.getTNYS()) * unitdir;
 
 	// update alpha
-	ys.setAlpha(alpha, TNYS);
-	updateInnerYieldSurfaces(TNYS, stress);
+	ys.setAlpha(alpha, ys.getTNYS());
+	updateInnerYieldSurfaces(ys.getTNYS(), stress);
 
 }
 
@@ -907,7 +906,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		}
 		// Step 6 - check for overshooting of the next yield surface
 		curr_yf_value = yieldFunction(sv.sig, ys.getNYS() + 1);	// next yf_value
-		if ((ys.getNYS() == TNYS) || (curr_yf_value < ABSOLUTE_TOLERANCE)) {
+		if ((ys.getNYS() == ys.getTNYS()) || (curr_yf_value < ABSOLUTE_TOLERANCE)) {
 			if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() -> return-mapping converged after " << iteration_counter << " iterations!\n"; }
 			converged = 0;
 			break; // end while loop: algorithm is done...
