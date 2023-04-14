@@ -59,41 +59,6 @@ namespace tools {
 		return gsmap[N].resize(N);
 	}
 
-
-	inline Vector getColumnVector(int idx, const Matrix& M) {
-		//return column vector with col id idx
-		int N = M.noRows();
-		Vector V = Vector(N);
-		idx = abs(idx);
-		if (M.noCols() > idx) {
-			for (int i = 0; i < N; i++) {
-				V(i) = M(i, idx);
-			}
-		}
-		else {
-			opserr << "MultiYieldSurfaceHardeningSoftening::getColumnVector: idx exceeds Matrix size!!\n";
-			exit(-1);
-		}
-		return V;
-	}
-
-
-	inline void setColumnVector(int idx, const Vector& V, Matrix& M) {
-		//return column vector with col id idx
-		int N = M.noRows();
-		idx = abs(idx);
-		if (M.noCols() > idx) {
-			for (int i = 0; i < N; i++) {
-				M(i, idx) = V(i);
-			}
-		}
-		else {
-			opserr << "MultiYieldSurfaceHardeningSoftening::getColumnVector: idx exceeds Matrix size!!\n";
-			exit(-1);
-		}
-	}
-
-
 	inline double macaulay(double A) {
 		double val = (A + abs(A)) * 0.5;
 		return val;
@@ -113,9 +78,6 @@ public:
 	Vector xs = Vector(6);					// equivalent plastic strain
 	Vector xs_commit = Vector(6);			// committed equivalent plastic strain
 	Vector xs_commit_old = Vector(6);		// previously committed equivalent plastic strain
-	int iYs = 0;							// number of active yield surface
-	int iYs_commit = 0;						// committed number of active yield surface
-	int iYs_commit_old = 0;					// previously committed number of active yield surface
 	double dtime_n = 0.0;					// time factor
 	double dtime_n_commit = 0.0;			// committed time factor
 	bool dtime_is_user_defined = false;
@@ -128,32 +90,27 @@ public:
 	double Gmod = 0;						// Current shear modulus
 	double Hmod = 0;						// Current plastic modulus
 
+public:
 	// null constructor
 	MaterialStateVariables(void) = default;
-
 
 	// full constructors
 	MaterialStateVariables(const MaterialStateVariables&) = default;
 	MaterialStateVariables(int alpha_size);
 
-
 	// destructor
 	~MaterialStateVariables(void);
-
 
 	// operator overloading
 	MaterialStateVariables& operator= (const MaterialStateVariables&) = default;
 	//void operator+= (const MaterialStateVariables& A);
 	//void operator-= (const MaterialStateVariables& A);
 
-
 	// pack and unpack state variables (vectorize) for message passing
 	Vector& pack(void);
 	void unpack(Vector& data);
 
-
 	void printStats(bool detail);
-
 
 private:
 	// un/pack methods

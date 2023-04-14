@@ -37,6 +37,7 @@
 
 #define LARGE_NUMBER 1.0e30
 
+const bool DEBUG = true;
 
 // Public methods
 	// full constructors
@@ -101,16 +102,18 @@ YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int ma
 	if (dataDriver == 2) {
 		yieldSurface = YieldSurfacePackage(matid);
 		setUpOnlineSurfaces(yieldSurface);
+		if (DEBUG) { yieldSurface.printStats(true); }
 	}
 	else if (dataDriver == 1) {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init);
 		setUpOfflineSurfaces(yieldSurface);
+		if (DEBUG) { yieldSurface.printStats(true); }
 	} 
 	else {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init, cohesion_init, frictionAngle_init,
 			dilatancyAngle_init, peakShearStrain_init, residualPressure_init, referencePressure_init);
 		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, TNYS);
-		yieldSurface.printStats(false);
+		if (DEBUG) { yieldSurface.printStats(true); }
 	}
 	return yieldSurface;
 }

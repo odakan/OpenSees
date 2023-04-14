@@ -98,11 +98,11 @@ Vector& MaterialStateVariables::pack(void) {
 	vectormatrix(N, alpha, data, forward);
 	vectormatrix(N, alpha_commit, data, forward);
 	vectormatrix(N, alpha_commit_old, data, forward);
-	*/
 
 	data(N) = iYs;
 	data(N + 1) = iYs_commit;
 	data(N + 2) = iYs_commit_old;
+	*/
 
 	data(N + 3) = dtime_n;
 	data(N + 4) = dtime_n_commit;
@@ -137,11 +137,11 @@ void MaterialStateVariables::unpack(Vector& data) {
 	vectormatrix(N, alpha, data, backward);
 	vectormatrix(N, alpha_commit, data, backward);
 	vectormatrix(N, alpha_commit_old, data, backward);
-	*/
 
 	iYs = data(N);
 	iYs_commit = data(N + 1);
 	iYs_commit_old = data(N + 2);
+	*/
 
 	dtime_n = data(N + 3);
 	dtime_n_commit = data(N + 4);
@@ -154,38 +154,31 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "\n";
 		opserr << "MaterialStateVariables::printStats:\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "\n";
-		opserr << "Stress                    =  " << sig << "\n";
-		opserr << "Comitted Stress           =  " << sig_commit << "\n";
-		opserr << "\n";
-		opserr << "Strain                    =  " << eps << "\n";
-		opserr << "Comitted Strain           =  " << eps_commit << "\n";
-		opserr << "\n";
+		opserr << "Stress                    =  " << sig;
+		opserr << "Comitted Stress           =  " << sig_commit;
+		opserr << "Strain                    =  " << eps;
+		opserr << "Comitted Strain           =  " << eps_commit;
 		opserr << "-------------------- Pastic Internal Variables --------------------\n";
-		opserr << "\n";
-		opserr << "Plastic Strain            =  " << xs << "\n";
-		opserr << "Commited Plastic Strain   =  " << xs_commit << "\n";
-		opserr << "\n";
+		opserr << "Plastic Strain            =  " << xs;
+		opserr << "Commited Plastic Strain   =  " << xs_commit;
 		//opserr << "Back-stress               =  " << tools::getColumnVector(iYs, alpha) << "\n";
 		//opserr << "Commited Back-stress      =  " << tools::getColumnVector(iYs_commit, alpha_commit) << "\n";
 		//opserr << "\n";
-		opserr << "Active Y-Surface          =  " << iYs << "\n";
-		opserr << "Commited Active Y-Surface =  " << iYs_commit << "\n";
-		opserr << "\n";
+		//opserr << "Active Y-Surface          =  " << iYs << "\n";
+		//opserr << "Commited Active Y-Surface =  " << iYs_commit << "\n";
 		opserr << "------------------ Consistent Tangent Operator ------------------\n";
-		opserr << "\n";
-		opserr << "Kt = " << Cep << "\n";
+		opserr << "Kt = " << Cep;
 	}
 	else {
 		opserr << "\n";
 		opserr << "MaterialStateVariables::printStats:\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "Stress                    =  " << sig << "";
-		opserr << "Strain                    =  " << eps << "";
-		opserr << "Plastic Strain            =  " << xs << "";
+		opserr << "Stress                    =  " << sig;
+		opserr << "Strain                    =  " << eps;
+		opserr << "Plastic Strain            =  " << xs;
 		//opserr << "Back-stress               =  " << tools::getColumnVector(iYs, alpha) << "";
-		opserr << "Active Y-Surface          =  " << iYs << "\n";
-		opserr << "\n\n";
+		//opserr << "Active Y-Surface          =  " << iYs << "\n";
+		opserr << "\n";
 	}
 }
 

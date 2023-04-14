@@ -170,23 +170,20 @@ int MultiYieldSurfaceHardeningSoftening::commitState(void) {
 	sv.sig_commit = sv.sig;
 	sv.xs_commit_old = sv.xs_commit;
 	sv.xs_commit = sv.xs;
-	sv.iYs_commit_old = sv.iYs_commit;
-	sv.iYs_commit = sv.iYs;
 	if (ys.commitState()) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::commitState: Yield surface object failed commit!";
+		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::commitState: Yield surface object failed commit!\n";
 		exit(-1);
 	}
 
-	if (DEBUG) sv.printStats(true);
+	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::commitState:\n"; sv.printStats(false); ys.printStats(false); }
 
 	// done
 	return 0;
 }
 
 int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
-	//////////////////////////////
+
 	if (DEBUG) { opserr << "MYSHS::revertToLastCommit! \n"; }
-	//////////////////////////////
 
 	// restore committed internal variables
 	sv.eps = sv.eps_commit;
@@ -195,10 +192,8 @@ int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
 	sv.sig_commit = sv.sig_commit_old;
 	sv.xs = sv.xs_commit;
 	sv.xs_commit = sv.xs_commit_old;
-	sv.iYs = sv.iYs_commit;
-	sv.iYs_commit = sv.iYs_commit_old;
 	if (ys.revertToLastCommit()) {
-		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::revertToLastCommit: Yield surface object failed reverting to last commit!";
+		opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::revertToLastCommit: Yield surface object failed reverting to last commit!\n";
 		exit(-1);
 	}
 
@@ -365,7 +360,6 @@ Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
 	return mState;
 }
 
-double MultiYieldSurfaceHardeningSoftening::getNAYS(void) { return sv.iYs_commit; }
 double MultiYieldSurfaceHardeningSoftening::getGref(void) { return Gref; }
 double MultiYieldSurfaceHardeningSoftening::getPref(void) { return Pref; }
 double MultiYieldSurfaceHardeningSoftening::getTNYS(void) { return TNYS; }
@@ -382,7 +376,7 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
 		stress = sv.sig;
 	}
 
-	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress: " << stress << "\n"; }
+	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress: " << stress; }
 
 	// done
 	return stress;
@@ -399,7 +393,7 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStrain(void) {
 		strain = sv.eps;
 	}
 
-	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain: " << strain << "\n"; }
+	if (DEBUG) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain: " << strain; }
 
 	// done
 	return strain;
@@ -419,7 +413,7 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getTangent(void) {
 		stiff = sv.Cep;
 	}
 
-	if (DEBUG) { opserr << "MYSHS::getTangent Cep = " << stiff << "\n"; }
+	if (DEBUG) { opserr << "MYSHS::getTangent Cep = " << stiff; }
 
 	return stiff;
 }
@@ -440,7 +434,7 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getInitialTangent(void) {
 		stiff = sv.Ce;
 	}
 
-	if (DEBUG) { opserr << "MYSHS::getInitialTangent Ce = " << stiff << "\n"; }
+	if (DEBUG) { opserr << "MYSHS::getInitialTangent Ce = " << stiff; }
 
 	return stiff;
 }
@@ -600,9 +594,6 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 		}
 		sv.dtime_is_user_defined = true;
 	}
-	else if (responseID == 112) {
-		resetPlasticInternalVariables();
-	}
 
 	// done
 	return 0;
@@ -619,7 +610,7 @@ const Vector MultiYieldSurfaceHardeningSoftening::getStrainVector(void) { return
 const Vector MultiYieldSurfaceHardeningSoftening::getPlasticStrainVector(void) { return sv.xs_commit; }
 const Vector MultiYieldSurfaceHardeningSoftening::getStressDeviator(const Vector& stress, int num_yield_surface) {
 	// compute the stress deviator and apply Ziegler's Rule (kinematic hardening)
-	return stress - (getMeanStress(stress) * (TensorM::I(6) + ys.getAlpha(num_yield_surface, sv.iYs_commit)));
+	return stress - (getMeanStress(stress) * (TensorM::I(6) + ys.getAlpha(num_yield_surface, ys.getNYS_commit())));
 	
 }
 
@@ -670,7 +661,7 @@ void MultiYieldSurfaceHardeningSoftening::updateStress(Vector& stress, const dou
 void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, const int num_yield_surface) {
 	// get parameters
 
-	double Href = ys.getEta(num_yield_surface, sv.iYs_commit);
+	double Href = ys.getEta(num_yield_surface, ys.getNYS_commit());
 
 	sv.Gmod = Gref;
 	sv.Kmod = Kref;
@@ -700,7 +691,6 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 	// get commited values
 	sv.sig = sv.sig_commit;
 	sv.xs = sv.xs_commit;
-	sv.iYs = sv.iYs_commit;
 	ys.revertToLastCommit();
 	
 	// time factor for explicit extrapolation
@@ -720,7 +710,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 		sv.sig = sv.sig + TensorM::inner(sv.Ce, (eps_incr));
 	}
 	else if (materialStage == 2) {													// nonlinear elastic material
-		updateModulus(sv.sig, sv.iYs);												// update elastic modulus
+		updateModulus(sv.sig, ys.getNYS());												// update elastic modulus
 		sv.sig = sv.sig + TensorM::inner(sv.Ce, (eps_incr));
 	}
 	else {					
@@ -728,22 +718,26 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 			// EXPLICIT step: do explicit extrapolation
 			//  DO implex ...
 			//  ...
+
+
+
+
 		}
 		else {																		// elastoplastic material	
 			// IMPLICIT step: solve constitutive equations
-			updateModulus(sv.sig, sv.iYs);										// update elastic modulus
+			updateModulus(sv.sig, ys.getNYS());										// update elastic modulus
 			Vector ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));				// trial stress
-			double curr_yf_value = yieldFunction(ST, sv.iYs);			// yield function value
+			double curr_yf_value = yieldFunction(ST, ys.getNYS());			// yield function value
 			if (curr_yf_value < ABSOLUTE_TOLERANCE) {							// elastic un/re-loading
 				sv.sig = ST;
 			}
 			else {																// plastic loading
 				int converged = -1;
 				if (solution_strategy == 0) {
-					converged = cuttingPlaneAlgorithm(eps_incr);				// forward-euler
+					converged = cuttingPlaneAlgorithm(ST);				// forward-euler
 				}
 				else if (solution_strategy == 1) {
-					converged = closestPointProjection(eps_incr);				// backward-euler
+					converged = closestPointProjection(ST);				// backward-euler
 				}
 				else {
 					opserr << "FATAL:MultiYieldSurfaceHardeningSoftening::updateInternal: Unknown return mapping algorithm!\n";
@@ -758,7 +752,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 		} // END if-else (implex or implicit stress)
 	} // END if-else (material stage: elastic or plastic)
 
-	// compute the consistent tangent TensorM
+	// compute the consistent tangent
 	if (do_tangent) {
 		if (use_implex) {
 			sv.Cep.Zero();
@@ -769,7 +763,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 				sv.Cep = sv.Ce;
 			}
 			else {
-				computeElastoplasticTangent(sv.iYs, sv.sig);
+				computeElastoplasticTangent(ys.getNYS(), sv.sig);
 			}
 		} // END if-else (implex or implicit tangent)
 	} // END if (do_tangent)
@@ -789,7 +783,7 @@ void MultiYieldSurfaceHardeningSoftening::updateFailureSurface(const Vector& str
 	//DO YOU NEED ZETA OR SIJ BELOW????
 
 	// initialize variables 
-	Vector alpha = ys.getAlpha(TNYS, sv.iYs_commit);
+	Vector alpha = ys.getAlpha(TNYS, ys.getNYS_commit());
 	Vector nn = get_dF_dS(stress, TNYS);
 	Vector zeta = getStressDeviator(stress, TNYS);
 
@@ -803,9 +797,6 @@ void MultiYieldSurfaceHardeningSoftening::updateFailureSurface(const Vector& str
 	ys.setAlpha(alpha, TNYS);
 	updateInnerYieldSurfaces(TNYS, stress);
 
-	//////////////////////////////
-	if (DEBUG) { opserr << "MYSHS::updateFailureSurface out! \n"; }
-	//////////////////////////////
 }
 
 void MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces(int num_yield_surface, const Vector& stress) {
@@ -813,13 +804,13 @@ void MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces(int num_yield
 	//DO YOU NEED ZETA OR SIJ BELOW????
 
 	// Update the inner yield surfaces (alpha)
-	Vector curr_alpha = ys.getAlpha(num_yield_surface, sv.iYs_commit);
+	Vector curr_alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
 	double curr_radius = getSizeYS(num_yield_surface);
 
 	if (curr_radius != 0) {
 		Vector zeta = getStressDeviator(stress, num_yield_surface);
 		for (int i = 0; i < num_yield_surface; ++i) {
-			Vector the_alpha = ys.getAlpha(i, sv.iYs_commit);
+			Vector the_alpha = ys.getAlpha(i, ys.getNYS_commit());
 			double the_radius = getSizeYS(i);
 			the_alpha = zeta - the_radius / curr_radius * zeta - curr_alpha;
 			ys.setAlpha(the_alpha, i);
@@ -837,14 +828,9 @@ void MultiYieldSurfaceHardeningSoftening::updateInnerYieldSurfaces(int num_yield
 void MultiYieldSurfaceHardeningSoftening::updateCurrentYieldSurface(int num_yield_surface, double lambda, const Vector& stress) {
 	// Update the current active yield surface (alpha)
 	Vector rr = get_dH_dA(stress, num_yield_surface);	// rate of alpha
-	Vector alpha = ys.getAlpha(num_yield_surface, sv.iYs_commit);
+	Vector alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
 	alpha = alpha + lambda * rr;						// update the alpha
 	ys.setAlpha(alpha, num_yield_surface);
-}
-
-		// reset methods
-void MultiYieldSurfaceHardeningSoftening::resetPlasticInternalVariables(void) {
-
 }
 
 		// compute methods
@@ -888,7 +874,7 @@ double MultiYieldSurfaceHardeningSoftening::computePlasticLoadingFunction(const 
 }
 
 		// solution strategies
-int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& eps_incr) {
+int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sigma_trial) {
 
 	// convergence status
 	int converged = -1;
@@ -898,48 +884,46 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& eps
 
 	// Algorithm 7.2 Prevost (1985)
 	// Step 1 - initialize
-	int maxIter = 10000;
+	int maxIter = 500;
 	double old_yf_value = ABSOLUTE_TOLERANCE;
 	int iteration_counter = 0;
 	double lambda = 0.0;
-	sv.sig = sv.sig + TensorM::inner(sv.Ce, (eps_incr)); // trial stress
+	sv.sig = sigma_trial; // trial stress
 	while (iteration_counter < maxIter) {
 		// Do stress relaxation on the current yield surface
 		while (iteration_counter < maxIter) {
 			// Step 2 - update stress and check consistency condition
-			curr_yf_value = yieldFunction(sv.sig, sv.iYs);
+			curr_yf_value = yieldFunction(sv.sig, ys.getNYS());
 			if ((curr_yf_value < RELATIVE_TOLERANCE) || (abs(curr_yf_value / old_yf_value) < ABSOLUTE_TOLERANCE)) {
 				old_yf_value = curr_yf_value;
 				break; // end the while loop and GO TO STEP 6
 			}
 			// Step 3 - compute new plastic loading functions
-			lambda = computePlasticLoadingFunction(sv.sig, curr_yf_value, sv.iYs);
+			lambda = computePlasticLoadingFunction(sv.sig, curr_yf_value, ys.getNYS());
 			// Step 4 - update palstic strains and state variables
-			updatePlasticStrain(sv.xs, sv.sig, lambda, sv.iYs);
-			updateStress(sv.sig, lambda, sv.iYs);
-			updateCurrentYieldSurface(sv.iYs, lambda, sv.sig);
-			updateInnerYieldSurfaces(sv.iYs, sv.sig);
+			updatePlasticStrain(sv.xs, sv.sig, lambda, ys.getNYS());
+			updateStress(sv.sig, lambda, ys.getNYS());
+			updateCurrentYieldSurface(ys.getNYS(), lambda, sv.sig);
+			updateInnerYieldSurfaces(ys.getNYS(), sv.sig);
 			// Step 5 - iteration_counter++ and go to step 2
 			old_yf_value = curr_yf_value;
 			iteration_counter++;
 		}
 		// Step 6 - check for overshooting of the next yield surface
-		curr_yf_value = yieldFunction(sv.sig, sv.iYs + 1);	// next yf_value
-		if ((sv.iYs == TNYS) || (curr_yf_value < ABSOLUTE_TOLERANCE)) {
-			if (DEBUG) { opserr << "cuting-plane algorithm converged after " << iteration_counter << " iterations!\n"; sv.printStats(false); }
+		curr_yf_value = yieldFunction(sv.sig, ys.getNYS() + 1);	// next yf_value
+		if ((ys.getNYS() == TNYS) || (curr_yf_value < ABSOLUTE_TOLERANCE)) {
+			if (DEBUG) { opserr << "MYSHS::cuttingPlaneAlgorithm: cuting-plane solver converged after " << iteration_counter << " iterations!\n"; }
 			converged = 0;
 			break; // end while loop: algorithm is done...
 		}
 		// Step 7 - correct the plastic loading function
 		double lambda1, lambda2;
-		correctPlasticLoadingFunction(sv.sig, lambda1, lambda2, sv.iYs);
+		correctPlasticLoadingFunction(sv.sig, lambda1, lambda2, ys.getNYS());
 		// Step 8 - correct plastic strains and state variables
-		correctPlasticStrain(sv.xs, sv.sig, lambda1, lambda2, sv.iYs);
-		correctStress(sv.sig, lambda1, lambda2, sv.iYs);
-		// Step 9 - sv.iYs++, iteration_counter++ and go to step 2
-		if (sv.iYs < TNYS) {
-			sv.iYs++;
-		}
+		correctPlasticStrain(sv.xs, sv.sig, lambda1, lambda2, ys.getNYS());
+		correctStress(sv.sig, lambda1, lambda2, ys.getNYS());
+		// Step 9 - increment number of active tield surface, iteration_counter++ and go to step 2
+		ys.incrementNYS();
 		old_yf_value = curr_yf_value;
 		iteration_counter++;
 	}

@@ -66,27 +66,29 @@ public:
 	void printStats(bool detail);
 
 	// get methods
-	double getCohesion(void);
+	int getNYS(void);
 	double getPhi(void);
 	double getPsi(void);
-	double getPeakStrain(void);
 	double getPresid(void);
+	int getNYS_commit(void);
+	double getCohesion(void);
+	double getPeakStrain(void);
 	double getTau(const int index, const int num_surface_commit);
 	double getEta(const int index, const int num_surface_commit);
 	Vector getAlpha(const int index, const int num_surface_commit);
 	Vector getAlpha_commit(const int index, const int num_surface_commit);
-	Vector getAlpha_commit_old(const int index, const int num_surface_commit);
 
 	// set methods
-	void setCohesion(double value);
+	void incrementNYS(void);									// increment number of active yield surface (nYs)
 	void setPhi(double value);
 	void setPsi(double value);
 	void setPresid(double value);
+	void setCohesion(double value);
 	void setTau(double value, const int index);
 	void setEta(double value, const int index);
 	void setAlpha(Vector value, const int index);
-	void setAlpha_commit(Vector value, const int index);
-	void setAlpha_commit_old(Vector value, const int index);
+	void setAlpha_commit(Vector value, const int index);	
+
 
 private:
 	// yield surface paramters (local copy)
@@ -107,7 +109,8 @@ private:
 	Vector eta = Vector(1);					// plastic modulus
 	Matrix alpha = Matrix(6, 1);			// backstress (TNYS + 1)
 	Matrix alpha_commit = Matrix(6, 1);		// commited backstress (TNYS + 1)
-	Matrix alpha_commit_old = Matrix(6, 1);	// previously commited backstress (TNYS + 1)
+	int nYs = 0;							// number of active yield surface
+	int nYs_commit = 0;						// committed number of active yield surface
 
 	// online update
 	void update(void);
