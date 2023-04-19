@@ -298,7 +298,7 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index, const int num_surfa
 
 
 	// set methods
-void YieldSurfacePackage::incrementNYS(void) {
+void YieldSurfacePackage::increment(void) {
 	
 	if (do_online) {
 		nYs++;

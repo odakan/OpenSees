@@ -327,3 +327,20 @@ Matrix TensorM::transpose(const Matrix& A) {
 	}
 	return T;
 }
+
+void TensorM::sqroot(Vector& A) {
+	int NA = A.Size();
+	for (int i = 0; i < NA; i++) {
+		A(i) = sqrt(A(i));
+	}
+}
+
+void TensorM::sqroot(Matrix& A) {
+	int NAr = A.noRows();
+	int NAc = A.noCols();
+	for (int i = 0; i < NAr; i++) {
+		for (int j = 0; j < NAc; j++) {
+			A(i, j) = sqrt(A(i, j));
+		}
+	}
+}

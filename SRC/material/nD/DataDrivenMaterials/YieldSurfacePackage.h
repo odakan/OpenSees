@@ -80,7 +80,7 @@ public:
 	Vector getAlpha_commit(const int index, const int num_surface_commit);
 
 	// set methods
-	void incrementNYS(void);									// increment number of active yield surface (nYs)
+	void increment(void);									// increment number of active yield surface (nYs)
 	void setTNYS(int value);
 	void setPhi(double value);
 	void setPsi(double value);

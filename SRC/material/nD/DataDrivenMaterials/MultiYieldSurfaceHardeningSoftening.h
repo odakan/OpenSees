@@ -204,8 +204,8 @@ protected:
 	// material internal operations
 		// update methods
 	void updateStress(Vector& stress, const double lambda, const int num_yield_surface);			// Update stress
-	void updateModulus(const Vector& stress, const int num_yield_surface);														// Update elastic modulus
-	void updateInternal(bool do_implex, bool do_tangent);											// Update materal internal state
+	void updateModulus(const Vector& stress, const int num_yield_surface);							// Update elastic modulus
+	void updateInternal(const bool do_implex, const bool do_tangent);								// Update materal internal state
 	void updatePlasticStrain(Vector& pstrain, const Vector& stress,									// Update plastic strain
 		const double lambda, const int num_yield_surface);
 	void updateFailureSurface(const Vector& stress);												// Update the final yield surface (alpha)
@@ -218,8 +218,8 @@ protected:
 		const double yf_value, const int num_yield_surface);
 
 		// return-mapping
-	int cuttingPlaneAlgorithm(const Vector& sigma_trial);
-	int closestPointProjection(const Vector& sigma_trial);
+	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
+	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);
 
 		// correct methods
 	void correctStress(Vector& stress, const double lambda1, const double lambda2,				// After overshooting, correct the overshooting stress

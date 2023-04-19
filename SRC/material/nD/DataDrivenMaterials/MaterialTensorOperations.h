@@ -23,6 +23,7 @@
 #define MaterialTensorOperations_h
 
 
+#include <math.h> 
 #include <Vector.h>
 #include <Matrix.h>
 
@@ -43,6 +44,8 @@ public:
 	static double determinant(const Vector& A);
 
 
+	static void sqroot(Vector& A);
+	static void sqroot(Matrix& A);
 	static Matrix transpose(const Matrix& A);
 
 
