@@ -21,6 +21,9 @@
 #include "MaterialTensorOperations.h"
 
 
+double TensorM::macCaulay(const double N) { return fmax(N, 0); }
+
+
 Vector TensorM::I(const int N) {
 	// return identity matrix in Voigt notation
 	Vector kD(N);

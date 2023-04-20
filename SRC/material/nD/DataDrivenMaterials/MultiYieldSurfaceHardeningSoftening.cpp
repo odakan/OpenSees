@@ -927,8 +927,9 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	int iteration_counter = 0;
 	double curr_yf_value = 0;
 	double old_yf_value = ABSOLUTE_TOLERANCE;
+	double curr_Hprime = 0;
+	double old_Hprime = 0;
 	double lambda = 0.0;
-
 
 	// get trial stress deviator
 	sv.sig = sigma_trial; // trial stress
@@ -937,20 +938,36 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	Vector Zeta_tr = Tau_tr - alpha;
 
 	// compute contact stress
-	double K1 = sqrt((3.0 / 2.0) * TensorM::dotdot(Zeta_tr, Zeta_tr));		// eqn. 10
+	double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(Zeta_tr, Zeta_tr));		// eqn. 10
 	double Km = ys.getTau(ys.getNYS(), ys.getNYS_commit());					// current radius
-	Vector Tau_star = ((Km / K1) * Zeta_tr) + alpha;						// eqn. 9
+	Vector Tau_star = ((Km / Ki) * Zeta_tr) + alpha;						// eqn. 9
 
 	// compute normal to the yield surface
 	Vector Zeta_star = Tau_star - alpha;
-	Vector Q1 = (Zeta_star) / sqrt(TensorM::dotdot(Zeta_star, Zeta_star));	// eqn.11
+	Vector Qi = (Zeta_star) / sqrt(TensorM::dotdot(Zeta_star, Zeta_star));	// eqn.11
+
+	// compute lambda <L>/H' in eqn. 5
+	sv.Hmod = ys.getEta(ys.getNYS(), ys.getNYS_commit());
+	Vector Tau_return = Tau_tr - Tau_star;
+	old_Hprime = curr_Hprime;
+	curr_Hprime = 1 / ((1 / sv.Hmod) - (0.5 * sv.Gmod));
+	lambda = fmax(TensorM::dotdot(Qi, Tau_return), 0) / curr_Hprime;
+
+	// compute plastic strain
+	Vector XP = lambda * Qi;
 
 	// compute plastic stress eqn. 13
-	Vector Tau_return = Tau_tr - Tau_star;
-	Vector P1 = 2 * sv.Gmod * ((TensorM::dotdot(Q1, (Tau_return)))/(sv.Hmod + 2 * sv.Gmod)) * Q1;
+	Vector  SP = Vector(6);
+	if (ys.getNYS() == 1) {
+		SP = ((2 * sv.Gmod * curr_Hprime) / (curr_Hprime + 2 * sv.Gmod)) * XP;
+	}
+	else {
+		SP = ((2 * sv.Gmod * curr_Hprime) / (curr_Hprime + 2 * sv.Gmod)) * 
+			((old_Hprime - curr_Hprime) / (old_Hprime)) * XP;
+	}
 
 	// correct trial stress
-	Tau_tr = Tau_tr - P1;		// eqn. 14
+	Tau_tr = Tau_tr - SP;		// eqn. 14
 
 	// check if overshhoting the next yield surface
 	sv.sig = Tau_tr + getMeanStress(sv.sig) * TensorM::I(6);
@@ -959,17 +976,18 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	if (curr_yf_value > ABSOLUTE_TOLERANCE) {
 		// increment number of yield surface
 		ys.increment();
-
 	}
-
-
-
-
 
 	if (iteration_counter == maxIter) {
 		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::closestPointProjection() - return-mapping failed!\n";
 		return convergence;
 	}
+
+	// After "convergence" 
+
+
+
+	
 
 	return convergence;
 }

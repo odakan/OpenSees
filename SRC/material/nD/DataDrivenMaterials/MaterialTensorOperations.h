@@ -35,6 +35,9 @@ public:
 	~TensorM() = default;
 
 
+	static double macCaulay(const double N);
+
+
 	static Vector I(const int N);
 	static Matrix IIvol(const int N);
 	static Matrix IIdev(const int N);
