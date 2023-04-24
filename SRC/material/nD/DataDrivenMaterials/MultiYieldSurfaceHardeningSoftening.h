@@ -136,7 +136,6 @@ public:
 		// used by the yield surface objects
 	double getGref(void);			// return reference shear modulus
 	double getPref(void);			// return reference pressure
-	double getTNYS(void);			// return total number of yield surfaces
 
 	// return stress & strain
 	const Vector& getStress(void);
@@ -180,7 +179,7 @@ protected:
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
-	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = closest point projection]
+	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = piecewise linear solution]
 
 protected:
 	// the get methods
@@ -193,41 +192,53 @@ protected:
 	const Vector getPlasticStrainVector(void);											// committed plastic strain vector
 	const Vector getStressDeviator(const Vector& stress, int num_yield_surface);		// deviatoric stress tensor (Ziegler's rule)
 
-	// yield surface operations (must be overloaded by the sub-class)
+	// material internal operations
+	void updateModulus(const Vector& stress, const int num_yield_surface);							// Update elastic modulus
+	void updateInternal(const bool do_implex, const bool do_tangent);								// Update materal internal state
+
+	// return-mapping
+	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
+	int piecewiseLinearSolution(const Vector& sigma_trial, const bool do_tangent);
+
+	// cutting-plane algorithm methods
+		// yield surface operations (must be overloaded by the sub-class)
 	virtual double yieldFunction(const Vector& stress, const int num_yield_surface, 	// Return yield function (F) value
 		bool yield_stress) = 0;
 	virtual Vector get_dF_dS(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the yield surface w.r.t stress
 	virtual Vector get_dF_dA(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the yield surface w.r.t alpha (backstress)
 	virtual Vector get_dH_dA(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the hardening potential w.r.t alpha (backstress)
 	virtual Vector get_dP_dS(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the plastic potential w.r.t stress
-
-	// material internal operations
 		// update methods
 	void updateStress(Vector& stress, const double lambda, const int num_yield_surface);			// Update stress
-	void updateModulus(const Vector& stress, const int num_yield_surface);							// Update elastic modulus
-	void updateInternal(const bool do_implex, const bool do_tangent);								// Update materal internal state
 	void updatePlasticStrain(Vector& pstrain, const Vector& stress,									// Update plastic strain
 		const double lambda, const int num_yield_surface);
 	void updateFailureSurface(const Vector& stress);												// Update the final yield surface (alpha)
 	void updateInnerYieldSurfaces(int num_yield_surface, const Vector& stress);						// Update the inner yield surfaces (alpha)
 	void updateCurrentYieldSurface(int num_yield_surface, double lambda, const Vector& stress);		// Update current active yield surface (alpha)
-
 		// compute methods
 	void computeElastoplasticTangent(int num_yield_surface, const Vector& stress);				// Compute the algorithmic tangent operator
 	double computePlasticLoadingFunction(const Vector& stress,									// Compute the consistency parameter (by linearizing F)
 		const double yf_value, const int num_yield_surface);
-
-		// return-mapping
-	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
-	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);
-
 		// correct methods
 	void correctStress(Vector& stress, const double lambda1, const double lambda2,				// After overshooting, correct the overshooting stress
-		const int num_yield_surface);						
+		const int num_yield_surface);
 	void correctPlasticStrain(Vector& pstrain, const Vector& stress,							// After overshooting, correct the plastic strain
-		const double lambda1, const double lambda2, const int num_yield_surface);	
+		const double lambda1, const double lambda2, const int num_yield_surface);
 	void correctPlasticLoadingFunction(Vector& stress, double& lambda1,							// After overshooting, correct the consistency parameter
 		double& lambda2, const int num_yield_surface);
+
+	// piece-wise linear formulation
+	
+	
+	
+	
+	
+
+		
+
+
+
+		
 
 		// root search algortihm
 	double zbrentStress(const Vector& start_stress, const Vector& end_stress, 

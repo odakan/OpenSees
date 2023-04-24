@@ -21,7 +21,7 @@
 #include "MaterialTensorOperations.h"
 
 
-double TensorM::macCaulay(const double N) { return fmax(N, 0); }
+double TensorM::macCaulay(const double N) { double val = (N + fabs(N)) * 0.5; return val; }
 
 
 Vector TensorM::I(const int N) {

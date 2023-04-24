@@ -44,12 +44,13 @@ public:
 	YieldSurfacePackage(void) = default;
 
 	// full constructors
-	YieldSurfacePackage(int matID);													// online constructor
-	YieldSurfacePackage(int matID, int tnys);										// offline constructor
+	YieldSurfacePackage(int matID);														// online constructor
+	YieldSurfacePackage(int matID, int tnys);											// offline constructor
 	YieldSurfacePackage(const YieldSurfacePackage&) = default;							// default constructor
-	YieldSurfacePackage(int matID, int tnys,											// auto-backbone constructor
-		double cohesion, double frictionAngle, double dilatancyAngle, 
-		double peakShearStrain, double residualPressure, double referencePressure);
+	YieldSurfacePackage(int matID, int tnys, Vector hStrain, Vector hModuli);			// custom-backbone constructor
+	YieldSurfacePackage(int matID, int tnys, double cohesion, double frictionAngle,		// auto-backbone constructor
+						double dilatancyAngle, double peakShearStrain, 
+						double residualPressure, double referencePressure);
 
 	// destructor
 	~YieldSurfacePackage(void);
@@ -66,6 +67,9 @@ public:
 	void printStats(bool detail);
 
 	// get methods
+	int now(void);
+	int next(void);
+	int prev(void);
 	int getNYS(void);
 	int getTNYS(void);
 	double getPhi(void);
@@ -74,13 +78,13 @@ public:
 	int getNYS_commit(void);
 	double getCohesion(void);
 	double getPeakStrain(void);
-	double getTau(const int index, const int num_surface_commit);
-	double getEta(const int index, const int num_surface_commit);
-	Vector getAlpha(const int index, const int num_surface_commit);
-	Vector getAlpha_commit(const int index, const int num_surface_commit);
+	double getTau(const int index);
+	double getEta(const int index);
+	Vector getAlpha(const int index);
+	Vector getAlpha_commit(const int index);
 
 	// set methods
-	void increment(void);									// increment number of active yield surface (nYs)
+	void increment(void);									// increment current yield surface (ys)
 	void setTNYS(int value);
 	void setPhi(double value);
 	void setPsi(double value);
@@ -107,12 +111,24 @@ private:
 	bool do_online = false;				// activate on-the-fly update of the data-driven surfaces
 
 	// yield surface state variables
+	/*	Note: nYs != ys
+			nYs indicates how many surfaces needs to be translated between iterations
+			whereas ys stores the index of the current yield surface.
+			
+		IMPLEX variables:
+			ys and ys_commit are used during the explicit stage of the IMPLEX iterations.
+			The extrapolation is done by keeping ys constant -> ys = ys_commit.
+	*/
 	Vector tau = Vector(1);					// limit isotropic stress
+	Vector tau_commit = Vector(1);			// committed limit isotropic stress (used when online)
 	Vector eta = Vector(1);					// plastic modulus
+	Vector eta_commit = Vector(1);			// committed plastic modulus (used when online)
 	Matrix alpha = Matrix(6, 1);			// backstress (TNYS + 1)
 	Matrix alpha_commit = Matrix(6, 1);		// commited backstress (TNYS + 1)
-	int nYs = 0;							// number of active yield surface
-	int nYs_commit = 0;						// committed number of active yield surface
+	int nYs = 0;							// number of active yield surfaces
+	int nYs_commit = 0;						// committed number of active yield surfaces
+	int num = 0;							// current yield surface (!= nYs if online)
+	int num_commit = 0;						// committed yield surface
 
 	// online update
 	void update(void);
