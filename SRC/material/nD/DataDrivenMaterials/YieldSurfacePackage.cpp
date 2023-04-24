@@ -44,11 +44,14 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 	matID = mat;
 	do_online = true;
 	tnys = 3;
+	nonassociated = true;
 	// initililze only the  previous, current and next yield surfaces 
 	tau = Vector(3);
 	tau_commit = Vector(3);
 	eta = Vector(3);
 	eta_commit = Vector(3);
+	theta = Vector(3);
+	theta_commit = Vector(3);
 	alpha = Matrix(6, 3);
 	alpha_commit = Matrix(6, 3);
 }
@@ -60,15 +63,17 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
 	matID = mat;
 	do_online = false;
 	tnys = t0;
+	nonassociated = true;
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
+	theta = Vector(tnys + 1);
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
 }
 
 
-YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vector hModuli)
+YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vector hModuli, Vector hDilation)
 {
 	//custom-backbone constructor
 
@@ -78,6 +83,10 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vecto
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
+	if (hDilation.Size() > 1) {
+		nonassociated = true;
+		theta = Vector(tnys + 1);
+	}
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
 }
@@ -97,6 +106,13 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
+	if (dilatancyAngle != 0.0) {
+		nonassociated = true;
+		theta = Vector(tnys + 1);
+		for (int i = 0; i < (tnys + 1); i++) {
+			theta(i) = dilatancyAngle;
+		}
+	}
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
 }
@@ -163,6 +179,7 @@ void YieldSurfacePackage::printStats(bool detail) {
 	}
 }
 
+bool YieldSurfacePackage::isNonAssociated(void) { return nonassociated; }
 
 	// get methods
 int YieldSurfacePackage::now(void) { return num; }
@@ -237,6 +254,38 @@ double YieldSurfacePackage::getEta(const int index){
 		}
 		else {
 			return eta(tnys);
+		}
+	}
+}
+
+double YieldSurfacePackage::getTheta(const int index) {
+
+	if (index < 0) {
+		opserr << "FATAL: YieldSurfacePackage::getTheta() - a yield surface with negative number was requested!";
+		exit(-1);
+	}
+
+	if (do_online) {
+		if (index == (nYs_commit + 1)) {
+			return theta(2);	// the next yield surface
+		}
+		else if (index == nYs_commit) {
+			return theta(1);	// the current yield surface
+		}
+		else if (index == (nYs_commit - 1)) {
+			return theta(0);	// the previous yield surface
+		}
+		else {
+			opserr << "FATAL: YieldSurfacePackage::getTheta() - a yield surface that is older than two steps was requested!";
+			exit(-1);
+		}
+	}
+	else {
+		if (index < tnys) {
+			return theta(index);
+		}
+		else {
+			return theta(tnys);
 		}
 	}
 }
@@ -417,6 +466,27 @@ void YieldSurfacePackage::setEta(const double value, const int index) {
 		}
 		else {
 			opserr << "FATAL: YieldSurfacePackage::setEta() - a yield surface further than TNYS was requested!";
+			exit(-1);
+		}
+	}
+}
+
+void YieldSurfacePackage::setTheta(const double value, const int index) {
+
+	if (index < 0) {
+		opserr << "FATAL: YieldSurfacePackage::setTheta() - a yield surface with negative number was requested!";
+		exit(-1);
+	}
+
+	if (do_online) {
+		theta(index) = value;
+	}
+	else {
+		if (index <= tnys) {
+			theta(index) = value;
+		}
+		else {
+			opserr << "FATAL: YieldSurfacePackage::setTheta() - a yield surface further than TNYS was requested!";
 			exit(-1);
 		}
 	}

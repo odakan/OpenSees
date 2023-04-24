@@ -98,6 +98,14 @@
 #include "MaterialTensorOperations.h"
 #include "DataDrivenNestedSurfaces.h"
 
+// constants
+constexpr double ABSOLUTE_TOLERANCE = 1e-4;
+constexpr double RELATIVE_TOLERANCE = 1E-6;
+constexpr double MACHINE_EPSILON = DBL_EPSILON;
+constexpr double SMALL_PERTURBATION = 1.0e-9;
+constexpr int BRENT_MAXITER = 20;
+constexpr double BRENT_TOLERANCE = 1e-6;
+
 
 class MultiYieldSurfaceHardeningSoftening : public NDMaterial {
 public:
@@ -183,66 +191,38 @@ protected:
 
 protected:
 	// the get methods
-	double getK(void);																	// bulk modulus
-	double getG(void);																	// shear modulus
-	double getSizeYS(const int num_yield_surface);										// committed yield surface radius
-	double getMeanStress(const Vector& stress);											// mean volumetric stress
-	const Vector getStressVector(void);													// committed stress vector
-	const Vector getStrainVector(void);													// committed strain vector
-	const Vector getPlasticStrainVector(void);											// committed plastic strain vector
-	const Vector getStressDeviator(const Vector& stress, int num_yield_surface);		// deviatoric stress tensor (Ziegler's rule)
+	double getK(void);																// bulk modulus
+	double getG(void);																// shear modulus
+	double getSizeYS(const int num_ys);												// committed yield surface radius
+	const Vector getStressVector(void);												// committed stress vector
+	const Vector getStrainVector(void);												// committed strain vector
+	const Vector getPlasticStrainVector(void);										// committed plastic strain vector
+	double getMeanStress(const Vector& stress);										// mean volumetric stress
+	Vector getStressDeviator(const Vector& stress);									// deviatoric stress tensor
+	virtual Vector getShiftedDeviator(const Vector& stress, const int num_ys) = 0;	// shifted deviatoric stress tensor (Ziegler's rule)
 
 	// material internal operations
-	void updateModulus(const Vector& stress, const int num_yield_surface);							// Update elastic modulus
-	void updateInternal(const bool do_implex, const bool do_tangent);								// Update materal internal state
+	void updateModulus(const Vector& stress, const int num_ys);				// Update elastic modulus
+	void updateInternal(const bool do_implex, const bool do_tangent);		// Update materal internal state
+	void computeElastoplasticTangent(int num_ys, const Vector& stress);		// Compute the algorithmic tangent operator
+
+	// yield surface operations (must be overloaded by the sub-class)
+	virtual double yieldFunction(const Vector& stress, const int num_ys, bool yield_stress) = 0;	// Return yield function (F) value
+	virtual Vector get_dF_dS(const Vector& stress, const int num_ys) = 0;							// Return normal to the yield surface w.r.t stress
+	virtual Vector get_dF_dA(const Vector& stress, const int num_ys) = 0;							// Return normal to the yield surface w.r.t alpha (backstress)
+	virtual Vector get_dH_dA(const Vector& stress, const int num_ys) = 0;							// Return normal to the hardening potential w.r.t alpha (backstress)
+	virtual Vector get_dP_dS(const Vector& stress, const int num_ys) = 0;							// Return normal to the plastic potential w.r.t stress
 
 	// return-mapping
 	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
 	int piecewiseLinearSolution(const Vector& sigma_trial, const bool do_tangent);
 
-	// cutting-plane algorithm methods
-		// yield surface operations (must be overloaded by the sub-class)
-	virtual double yieldFunction(const Vector& stress, const int num_yield_surface, 	// Return yield function (F) value
-		bool yield_stress) = 0;
-	virtual Vector get_dF_dS(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the yield surface w.r.t stress
-	virtual Vector get_dF_dA(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the yield surface w.r.t alpha (backstress)
-	virtual Vector get_dH_dA(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the hardening potential w.r.t alpha (backstress)
-	virtual Vector get_dP_dS(const Vector& stress, const int num_yield_surface) = 0;	// Return normal to the plastic potential w.r.t stress
-		// update methods
-	void updateStress(Vector& stress, const double lambda, const int num_yield_surface);			// Update stress
-	void updatePlasticStrain(Vector& pstrain, const Vector& stress,									// Update plastic strain
-		const double lambda, const int num_yield_surface);
-	void updateFailureSurface(const Vector& stress);												// Update the final yield surface (alpha)
-	void updateInnerYieldSurfaces(int num_yield_surface, const Vector& stress);						// Update the inner yield surfaces (alpha)
-	void updateCurrentYieldSurface(int num_yield_surface, double lambda, const Vector& stress);		// Update current active yield surface (alpha)
-		// compute methods
-	void computeElastoplasticTangent(int num_yield_surface, const Vector& stress);				// Compute the algorithmic tangent operator
-	double computePlasticLoadingFunction(const Vector& stress,									// Compute the consistency parameter (by linearizing F)
-		const double yf_value, const int num_yield_surface);
-		// correct methods
-	void correctStress(Vector& stress, const double lambda1, const double lambda2,				// After overshooting, correct the overshooting stress
-		const int num_yield_surface);
-	void correctPlasticStrain(Vector& pstrain, const Vector& stress,							// After overshooting, correct the plastic strain
-		const double lambda1, const double lambda2, const int num_yield_surface);
-	void correctPlasticLoadingFunction(Vector& stress, double& lambda1,							// After overshooting, correct the consistency parameter
-		double& lambda2, const int num_yield_surface);
+	// update methods
+	void updateFailureSurface(const Vector& stress);									// Update the final yield surface (alpha)
 
-	// piece-wise linear formulation
-	
-	
-	
-	
-	
-
-		
-
-
-
-		
-
-		// root search algortihm
+	// root search algortihm
 	double zbrentStress(const Vector& start_stress, const Vector& end_stress, 
-		const int num_yield_surface, const double x1, const double x2, const double tol);
+		const int num_ys, const double x1, const double x2, const double tol);
 
 };
 #endif

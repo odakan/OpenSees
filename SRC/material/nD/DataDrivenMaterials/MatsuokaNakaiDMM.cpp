@@ -186,6 +186,14 @@ int MatsuokaNakaiDMM::updateParameter(int responseID, Information& info) {
 }
 
 // Private methods
+	// the get methods
+Vector MatsuokaNakaiDMM::getShiftedDeviator(const Vector& stress, const int num_ys) {
+
+	// Prevost DYNA1D 5.2.2 eqn. 3
+	double P_bar = getMeanStress(stress) - ys.getCohesion();
+	return  getStressDeviator(stress) - P_bar * ys.getAlpha(num_ys);
+}
+
 	// yield surface operations
 double MatsuokaNakaiDMM::yieldFunction(const Vector& stress, const int num_yield_surface, bool yield_stress) {
 	// Evaluate and return the yield surface value
