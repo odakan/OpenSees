@@ -205,7 +205,7 @@ double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool y
 	// if yield_stress is false, return the yield function value. Otherwise, return the yield strength.
 
 	// get the current limit stress
-	double strength = ys.getTau(num_ys);
+	double strength = sqrt(2.0 / 3.0) * ys.getTau(num_ys);
 
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
@@ -271,11 +271,11 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 
 		// do check
 		if (current_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of 0!\n";
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
 			exit(-1);
 		}
 		else if (next_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of 0!\n";
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
 			exit(-1);
 		}
 

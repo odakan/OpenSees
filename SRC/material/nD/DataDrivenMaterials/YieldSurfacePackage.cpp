@@ -110,7 +110,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 		nonassociated = true;
 		theta = Vector(tnys + 1);
 		for (int i = 0; i < (tnys + 1); i++) {
-			theta(i) = dilatancyAngle;
+			theta(i) = tan(dilatancyAngle * 180 / M_PI);
 		}
 	}
 	alpha = Matrix(6, tnys + 1);

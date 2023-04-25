@@ -33,6 +33,8 @@
 // Created in:	April 2023
 //
 
+#define _USE_MATH_DEFINES
+
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
