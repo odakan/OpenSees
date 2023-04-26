@@ -110,7 +110,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 		nonassociated = true;
 		theta = Vector(tnys + 1);
 		for (int i = 0; i < (tnys + 1); i++) {
-			theta(i) = tan(dilatancyAngle * 180 / M_PI);
+			theta(i) = tan(dilatancyAngle * M_PI / 180);
 		}
 	}
 	alpha = Matrix(6, tnys + 1);
@@ -162,6 +162,8 @@ void YieldSurfacePackage::printStats(bool detail) {
 		opserr << "Commited limit stresses         =  " << tau_commit;
 		opserr << "Plastic Moduli                  =  " << eta;
 		opserr << "Commited plastic moduli         =  " << eta_commit;
+		opserr << "Dilatancy parameters            =  " << theta;
+		opserr << "Commited dilatancy parameters   =  " << theta_commit;
 		opserr << "Active no. of surfaces          =  " << nYs << "\n";
 		opserr << "Commited active no. of surfaces =  " << nYs_commit << "\n";
 		opserr << "Current yield surface           =  " << num << "\n";

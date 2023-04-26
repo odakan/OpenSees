@@ -39,9 +39,10 @@ public:
 
 
 	static Vector I(const int N);
+	static Matrix II4(const int N);
 	static Matrix IIvol(const int N);
 	static Matrix IIdev(const int N);
-
+	
 
 	static double determinant(const Matrix& A);
 	static double determinant(const Vector& A);
