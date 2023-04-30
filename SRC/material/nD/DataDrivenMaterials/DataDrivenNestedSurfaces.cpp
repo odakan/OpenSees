@@ -34,71 +34,41 @@
 
 #include "DataDrivenNestedSurfaces.h"
 
+
 #define LARGE_NUMBER 1.0e30
 
+const bool DEBUG = true;
 
 // Public methods
 	// full constructors
 DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double phi0,			// full constructor
-	double psi0, double s0, double nys, double deps, Vector hmoduli, Vector hparams, Vector dparams, bool verbosity)
+	double psi0, double s0, double nys, double* pm, double* hp, bool verbosity)
 {
 	// initialize variables
 	beVerbose = verbosity;
 	cohesion_init = c0; frictionAngle_init = phi0; dilatancyAngle_init = psi0;  peakShearStrain_init = s0;
 	tnys_init = nys;
-	if (deps > 0.0) { strain_discretize = deps; }
 
-	// check data-driven yield surface generation 
-	if (false) {
-		// if database is present
+	// evaluate if yield surface generation is possible
+		// check data-driven yield surface generation
+	if (pm != nullptr && hp != nullptr) {
 		isOfflineOK = true;
 		isOnlineOK = true;
 	}
 	else {
-		// if database is not present
 		if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - no material response database is provided. Data-driven yield surfaces are NOT allowed...\n"; }
-		isOfflineOK = true;
-		isOnlineOK = true;
+		isOfflineOK = false;
+		isOnlineOK = false;
 	}
 
-		// check automatic, user-custom and offline surface generation
+		// check automatic and offline surface generation
 	if (tnys_init <= 0) {
 		// if total number of yield surfaces is less than one, prohibit automatic and offline surfaces
 		if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - TNYS <= 0: AUTOMATIC and OFFLINE data-driven yield surfaces are NOT allowed...\n"; }
-		isUserCustomOK = false;
 		isAutomaticOK = false;
 		isOfflineOK = false;
 	}
 	else {
-		// evaluate if yield surface generation is possible
-		// check user custom yield surface generation
-		int sz_hmod = hmoduli.Size();
-		int sz_hps = hparams.Size();
-		int sz_dps = dparams.Size();
-		if (sz_hmod == nys && sz_hps == nys) {
-			// if the user defined custom data
-			isUserCustomOK = true;
-			HModuli = Vector(nys);
-			HParams = Vector(nys);
-			for (int i = 0; i < nys; i++) {
-				HModuli(i) = hmoduli(i);
-				HParams(i) = hparams(i);
-			}
-
-			if (sz_dps == nys) {
-				isNonassociatedOK = true;
-				DParams = Vector(nys);
-				for (int i = 0; i < nys; i++) {
-					DParams(i) = dparams(i);
-				}
-			}
-		}
-		else {
-			// if the user hasn't defined custom data
-			if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - no custom yield surface data is provided. User custom yield surfaces are NOT allowed...\n"; }
-			isUserCustomOK = false;
-		}
-
 		// check automatic surfaces
 		if (peakShearStrain_init <= 0) {
 			// if peak shear strain is zero or less than zero, prohibit automatic surfaces
@@ -119,8 +89,21 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 		}
 	}
 
-	if (isOfflineOK || isOnlineOK) {
-		// load the database into the RAM
+	if (isOfflineOK) {
+		// allocate space for the lookup table
+		HParams = Vector(tnys_init + 1);
+		HModuli = Vector(tnys_init + 1);
+
+		// load data into RAM
+		if (pm != nullptr && hp != nullptr)
+		{
+			for (int i = 0; i < tnys_init; i++)
+			{
+				HParams(i + 1) = hp[i];
+				HModuli(i) = pm[i];
+			}
+			HParams(0) = 0.1;
+		}
 	}
 }
 
@@ -140,10 +123,7 @@ bool DataDrivenNestedSurfaces::isAOK(int dataDriver) {
 	
 	bool aok = false;
 
-	if (dataDriver == -1 && isUserCustomOK) {
-		aok = true;
-	}
-	else if (dataDriver == 0 && isAutomaticOK) {
+	if (dataDriver == 0 && isAutomaticOK) {
 		aok = true;
 	}
 	else if (dataDriver == 1 && isOfflineOK) {
@@ -176,130 +156,48 @@ double DataDrivenNestedSurfaces::getPref(void) { return referencePressure_init; 
 
 
 // generate nested yield surface package
-YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int matid, const int dataDriver, double &Gref, double &Pref, double& Modn) {
+YieldSurfacePackage DataDrivenNestedSurfaces::generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref) {
 	
 	// initialize the yield surface package
 	YieldSurfacePackage yieldSurface;
 	
 	// set up surfaces
-	if (dataDriver > 1) {
-		// online approach
-		yieldSurface = YieldSurfacePackage(matid, strain_discretize);
-		setUpOnlineSurfaces(yieldSurface, strain_discretize);
+	if (dataDriver == 2) {
+		yieldSurface = YieldSurfacePackage(matid);
+		setUpOnlineSurfaces(yieldSurface);
 		if (beVerbose) { yieldSurface.printStats(true); }
 	}
 	else if (dataDriver == 1) {
-		// offline approach
 		yieldSurface = YieldSurfacePackage(matid, tnys_init);
 		setUpOfflineSurfaces(yieldSurface);
 		if (beVerbose) { yieldSurface.printStats(true); }
-	}
-	else if (dataDriver == 0) {
-		// automatic surface generation
+	} 
+	else {
 		yieldSurface = YieldSurfacePackage(matid, tnys_init, cohesion_init, frictionAngle_init,
 			dilatancyAngle_init, peakShearStrain_init, residualPressure_init, referencePressure_init);
-		setUpAutomaticSurfaces(yieldSurface, Gref, Pref);
+		setUpAutomaticSurfaces(yieldSurface, Pref, Gref, tnys_init);
 		if (beVerbose) { yieldSurface.printStats(true); }
 	}
-	else if (dataDriver == -1) {
-		// user custom surface generation
-		yieldSurface = YieldSurfacePackage(matid, tnys_init, HParams, HModuli, DParams);
-		setUpUserCustomSurfaces(yieldSurface, Gref, Pref, Modn);
-		if (beVerbose) { yieldSurface.printStats(true); }
-	}
-	else {
-
-	}
-
 	return yieldSurface;
 }
 
 
 // Private methods
 	// set up yield surfaces
-void DataDrivenNestedSurfaces::setUpOnlineSurfaces(YieldSurfacePackage& yieldSurface, double deps) {
+void DataDrivenNestedSurfaces::setUpOnlineSurfaces(YieldSurfacePackage& theSurface) {
 
 
 
 
 }
 
-void DataDrivenNestedSurfaces::setUpOfflineSurfaces(YieldSurfacePackage& yieldSurface) {
+void DataDrivenNestedSurfaces::setUpOfflineSurfaces(YieldSurfacePackage& theSurface) {
 
 
 
 }
 
-void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref,  double &Modn) {
-	// set up plastic modulus and hardening parameter sets based on the user input strain and G/Gmax pairs
-
-	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
-	double refStrain, peakShear, coneHeight;
-
-	if (yieldSurface.getPsi() > 0) {   // ignore user defined friction angle
-		double tmax = 0.0; for (int i = 0; i < yieldSurface.getTNYS(); i++) { tmax = fmax(tmax, Gref * HModuli(i) * HParams(i)); }
-		double Mnys = -(sqrt(3.0) * tmax - 2. * yieldSurface.getCohesion()) / Pref;
-		if (Mnys <= 0) {   // also ignore user defined cohesion
-			yieldSurface.setCohesion(sqrt(3.0) / 2.0 * tmax);
-			yieldSurface.setPsi(0.0);
-			coneHeight = 1.;
-			yieldSurface.setPresid(0.0);
-		}
-		else {
-			double sinPhi = 3 * Mnys / (6 + Mnys);
-			if (sinPhi < 0. || sinPhi>1.) {
-				opserr << "FATAL: DataDrivenNestedSurfaces::setUpUserCustomSurfaces() - invalid friction angle for nDmaterial "
-					<< yieldSurface.getTag() << ", please modify reference pressure or G/Gmax curve.\n";
-				exit(-1);
-			}
-			yieldSurface.setPresid(2. * yieldSurface.getCohesion() / Mnys);
-			if (yieldSurface.getPresid() < 0.01 * Pref) yieldSurface.setPresid(0.01 * Pref);
-			coneHeight = -(Pref - yieldSurface.getPresid());
-			yieldSurface.setPsi(asin(sinPhi) * 180 / M_PI);
-		}
-	}
-	else {   // ignore user defined cohesion
-		double tmax = 0.0; for (int i = 0; i < yieldSurface.getTNYS(); i++) { tmax = fmax(tmax, Gref * HModuli(i) * HParams(i)); }
-		yieldSurface.setCohesion(sqrt(3.) / 2 * tmax);
-		coneHeight = 1.0;
-		yieldSurface.setPresid(0.0);
-		Modn = 0.0; // also ignore user defined pressDependCoeff
-	}
-
-	// first yield surface
-	size = sqrt(3.0) * Gref * HModuli(0) * HParams(0) * 0.1 / coneHeight;
-	Href = Gref * HModuli(0) * HParams(0) / HParams(0);
-	if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
-	yieldSurface.setTau(size, 0);
-	yieldSurface.setEta(Href, 0);
-
-	// last yield surface
-	size = sqrt(3.0) * Gref * HModuli(yieldSurface.getTNYS()-1) * HParams(yieldSurface.getTNYS()-1) / coneHeight;
-	Href = 0;
-	yieldSurface.setTau(size, yieldSurface.getTNYS());
-	yieldSurface.setEta(Href, yieldSurface.getTNYS());
-
-	for (int i = 1; i < (yieldSurface.getTNYS()); i++) {
-		strain1 = HParams(i-1);
-		stress1 = Gref * HModuli(i - 1) * HParams(i - 1);
-		strain2 = HParams(i);
-		stress2 = Gref * HModuli(i) * HParams(i);
-
-		size = sqrt(3.0) * stress1 / coneHeight;
-		Href = (stress2 - stress1) / (strain2 - strain1);
-
-		if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
-
-		if (i == yieldSurface.getTNYS()) {
-			Href = 0.0;
-		}
-
-		yieldSurface.setTau(size, i);
-		yieldSurface.setEta(Href, i);
-	}
-}
-
-void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref) {
+void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Pref, const double Gref, const int tnys) {
 	// set up plastic modulus and hardening parameter sets based on the hyperbolic backbone model
 
 	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
@@ -319,10 +217,10 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		yieldSurface.setPresid(0.0);
 	}
 
-	double stressInc = peakShear / (yieldSurface.getTNYS());
+	double stressInc = peakShear / tnys;
 
-	for (int i = 0; i <= yieldSurface.getTNYS(); i++) {
-		stress1 = i * stressInc;
+	for (int ii = 0; ii <= tnys; ii++) {
+		stress1 = ii * stressInc;
 		stress2 = stress1 + stressInc;
 		strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
 		strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
@@ -350,15 +248,15 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 			Href = LARGE_NUMBER;
 		}
 
-		if (i == yieldSurface.getTNYS()) {
+		if (ii == tnys) {
 			Href = 0;
 		}
 
-		if (i == 0) {
+		if (ii == 0) {
 			size = stressInc * 0.1;
 		}
 
-		yieldSurface.setTau(size, i);
-		yieldSurface.setEta(Href, i);
+		yieldSurface.setTau(size, ii);
+		yieldSurface.setEta(Href, ii);
 	}
 }

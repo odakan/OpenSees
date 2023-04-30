@@ -64,27 +64,17 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		use_implex = false;
 	}
 
-	if (ddtype == 1) {						// offline
-		use_online_approach = false;
-		use_data_driven_surface = true;
-	}
-	else if (ddtype > 0 && ddtype < 1) {	// online
+	if (ddtype == 2) {
 		use_online_approach = true;
 		use_data_driven_surface = true;
 	}
-	else if (ddtype == 0) {					// automatic surface
+	else if (ddtype == 1) {
 		use_online_approach = false;
-		use_data_driven_surface = false;
-		use_user_custom_surface = false;
-	}
-	else if (ddtype == -1) {				// user custom surface
-		use_online_approach = false;
-		use_data_driven_surface = false;
-		use_user_custom_surface = true;
+		use_data_driven_surface = true;
 	}
 	else {
-		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - unknown material data driver type! ddtype is = " << ddtype << "\n";
-		exit(-1);
+		use_online_approach = false;
+		use_data_driven_surface = false;
 	}
 
 	// do some checks
@@ -133,7 +123,6 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(void)
 	: NDMaterial()
 {
-
 }
 
 	// destructor
@@ -325,16 +314,13 @@ const char* MultiYieldSurfaceHardeningSoftening::getType(void) const {
 
 int MultiYieldSurfaceHardeningSoftening::getDataDriver(void) {
 
-	int preference = 0;		// automatic backbone genration
+	int preference = 0;  // automatic backbone genration
 
 	if (use_data_driven_surface) {
-		preference = 1;		// offline: do not update once generated
+		preference = 1;  // offline: do not update once generated
 		if (use_online_approach) {
-			preference = 2;	// online: update on the fly using the data
+			preference = 2;  // online: update on the fly using the data
 		}
-	}
-	else if (use_user_custom_surface) {
-		preference = -1;	// user custom surface generation
 	}
 
 	return preference;
@@ -546,7 +532,7 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 			}
 			else {
 				if (theData->isAOK(getDataDriver())) {
-					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Gref, Pref, Modn);
+					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Pref, Gref);
 					materialStage = info.theInt;
 				}
 				else {
@@ -738,14 +724,8 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 			else {														// plastic loading
 				int converged = 0;
 				if (solution_strategy == 0) {
-					Vector edev_incr = getStressDeviator(eps_incr);		// strain increment deviator
-					double edev_step = sqrt(3.0 * 0.5 * TensorM::dotdot(edev_incr, edev_incr));
-					int num_step = fmax(1, ((edev_step / CPLANE_STRAIN_STEP) + 1));
-					Vector sig_step = (TensorM::inner(sv.Ce, (eps_incr)) / num_step);
-					for (int i = 0; i < num_step; i++) {
-						ST = sv.sig + sig_step;
-						converged = cuttingPlaneAlgorithm(ST, do_tangent);
-					}
+					// do return-mapping
+					converged = cuttingPlaneAlgorithm(ST, do_tangent);
 					// compute the elastoplastic tangent
 					if (do_tangent) { computeElastoplasticTangent(ys.now(), sv.sig); }
 				}
@@ -890,12 +870,8 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 			iteration_counter++;
 		}
 		// Step 6 - check for overshooting of the next yield surface
-		next_yf_value = yieldFunction(sv.sig, ys.next());					// next yf_value
-		double curr_H_prime = TensorM::dotdot((-1 * xi), rr);				// current H'
-		int sign_H_prime = (curr_H_prime > 0) ? 1 : ((curr_H_prime < 0) ? -1 : 0);
-		//opserr << "curr_H_prime = " << curr_H_prime << "\n";
-		//opserr << "sign_H_prime = " << sign_H_prime << "\n";
-		if ((ys.now() >= ys.getTNYS()) || ((next_yf_value * sign_H_prime) < ABSOLUTE_TOLERANCE)) {
+		next_yf_value = yieldFunction(sv.sig, ys.next());	// next yf_value
+		if ((ys.now() >= ys.getTNYS()) || (next_yf_value < ABSOLUTE_TOLERANCE)) {
 			if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() -> return-mapping converged after " << iteration_counter << " iterations!\n"; }
 			convergence = 1;
 			break; // end while loop: algorithm is done...
@@ -910,6 +886,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		dlambda1 = dlambda2 = 0.0;
 			// compute lambda1
 		double curr_H0 = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm);	// current H0
+		double curr_H_prime = TensorM::dotdot((-1 * xi), rr);				// current H'
 				// do a check
 		if (curr_H_prime == 0) {
 			opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - division by 0 while correcting the plastic multiplier (lambda 1)!\n";

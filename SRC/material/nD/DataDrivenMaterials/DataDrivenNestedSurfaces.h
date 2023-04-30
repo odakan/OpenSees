@@ -47,7 +47,7 @@ public:
 	// full constructors
 	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;								// copy constructor
 	DataDrivenNestedSurfaces(int tag, double cohesion, double frictionAngle, double dilationAngle,		// full constructor
-		double peakShearStrain,	double tnys, double deps, Vector hmoduli, Vector hparams, Vector dparams, bool verbosity);
+		double peakShearStrain,	double tnys, double* HModuli, double* HParams, bool verbosity);
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
@@ -71,7 +71,7 @@ public:
 	double getPref(void);
 
 	// generate yield surface
-	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, double& Gref, double& Pref, double& Modn);
+	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, const double Pref, const double Gref);
 
 private:
 	// default yield surface paramters
@@ -85,24 +85,21 @@ private:
 
 	// operational variables
 	bool isAutomaticOK = false;
-	bool isUserCustomOK = false;
 	bool isOfflineOK = false;
 	bool isOnlineOK = false;
-	bool isNonassociatedOK = false;		// associated or nonassociated flow
-	bool beVerbose = false;				// be verbose about internal processes (use for debugging) (no by default)					
-	int matID = 0;						// tag of the attached inital material object
-	int how_many = 0;					// number of material sub-objects using this nested surface super-object
-	double strain_discretize = 1e-4;	// default strain discretization step for the online approach
+	bool beVerbose = false;		// be verbose about internal processes (use for debugging) (no by default)					
+	int matID = 0;				// tag of the attached inital material object
+	int how_many = 0;			// number of material sub-objects using this nested surface super-object
 
-	// user custom surface data
-	Vector HModuli = Vector(1); Vector HParams = Vector(1); Vector DParams = Vector(1);
+	// representative volume element data
+	Vector HModuli;
+	Vector HParams;
 
 private:
 	// set up yield surfaces
-	void setUpOnlineSurfaces(YieldSurfacePackage& yieldSurface, double deps);
+	void setUpOnlineSurfaces(YieldSurfacePackage& yieldSurface);
 	void setUpOfflineSurfaces(YieldSurfacePackage& yieldSurface);
-	void setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref);
-	void setUpUserCustomSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref, double& Modn);
+	void setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Pref, const double Gref, const int tnys);
 
 };
 #endif
