@@ -99,9 +99,8 @@
 #include "DataDrivenNestedSurfaces.h"
 
 // constants
-constexpr double CPLANE_STRAIN_STEP = 1e-5;
-constexpr double ABSOLUTE_TOLERANCE = 1e-6;
-constexpr double RELATIVE_TOLERANCE = 1e-8;
+constexpr double ABSOLUTE_TOLERANCE = 1e-4;
+constexpr double RELATIVE_TOLERANCE = 1E-6;
 constexpr double MACHINE_EPSILON = DBL_EPSILON;
 constexpr double SMALL_PERTURBATION = 1.0e-9;
 constexpr int BRENT_MAXITER = 20;
@@ -185,7 +184,6 @@ protected:
 	// solution options
 	bool use_data_driven_surface = false;			// yield surface flag [true: use data driven yield surfaces, false: use hyperbolic backbone]
 	bool use_online_approach = false;				// yield surface update approach flag [true: online, false: offline]
-	bool use_user_custom_surface = false;			// use the set of yield surfaces defined by the user
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
