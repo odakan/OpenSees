@@ -46,7 +46,7 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 {
 	// initialize variables
 	beVerbose = verbosity;
-	cohesion_init = c0; frictionAngle_init = phi0; dilatancyAngle_init = psi0;  peakShearStrain_init = s0;
+	cohesion_init = c0; frictionAngle_init = phi0; peakShearStrain_init = s0;
 	tnys_init = nys;
 
 	// evaluate if yield surface generation is possible

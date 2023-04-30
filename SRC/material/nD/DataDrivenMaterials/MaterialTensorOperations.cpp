@@ -21,9 +21,6 @@
 #include "MaterialTensorOperations.h"
 
 
-double TensorM::macCaulay(const double N) { double val = (N + fabs(N)) * 0.5; return val; }
-
-
 Vector TensorM::I(const int N) {
 	// return identity matrix in Voigt notation
 	Vector kD(N);
@@ -36,41 +33,13 @@ Vector TensorM::I(const int N) {
 		Dim = 3;
 	}
 	else {
-		opserr << "FATAL: TensorM::I() - invalid material dimension!!\n";
+		opserr << "TensorM::IIvec: invalid material dimension!!\n";
 		exit(-1);
 	}
 	for (int i = 0; i < Dim; ++i) {
 		kD(i) = 1.0;
 	}
 	return kD;
-}
-
-Matrix TensorM::II4(const int N) {
-	// return 4th order symmetric unit tensor
-	// I4 = 0.5 * (kron_il * kron_jk + kron_ik * kron_jl) * ei x ej x ek x el
-	Matrix I4(N, N);
-	if (N == 6) {
-		I4(0, 0) = 1;
-		I4(0, 1) = 1;
-		I4(0, 2) = 1;
-		I4(1, 0) = 1;
-		I4(1, 1) = 1;
-		I4(1, 2) = 1;
-		I4(2, 0) = 1;
-		I4(2, 1) = 1;
-		I4(2, 2) = 1;
-	}
-	else if (N == 3) {
-		I4(0, 0) = 1;
-		I4(0, 1) = 1;
-		I4(1, 0) = 1;
-		I4(1, 1) = 1;
-	}
-	else {
-		opserr << "FATAL: TensorM::II4() - invalid material dimension!!\n";
-		exit(-1);
-	}
-	return I4;
 }
 
 Matrix TensorM::IIvol(const int N) {
@@ -95,7 +64,7 @@ Matrix TensorM::IIvol(const int N) {
 		IIvol(1, 1) = 1;
 	}
 	else {
-		opserr << "FATAL: TensorM::IIvol() - invalid material dimension!!\n";
+		opserr << "TensorM::IIvol: invalid material dimension!!\n";
 		exit(-1);
 	}
 	return IIvol;
@@ -103,6 +72,9 @@ Matrix TensorM::IIvol(const int N) {
 
 Matrix TensorM::IIdev(const int N) {
 	//return 4th order Deviatoric Tensor in Voigt notation
+	// Note:  this is the contravariant form!
+	//        useable for s^ a = 2G * IIdev ^ ab * epsilon_b
+	// (Need a different form for s^a = IIdev ^a_b * sigma^a)
 	Matrix IIdev(N, N);
 	if (N == 6) {
 		IIdev(0, 0) = 2.0 / 3.0;
@@ -126,7 +98,7 @@ Matrix TensorM::IIdev(const int N) {
 		IIdev(2, 2) = 0.5;
 	}
 	else {
-		opserr << "FATAL: TensorM::IIdev() - invalid material dimension!!\n";
+		opserr << "TensorM::IIdev: invalid material dimension!!\n";
 		exit(-1);
 	}
 	return IIdev;
@@ -150,7 +122,7 @@ double TensorM::dotdot(const Vector& A, const Vector& B) {
 	int NA = A.Size();
 	int NB = B.Size();
 	if (NA != NB) {
-		opserr << "FATAL: TensorM::dotdot() - size mismatch!!\n";
+		opserr << "TensorM::dotdot: size mismatch!!\n";
 		exit(-1);
 	}
 	Vector Bc(NB);
@@ -162,7 +134,7 @@ double TensorM::dotdot(const Vector& A, const Vector& B) {
 		Bc(3) = 2 * B(3); Bc(4) = 2 * B(4); Bc(5) = 2 * B(5);
 	}
 	else {
-		opserr << "FATAL: TensorM::dotdot() - invalid material dimension!!\n";
+		opserr << "TensorM::dotdot: invalid material dimension!!\n";
 		exit(-1);
 	}
 
@@ -181,11 +153,11 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 	int NBr = B.noRows();
 	int NBc = B.noCols();
 	if ((NAr != NAc) || (NBr != NBc)) {
-		opserr << "FATAL: TensorM::inner() - matrices A and B must be square!!\n";
+		opserr << "TensorM::inner: matrices A and B must be square!!\n";
 		exit(-1);
 	}
 	if ((NBc != NAc) || (NBr != NAr)) {
-		opserr << "FATAL: TensorM::inner() - matrices A & B size mismatch!!\n";
+		opserr << "TensorM::inner: matrices A & B size mismatch!!\n";
 		exit(-1);
 	}
 	Matrix Ac(NAr, NAc);
@@ -214,7 +186,7 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 		}
 	}
 	else {
-		opserr << "FATAL: TensorM::inner() - invalid material dimension!!\n";
+		opserr << "TensorM::inner: invalid material dimension!!\n";
 		exit(-1);
 	}
 	Matrix C(NBc, NBc);
@@ -233,11 +205,11 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 	int NAc = A.noCols();
 	int NB = B.Size();
 	if (NAr != NAc) {
-		opserr << "FATAL: TensorM::inner() - matrix A must be square!!\n";
+		opserr << "TensorM::inner: matrix A must be square!!\n";
 		exit(-1);
 	}
 	if (NAc != NB) {
-		opserr << "FATAL: TensorM::inner() - size mismatch!!\n";
+		opserr << "TensorM::inner: size mismatch!!\n";
 		exit(-1);
 	}
 	Matrix Ac(NAr, NAc);
@@ -266,7 +238,7 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 		}
 	}
 	else {
-		opserr << "FATAL: TensorM::inner() - invalid material dimension!!\n";
+		opserr << "TensorM::inner: invalid material dimension!!\n";
 		exit(-1);
 	}
 	Vector C(NAc);
@@ -285,11 +257,11 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 	int NBc = B.noCols();
 	int NA = A.Size();
 	if (NBr != NBc) {
-		opserr << "FATAL: TensorM::inner() - matrix A must be square!!\n";
+		opserr << "TensorM::inner: matrix A must be square!!\n";
 		exit(-1);
 	}
 	if (NBc != NA) {
-		opserr << "FATAL: TensorM::inner() - size mismatch!!\n";
+		opserr << "TensorM::inner: size mismatch!!\n";
 		exit(-1);
 	}
 	Matrix Bc(NBr, NBc);
@@ -318,7 +290,7 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 		}
 	}
 	else {
-		opserr << "FATAL: TensorM::inner() - invalid material dimension!!\n";
+		opserr << "TensorM::inner: invalid material dimension!!\n";
 		exit(-1);
 	}
 	Vector C(NBc);
@@ -354,21 +326,4 @@ Matrix TensorM::transpose(const Matrix& A) {
 		}
 	}
 	return T;
-}
-
-void TensorM::sqroot(Vector& A) {
-	int NA = A.Size();
-	for (int i = 0; i < NA; i++) {
-		A(i) = sqrt(A(i));
-	}
-}
-
-void TensorM::sqroot(Matrix& A) {
-	int NAr = A.noRows();
-	int NAc = A.noCols();
-	for (int i = 0; i < NAr; i++) {
-		for (int j = 0; j < NAc; j++) {
-			A(i, j) = sqrt(A(i, j));
-		}
-	}
 }
