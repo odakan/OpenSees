@@ -138,6 +138,7 @@
       <AssemblerListingLocation>.\..\..\obj\optimization\release/</AssemblerListingLocation>
       <ObjectFileName>.\..\..\obj\optimization\release/</ObjectFileName>
       <ProgramDataBaseFileName>.\..\..\obj\optimization\release/</ProgramDataBaseFileName>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Lib>
       <OutputFile>.\..\..\lib\release\optimization.lib</OutputFile>

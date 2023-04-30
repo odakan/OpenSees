@@ -435,6 +435,11 @@
 // J2CyclicBoundingSurface material - D.Turello
 #define ND_TAG_J2CyclicBoundingSurface        14023
 
+// Data-driven multi-scale materials (DMM) - Onur Deniz Akan, IUSS
+#define ND_TAG_VonMisesDMM            	11115
+#define ND_TAG_DruckerPragerDMM         11116
+#define ND_TAG_MatsuokaNakaiDMM			11117
+
 // MultiaxialCyclicPlasticity, add by Gang Wang
 #define ND_TAG_MultiaxialCyclicPlasticity             10031
 #define ND_TAG_MultiaxialCyclicPlasticity3D           10032

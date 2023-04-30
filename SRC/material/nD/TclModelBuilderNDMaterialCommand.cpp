@@ -121,6 +121,9 @@ extern  void *OPS_ConcreteMcftNonlinear5(void);
 extern  void *OPS_ConcreteMcftNonlinear7(void);
 extern  void *OPS_ConcreteS(void);
 extern void *OPS_PressureDependentElastic3D(void);
+extern void *OPS_VonMisesDMM(void);
+extern void *OPS_DruckerPragerDMM(void);
+extern void *OPS_MatsuokaNakaiDMM(void);
 
 extern  void *OPS_ElasticIsotropicMaterialThermal(void);  //L.Jiang [SIF]
 extern  void *OPS_DruckerPragerMaterialThermal(void);//L.Jiang [SIF]
@@ -1216,6 +1219,33 @@ TclModelBuilderNDMaterialCommand (ClientData clientData, Tcl_Interp *interp, int
 		else 
 			return TCL_ERROR;
 	}
+
+    else if ((strcmp(argv[1],"vonMisesDMM") == 0)){
+
+      void *theMat = OPS_VonMisesDMM();
+      if (theMat != 0) 
+	theMaterial = (NDMaterial *)theMat;
+      else 
+	return TCL_ERROR;
+    }
+
+    else if ((strcmp(argv[1],"DruckerPragerDMM") == 0)){
+
+      void *theMat = OPS_DruckerPragerDMM();
+      if (theMat != 0) 
+	theMaterial = (NDMaterial *)theMat;
+      else 
+	return TCL_ERROR;
+    }
+
+    else if ((strcmp(argv[1],"MatsuokaNakaiDMM") == 0)){
+
+      void *theMat = OPS_MatsuokaNakaiDMM();
+      if (theMat != 0) 
+	theMaterial = (NDMaterial *)theMat;
+      else 
+	return TCL_ERROR;
+    }
 
     else if (strcmp(argv[1],"PlaneStressMaterial") == 0 ||
  	     strcmp(argv[1],"PlaneStress") == 0) {

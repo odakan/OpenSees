@@ -110,6 +110,9 @@
     <Filter Include="nD\UWmaterials">
       <UniqueIdentifier>{be456511-844e-4f02-b923-14685753222d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nD\DataDrivenMaterials">
+      <UniqueIdentifier>{70095f6a-9f7a-44ce-b068-7280bdf8d60a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\SRC\material\uniaxial\AxialSp.cpp">
@@ -1484,6 +1487,39 @@
     <ClCompile Include="..\..\..\SRC\material\uniaxial\ViscoelasticGap.cpp">
       <Filter>uniaxial</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+	<ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialStateVariables.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialTensorOperations.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MatsuokaNakaiDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MultiYieldSurfaceHardeningSoftening.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_DruckerPragerDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_MatsuokaNakaiDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\OPS_VonMisesDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\VonMisesDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\AxialSp.h">
@@ -2725,6 +2761,30 @@
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\HystereticSMMaterial.h">
       <Filter>uniaxial</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+	<ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialStateVariables.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialTensorOperations.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MatsuokaNakaiDMM.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MultiYieldSurfaceHardeningSoftening.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\VonMisesDMM.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
