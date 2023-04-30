@@ -189,7 +189,7 @@ protected:
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
-	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = piecewise linear solution]
+	int solution_strategy = 1;						// [0 = cutting plane algorithm, 1 = piecewise linear solution]
 
 protected:
 	// the get methods
