@@ -66,45 +66,46 @@ void Help(void) {
 	opserr << "         and other optional parameters for data-driven material modeling:\n";
 	opserr << "         <-ddType flag?> <-hModuli $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
 	opserr << "\n\n";
-	opserr << "	| Argument               | Type             | Description\n";
-	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| $tag                   | integer          |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| $Kref, $Gref, $Pref    | 3 double         |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -R $Rho                | string + double  |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -M $Modn               | string + double  |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -t $tnys               | string + integer |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -c $cohesion           | string + double  |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -f $frictionAngle      | string + double  |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -s $peakShearAngle     | string + double  |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -implex                | string           |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -ddType $flag          | string + double  | $flag is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras\n";
-	opserr << "	|                        |                  | a value is between 0 and 1 is the strain dicretization step for the online method     \n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -hRatio $HModuli1      | string + list    |\n";
-	opserr << "	|         $HModuli2 ...  | of doubles       |\n";
-	opserr << "	|                        |                  |\n";
-	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
-	opserr << "	| -hStrain $HParams1     | string + list    |\n";
-	opserr << "	|          $HParams2 ... | of doubles       |\n";
-	opserr << "	|                        |                  |\n";
+	opserr << "	| Argument               | Type             | Description                                                                            |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| $tag                   | integer          |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| $Kref, $Gref, $Pref    | 3 double         |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -R $Rho                | string + double  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -M $Modn               | string + double  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -t $tnys               | string + integer |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -c $cohesion           | string + double  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -f $frictionAngle      | string + double  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -s $peakShearAngle     | string + double  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -implex                | string           |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -ddType $flag          | string + double  | $flag is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras |\n";
+	opserr << "	|                        |                  | a value is between 0 and 1 is the strain dicretization step for the online method      |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -hRatio $HModuli1      | string + list    |                                                                                        |\n";
+	opserr << "	|         $HModuli2 ...  | of doubles       |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -hStrain $HParams1     | string + list    |                                                                                        |\n";
+	opserr << "	|          $HParams2 ... | of doubles       |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
 	opserr << "\n\n";
 }
 
@@ -130,8 +131,9 @@ OPS_VonMisesDMM(void)
 	double cohesion = 0.0; double frictionAngle = 0.0; double dilatancyAngle = 0.0; double peakShearStrain = 0.0;
 
 	// user defined yield surfaces
-	double* HParams = nullptr;
-	double* HModuli = nullptr;
+	double* HParams = nullptr; Vector hps(1);
+	double* HModuli = nullptr; Vector hmod(1);
+	double* DParams = nullptr; Vector dps(1);
 
 	// other inputs
 	int integrationType = 0;		// use implicit integration by default
@@ -218,9 +220,10 @@ OPS_VonMisesDMM(void)
 				return theMaterial;
 			}
 			if (abs(TNYS) > maxTNYS || TNYS == 0) {
-				opserr << "FATAL: OPS_VonMisesDMM() - invalid TNYS value! (must be an integer -" << maxTNYS << " <= TNYS <= " << maxTNYS << " && TNYS != 0)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid TNYS value! (must be an integer TNYS <= " << maxTNYS << " and TNYS cannot be 0)\n";
 				return theMaterial;
 			}
+			TNYS = abs(TNYS);	// make sure TNYS is a positive integer
 		}
 
 		// input #8 - recieve yield surface cohesion
@@ -264,7 +267,7 @@ OPS_VonMisesDMM(void)
 		if (strcmp(inputstring, "-ddType") == 0) {
 			if (OPS_GetDoubleInput(&numData, &dataDriverType) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid data driver type after flag: -ddType (must be integer)\n";
-				opserr << "FATAL: OPS_VonMisesDMM() - [$val is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - [$val is a double. -1: user custom surface, 0 : hyperbolic backbone, 1 : offline wheras\n";
 				opserr << "FATAL: OPS_VonMisesDMM() -         a value between 0 and 1 is the strain dicretization step for the online method]\n";
 				return theMaterial;
 			}
@@ -285,24 +288,27 @@ OPS_VonMisesDMM(void)
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hModuli)\n";
 				return theMaterial;
 			}
-
+			hmod = Vector(TNYS);
+			for (int i = 0; i < TNYS; i++) { hmod(i) = HModuli[i]; }
 		}
 
 		// input #15 - recieve yield surface hardening parameters (strain discretization)
-		if (strcmp(inputstring, "-hStrain") == 0) {
+		if (strcmp(inputstring, "-hStrains") == 0) {
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "FATAL: OPS_VonMisesDMM() - please enter HParams vector for each yield surface after flag: -hStrain (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter vector of hardening parameters for each yield surface after flag: -hStrains (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HParams = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HParams) < 0) {
-				opserr << "FATAL: OPS_VonMisesDMM() - invalid HParams! (must be " << TNYS << " many doubles  after flag: -hStrain)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid  hardening parameters! (must be " << TNYS << " many doubles  after flag: -hStrains)\n";
 				return theMaterial;
 			}
+			hps = Vector(TNYS);
+			for (int i = 0; i < TNYS; i++) { hps(i) = HParams[i]; }
 		}
 
 		// operational flags
@@ -335,7 +341,7 @@ OPS_VonMisesDMM(void)
 		// Pref is kPa in most cases, though it is not a must. Just invite the user to double check the input value  
 		opserr << "WARNING: OPS_VonMisesDMM() - please double check the Pref value in use! Current Pref = " << Pref << "!\n";
 	}
-	
+
 	if (beVerbose) {
 		opserr << "\nOPS_VonMisesDMM:\n";
 		opserr << "-----------------\n";
@@ -350,14 +356,22 @@ OPS_VonMisesDMM(void)
 		opserr << "frictionAngle   : " << frictionAngle << "\n";
 		opserr << "dilatancyAngle  : " << dilatancyAngle << "\n";
 		opserr << "peakShearStrain : " << peakShearStrain << "\n";
-		opserr << "HModuli         : " << HModuli << "\n";
-		opserr << "HParams         : " << HModuli << "\n";
 		opserr << "driverType      : " << dataDriverType << "\n";
-		opserr << "integrationType : " << integrationType << "\n\n";
+		opserr << "integrationType : " << integrationType << "\n";
+		if (HModuli != nullptr) {
+			opserr << "HModuli         : " << hmod;
+		}
+		if (HParams != nullptr) {
+			opserr << "HParams         : " << hps;
+		}
+		if (DParams != nullptr) {
+			opserr << "DParams         : " << dps;
+		}
+		opserr << "\n";
 	}
-	
+		
 	// create a nested yield surface object
-	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, HModuli, HParams, beVerbose);
+	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, dataDriverType, hmod, hps, dps, beVerbose);
 	
 	if (theData == nullptr) {
 		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";
@@ -372,7 +386,7 @@ OPS_VonMisesDMM(void)
 		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";
 		return theMaterial;
 	}
-	
+
 	// free the memory
 	if (HModuli != nullptr)
 	{
