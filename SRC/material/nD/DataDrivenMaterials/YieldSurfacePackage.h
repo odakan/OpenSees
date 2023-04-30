@@ -73,6 +73,7 @@ public:
 	int now(void);
 	int next(void);
 	int prev(void);
+	int getTag(void);
 	int getNYS(void);
 	int getTNYS(void);
 	double getPhi(void);

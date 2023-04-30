@@ -70,6 +70,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
 	theta = Vector(tnys + 1);
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
+
 }
 
 
@@ -187,6 +188,7 @@ bool YieldSurfacePackage::isNonAssociated(void) { return nonassociated; }
 int YieldSurfacePackage::now(void) { return num; }
 int YieldSurfacePackage::next(void) { return num + 1; }
 int YieldSurfacePackage::prev(void) { return num - 1; }
+int YieldSurfacePackage::getTag(void) { return matID; }
 int YieldSurfacePackage::getNYS(void) { return nYs; }
 int YieldSurfacePackage::getTNYS(void) { return tnys; }
 double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
