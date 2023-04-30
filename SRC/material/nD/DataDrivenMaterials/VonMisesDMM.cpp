@@ -197,84 +197,131 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 }
 
 // Private methods
-	// yield surface operations
-double VonMisesDMM::yieldFunction(const Vector& stress, const int num_yield_surface, bool yield_Stress = false) {
-	// get material constants
-	double yf = ys.getTau(num_yield_surface, ys.getNYS_commit());
+	// the get methods
+Vector VonMisesDMM::getShiftedDeviator(const Vector& stress, const int num_ys) { return getStressDeviator(stress) - ys.getAlpha(num_ys); }
 
-	// Evaluate and return the yield surface value
-	if (!yield_Stress) {
-		Vector zeta = getStressDeviator(stress, num_yield_surface);
-		yf = sqrt(TensorM::dotdot(zeta, zeta)) - yf;
+	// yield surface operations
+double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool yield_stress = false) {
+	// if yield_stress is false, return the yield function value. Otherwise, return the yield strength.
+
+	// get the current limit stress
+	double strength = sqrt(2.0 / 3.0) * ys.getTau(num_ys);
+
+	// evaluate and return the yield surface value
+	if (!yield_stress) {
+		Vector zeta = getShiftedDeviator(stress, num_ys);
+		strength = sqrt(TensorM::dotdot(zeta, zeta)) - strength;
 	}
-	return yf;
+
+	// done
+	return strength;
 }
 
-Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_yield_surface) {
+Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t stress
-	Vector zeta = getStressDeviator(stress, num_yield_surface);
-	Vector alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
-	Vector dfds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
-	dfds = dfds - (1. / 3.) * (TensorM::dotdot(dfds, alpha)) * TensorM::I(6);
+	
+	// initialize the tensors
+	Vector dfds = Vector(6);							// normal tensor
+	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+
+	// compute the normal tensor
+	dfds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
+
+	// done
 	return dfds;
 }
 
-Vector VonMisesDMM::get_dF_dA(const Vector& stress, const int num_yield_surface) {
+Vector VonMisesDMM::get_dF_dA(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t alpha(backstress)
-	Vector zeta = getStressDeviator(stress, num_yield_surface);
-	Vector alpha = ys.getAlpha(num_yield_surface, ys.getNYS_commit());
-	Vector dfda = -1 * getMeanStress(stress) * (zeta / sqrt(TensorM::dotdot(zeta, zeta)));
+	
+	// initialize the tensors
+	Vector dfda = Vector(6);							// normal tensor
+	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+
+	// compute the normal tensor
+	dfda = -1 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+
+	// done
 	return dfda;
 }
 
-Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_yield_surface) {
+Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 	// Return the rate of alpha(backstress)
-	double radius = getSizeYS(num_yield_surface);
 
-	if (radius == 0) {
-		opserr << "\n";
-		opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
-		opserr << "curr_sz = 0  \n";
-		opserr << "N_active_ys: " << num_yield_surface << "\n";
-		opserr << "Total theSurfaces  : " << ys.getTNYS() << "\n";
-		opserr << "\n";
-		exit(-1);
-	}
+	// initialize the tensors
+	Vector dhda(6);												// normal tensor
 
-	double Pavg = getMeanStress(stress);
-	double denominator = 0.0;
-	Vector dhda(6);
-	Vector zeta = getStressDeviator(stress, num_yield_surface);
-	Vector Q_prime = zeta / sqrt(TensorM::dotdot(zeta, zeta));
+	// compute the normal
+	if (num_ys >= ys.getTNYS()) {
+		// get material constants
+		double H_prime = ys.getEta(ys.getTNYS());
 
-	if (num_yield_surface >= ys.getTNYS()) {
-		double H_prime = ys.getEta(ys.getTNYS(), ys.getNYS_commit());
-		dhda = (H_prime / Pavg) * Q_prime;
+		// initialize tensors
+		Vector current_zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor (current)
+
+		// compute normal
+		Vector Q_prime = current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		dhda = H_prime * Q_prime;
 	}
 	else {
-		double next_radius = getSizeYS(num_yield_surface + 1);
-		double H_prime = ys.getEta(num_yield_surface, ys.getNYS_commit());
-		Vector next_zeta = getStressDeviator(stress, num_yield_surface + 1);
+		// get material constants
+		double current_strength = getSizeYS(num_ys);
+		double next_strength = getSizeYS(num_ys + 1);
+		double H_prime = ys.getEta(num_ys);
 
-		dhda = ((next_radius / radius) * (zeta)) - (next_zeta);
-		denominator = TensorM::dotdot(Q_prime, dhda);
-
-		if (denominator == 0) {
-			opserr << "\n";
-			opserr << "FATAL:VonMisesDMM::get_dR_dA\n";
-			opserr << "denominator = 0  \n";
-			opserr << "N_active_ys: " << num_yield_surface << "\n";
-			opserr << "Total theSurfaces  : " << ys.getTNYS() << "\n";
-			opserr << "\n";
+		// do check
+		if (current_strength < ABSOLUTE_TOLERANCE) {
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
+			exit(-1);
+		}
+		else if (next_strength < ABSOLUTE_TOLERANCE) {
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
 			exit(-1);
 		}
 
-		dhda = (H_prime / (Pavg * denominator)) * dhda;
+		// initialize tensors
+		Vector current_zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor (current)
+		Vector next_zeta = getShiftedDeviator(stress, num_ys + 1);	// shifted stress deviator tensor (next)
+
+		// compute normal
+		Vector Q_prime = current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		//Vector direction = (next_strength / current_strength) * current_zeta - next_zeta; // Prevost
+		Vector direction = current_zeta - (current_strength / next_strength) * next_zeta; // Gu et al.
+		double denominator = TensorM::dotdot(Q_prime, direction);
+		if (denominator == 0.0) {
+			opserr << "\nFATAL: VonMisesDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
+			opserr << "Denominator [Q':mu] = "<< denominator << "\n";
+			opserr << "Q' = " << Q_prime;
+			opserr << "mu = " << direction;
+			exit(-1);
+		}
+		dhda = (H_prime / denominator) * direction;
 	}
+
+	// done
 	return dhda;
 }
 
-Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_yield_surface) {
-	// Return the plastic flow direction 
-	return get_dF_dS(stress, num_yield_surface); // Associated flow
+Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
+	// Return the plastic flow direction (normal to the plastic potential w.r.t stress)
+
+	// initialize the tensors
+	Vector dpds = Vector(6);	// normal tensor
+
+	// compute the normal to the plastic potential
+	if (ys.isNonAssociated()) {
+		// dPdS = Q' + P" * kronecker
+		double dilatancy = ys.getTheta(num_ys);				// dilatancy radius
+		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+		//Vector alpha = ys.getAlpha(num_ys);
+		// evaluate the derivative using chain rule
+		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));					// Q'
+		dpds += 1.0 / 3.0 * sqrt(2.0 / 3.0) * (dilatancy) * TensorM::I(6);	// P"
+		//dpds += 1.0 / 3.0 * (sqrt(2.0 / 3.0) * dilatancy - ((TensorM::dotdot(zeta, alpha)) / sqrt(TensorM::dotdot(zeta, zeta)))) * TensorM::I(6);	// P"
+	}
+	else {
+		dpds = get_dF_dS(stress, num_ys); // Associated flow
+	}
+
+	return dpds;
 }

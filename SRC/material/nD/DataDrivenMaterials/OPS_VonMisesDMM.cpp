@@ -56,48 +56,6 @@
  |                                                                                |
  +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----*/
 
- /*
- | Argument               | Type             | Description
- |----------------------------------------------------------------------------------------------------------------------------------
- | $tag                   | integer          |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | $Kref, $Gref, $Pref    | 3 double         |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -R $Rho                | string + double  |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -M $Modn               | string + double  |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -t $tnys               | string + integer |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -c $cohesion           | string + double  |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -f $frictionAngle      | string + double  |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -s $peakShearAngle     | string + double  |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -implex                | string           |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -ddType $val           | string + double  | $val is a double in the domain: [0, 1]. 0: hyperbolic backbone, 1: offline wheras
- |                        |                  | a value is between 0 and 1 is the strain dicretization step for the online method
- |---------------------------------------------------------------------------------------------------------------------------------
- | -hRatio $HModuli1      | string + list    |
- |         $HModuli2 ...  |       of doubles |
- |                        |                  |
- |----------------------------------------------------------------------------------------------------------------------------------
- | -hStrain $HParams1     | string + list    |
- |          $HParams2 ... |       of doubles |
- |                        |                  |
- */
-
 #include "VonMisesDMM.h"
 
 void Help(void) {
@@ -106,8 +64,48 @@ void Help(void) {
 	opserr << "----------------------------------------------------------------------------------------------------------------------------------------------------------------\n";
 	opserr << "nDMaterial VonMisesDMM tag? -K Kref? -G Gref? -P Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -d dilatancyAngle -s peakShearStrain? -implex?>\n";
 	opserr << "         and other optional parameters for data-driven material modeling:\n";
-	opserr << "         <-ddType flag?> <-hRatio $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
-	opserr << "\n";
+	opserr << "         <-ddType flag?> <-hModuli $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+	opserr << "\n\n";
+	opserr << "	| Argument               | Type             | Description\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| $tag                   | integer          |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| $Kref, $Gref, $Pref    | 3 double         |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -R $Rho                | string + double  |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -M $Modn               | string + double  |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -t $tnys               | string + integer |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -c $cohesion           | string + double  |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -f $frictionAngle      | string + double  |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -s $peakShearAngle     | string + double  |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -implex                | string           |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -ddType $flag          | string + double  | $flag is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras\n";
+	opserr << "	|                        |                  | a value is between 0 and 1 is the strain dicretization step for the online method     \n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -hRatio $HModuli1      | string + list    |\n";
+	opserr << "	|         $HModuli2 ...  | of doubles       |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "	|-----------------------------------------------------------------------------------------------------------------------------------\n";
+	opserr << "	| -hStrain $HParams1     | string + list    |\n";
+	opserr << "	|          $HParams2 ... | of doubles       |\n";
+	opserr << "	|                        |                  |\n";
+	opserr << "\n\n";
 }
 
 #define OPS_Export 
@@ -136,8 +134,8 @@ OPS_VonMisesDMM(void)
 	double* HModuli = nullptr;
 
 	// other inputs
-	int dataDriverType = 0;		// use hyperbolic backbone by default
-	int integrationType = 0;	// use implicit integration by default
+	int integrationType = 0;		// use implicit integration by default
+	double dataDriverType = 0;		// use hyperbolic backbone by default
 
 
 	// begin recieving
@@ -264,26 +262,27 @@ OPS_VonMisesDMM(void)
 
 		// input #13 - recieve yield surface data driver type
 		if (strcmp(inputstring, "-ddType") == 0) {
-			if (OPS_GetIntInput(&numData, &dataDriverType) < 0) {
+			if (OPS_GetDoubleInput(&numData, &dataDriverType) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid data driver type after flag: -ddType (must be integer)\n";
-				opserr << "FATAL: OPS_VonMisesDMM() -                                  [0: backbone, 1: offline, 2:online]\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - [$val is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras\n";
+				opserr << "FATAL: OPS_VonMisesDMM() -         a value between 0 and 1 is the strain dicretization step for the online method]\n";
 				return theMaterial;
 			}
 		}
 
 		// input #14 - recieve yield surface G/Gmax ratios
-		if (strcmp(inputstring, "-hRatio") == 0) {
+		if (strcmp(inputstring, "-hModuli") == 0) {
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "FATAL: OPS_VonMisesDMM() - please enter $HModuli vector for each yield surface after flag: -hRatio (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter $HModuli vector for each yield surface after flag: -hModuli (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HModuli = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HModuli) < 0) {
-				opserr << "FATAL: OPS_VonMisesDMM() - invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hRatio)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hModuli)\n";
 				return theMaterial;
 			}
 

@@ -26,8 +26,33 @@ MaterialStateVariables::~MaterialStateVariables(void)
 {
 	/* 
 	   do nothing!
-	   no memory was allocated in the memory-land to free... 
+	   no space was allocated in the memory-land to be freed... 
 	*/
+}
+
+// iteration control
+int MaterialStateVariables::commitState(void) {
+
+	// commit internal variables
+	eps_commit = eps;
+	sig_commit = sig;
+	xs_commit = xs;
+	lambda_commit_old = lambda_commit;
+	lambda_commit = lambda;
+
+	return 0;
+}
+
+int MaterialStateVariables::revertToLastCommit(void) {
+
+	// restore committed internal variables
+	eps = eps_commit;
+	sig = sig_commit;
+	xs = xs_commit;
+	lambda = lambda_commit;
+	lambda_commit = lambda_commit_old;
+
+	return 0;
 }
 
 	// pack and unpack state variables (vectorize) for message passing
@@ -39,15 +64,12 @@ Vector& MaterialStateVariables::pack(void) {
 	Vector data(vsz);
 	vectorvector(N, eps, data, forward);
 	vectorvector(N, eps_commit, data, forward);
-	vectorvector(N, eps_commit_old, data, forward);
 
 	vectorvector(N, sig, data, forward);
 	vectorvector(N, sig_commit, data, forward);
-	vectorvector(N, sig_commit_old, data, forward);
 
 	vectorvector(N, xs, data, forward);
 	vectorvector(N, xs_commit, data, forward);
-	vectorvector(N, xs_commit_old, data, forward);
 
 	data(N + 3) = dtime_n;
 	data(N + 4) = dtime_n_commit;
@@ -62,15 +84,12 @@ void MaterialStateVariables::unpack(Vector& data) {
 
 	vectorvector(N, eps, data, backward);
 	vectorvector(N, eps_commit, data, backward);
-	vectorvector(N, eps_commit_old, data, backward);
 
 	vectorvector(N, sig, data, backward);
 	vectorvector(N, sig_commit, data, backward);
-	vectorvector(N, sig_commit_old, data, backward);
 
 	vectorvector(N, xs, data, backward);
 	vectorvector(N, xs_commit, data, backward);
-	vectorvector(N, xs_commit_old, data, backward);
 
 	dtime_n = data(N + 3);
 	dtime_n_commit = data(N + 4);
@@ -82,22 +101,26 @@ void MaterialStateVariables::printStats(bool detail) {
 	if (detail) {
 		opserr << "MaterialStateVariables::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "Stress                    =  " << sig;
-		opserr << "Comitted Stress           =  " << sig_commit;
-		opserr << "Strain                    =  " << eps;
-		opserr << "Comitted Strain           =  " << eps_commit;
+		opserr << "Stress                  =  " << sig;
+		opserr << "Comitted Stress         =  " << sig_commit;
+		opserr << "Strain                  =  " << eps;
+		opserr << "Comitted Strain         =  " << eps_commit;
 		opserr << "-------------------- Pastic Internal Variables --------------------\n";
-		opserr << "Plastic Strain            =  " << xs;
-		opserr << "Commited Plastic Strain   =  " << xs_commit;
+		opserr << "Plastic Strain          =  " << xs;
+		opserr << "Commited Plastic Strain =  " << xs_commit;
+		opserr << "Plastic multiplier      =  " << lambda << "\n";
+		opserr << "Commited pl. multiplier =  " << lambda_commit << "\n";
+		opserr << "Prev. comm. pl. mult.   =  " << lambda_commit_old << "\n";
 		opserr << "------------------ Consistent Tangent Operator ------------------\n";
 		opserr << "Kt = " << Cep;
 	}
 	else {
 		opserr << "MaterialStateVariables::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "Stress                    =  " << sig;
-		opserr << "Strain                    =  " << eps;
-		opserr << "Plastic Strain            =  " << xs << "\n";
+		opserr << "Stress             =  " << sig;
+		opserr << "Strain             =  " << eps;
+		opserr << "Plastic multiplier =  " << lambda << "\n";
+		opserr << "Plastic Strain     =  " << xs << "\n";
 	}
 }
 

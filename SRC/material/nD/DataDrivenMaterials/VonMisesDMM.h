@@ -130,13 +130,15 @@ public:
 	int updateParameter(int responseID, Information& eleInformation);
 
 private:
+	// the get methods
+	Vector getShiftedDeviator(const Vector& stress, const int num_ys);	// shifted deviatoric stress tensor (Ziegler's rule)
+
 	// yield surface operations
-	double yieldFunction(const Vector& stress, const int num_yield_surface,		// Return yield function (F) value
-		bool yield_stress);	
-	Vector get_dF_dS(const Vector& stress, const int num_yield_surface);		// Return normal to the yield surface w.r.t stress
-	Vector get_dF_dA(const Vector& stress, const int num_yield_surface);		// Return normal to the yield surface w.r.t alpha (backstress)
-	Vector get_dH_dA(const Vector& stress, const int num_yield_surface);		// Return normal to the hardening potential w.r.t alpha (backstress)
-	Vector get_dP_dS(const Vector& stress, const int num_yield_surface);		// Return normal to the plastic potential w.r.t stress
+	double yieldFunction(const Vector& stress, const int num_ys, bool yield_stress);	// Return yield function (F) value
+	Vector get_dF_dS(const Vector& stress, const int num_ys);							// Return normal to the yield surface w.r.t stress
+	Vector get_dF_dA(const Vector& stress, const int num_ys);							// Return normal to the yield surface w.r.t alpha (backstress)
+	Vector get_dH_dA(const Vector& stress, const int num_ys);							// Return normal to the hardening potential w.r.t alpha (backstress)
+	Vector get_dP_dS(const Vector& stress, const int num_ys);							// Return normal to the plastic potential w.r.t stress
 
 };
 #endif

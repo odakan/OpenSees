@@ -23,6 +23,7 @@
 #define MaterialTensorOperations_h
 
 
+#include <math.h> 
 #include <Vector.h>
 #include <Matrix.h>
 
@@ -34,15 +35,21 @@ public:
 	~TensorM() = default;
 
 
+	static double macCaulay(const double N);
+
+
 	static Vector I(const int N);
+	static Matrix II4(const int N);
 	static Matrix IIvol(const int N);
 	static Matrix IIdev(const int N);
-
+	
 
 	static double determinant(const Matrix& A);
 	static double determinant(const Vector& A);
 
 
+	static void sqroot(Vector& A);
+	static void sqroot(Matrix& A);
 	static Matrix transpose(const Matrix& A);
 
 

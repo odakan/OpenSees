@@ -58,34 +58,42 @@ namespace tools {
 		static std::map<int, GlobalStorage> gsmap;
 		return gsmap[N].resize(N);
 	}
-
-	inline double macaulay(double A) {
-		double val = (A + abs(A)) * 0.5;
-		return val;
-	}
 }
 
 
 class MaterialStateVariables {
 public:
 	// state variables
+	/*	IMPLEX variables:
+			lambda: in the explicit step, lambda is extrapolated using 
+					lambda_commit and lambda_commit_old
+
+			dtime_n:
+
+			dtime_is_user_defined:
+
+			dtime_first_set:
+
+			sig_implex: stress tensor computed at the end of the 
+						explicit step is stored for output
+	*/
 	Vector eps = Vector(6);					// material strain 
 	Vector eps_commit = Vector(6);			// committed material strain
-	Vector eps_commit_old = Vector(6);		// previously committed material strain
 	Vector sig = Vector(6);					// effective stress
 	Vector sig_commit = Vector(6);			// committed effective stress
-	Vector sig_commit_old = Vector(6);		// previously committed effective stress
+	Vector sig_implex = Vector(6);			// only for output
 	Vector xs = Vector(6);					// equivalent plastic strain
 	Vector xs_commit = Vector(6);			// committed equivalent plastic strain
-	Vector xs_commit_old = Vector(6);		// previously committed equivalent plastic strain
+	double lambda = 0.0;					// plastic multiplier
+	double lambda_commit = 0.0;				// committed plastic multiplier
+	double lambda_commit_old = 0.0;			// previously committed plastic multiplier
 	double dtime_n = 0.0;					// time factor
 	double dtime_n_commit = 0.0;			// committed time factor
 	bool dtime_is_user_defined = false;
 	bool dtime_first_set = false;
-	// modulus
+	// moduli
 	Matrix Ce = Matrix(6, 6);				// elastic modulus matrix
 	Matrix Cep = Matrix(6, 6);				// tangent modulus matrix
-	Vector sig_implex = Vector(3);			// only for output
 	double Kmod = 0;						// Current bulk modulus
 	double Gmod = 0;						// Current shear modulus
 	double Hmod = 0;						// Current plastic modulus
@@ -100,6 +108,10 @@ public:
 	// destructor
 	~MaterialStateVariables(void);
 
+	// iteration control
+	int commitState(void);
+	int revertToLastCommit(void);
+
 	// operator overloading
 	MaterialStateVariables& operator= (const MaterialStateVariables&) = default;
 
@@ -110,7 +122,7 @@ public:
 	void printStats(bool detail);
 
 private:
-	// un/pack methods
+	// unpack methods
 	int getSize(void);
 	void vectorvector(int& N, Vector& A, Vector& B, bool forward = true);
 	void vectormatrix(int& N, Matrix& A, Vector& B, bool forward = true);
