@@ -313,10 +313,11 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 		// dPdS = Q' + P" * kronecker
 		double dilatancy = ys.getTheta(num_ys);				// dilatancy radius
 		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
-		Vector alpha = ys.getAlpha(num_ys);
+		//Vector alpha = ys.getAlpha(num_ys);
 		// evaluate the derivative using chain rule
-		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));																			// Q'
-		dpds += 1.0 / 3.0 * (dilatancy - ((TensorM::dotdot(zeta, alpha)) / sqrt(TensorM::dotdot(zeta, zeta))) ) * TensorM::I(6);	// P"
+		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));					// Q'
+		dpds += 1.0 / 3.0 * sqrt(2.0 / 3.0) * (dilatancy) * TensorM::I(6);	// P"
+		//dpds += 1.0 / 3.0 * (sqrt(2.0 / 3.0) * dilatancy - ((TensorM::dotdot(zeta, alpha)) / sqrt(TensorM::dotdot(zeta, zeta)))) * TensorM::I(6);	// P"
 	}
 	else {
 		dpds = get_dF_dS(stress, num_ys); // Associated flow
