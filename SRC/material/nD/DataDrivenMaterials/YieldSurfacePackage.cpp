@@ -110,9 +110,6 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 	if (dilatancyAngle != 0.0) {
 		nonassociated = true;
 		theta = Vector(tnys + 1);
-		for (int i = 0; i < (tnys + 1); i++) {
-			theta(i) = tan(dilatancyAngle * M_PI / 180);
-		}
 	}
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);

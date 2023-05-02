@@ -64,7 +64,7 @@ void Help(void) {
 	opserr << "----------------------------------------------------------------------------------------------------------------------------------------------------------------\n";
 	opserr << "nDMaterial VonMisesDMM tag? -K Kref? -G Gref? -P Pref? <-R Rho? -M Modn? -t tnys? -c cohesion? -f frictionAngle? -d dilatancyAngle -s peakShearStrain? -implex?>\n";
 	opserr << "         and other optional parameters for data-driven material modeling:\n";
-	opserr << "         <-ddType flag?> <-hModuli $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
+	opserr << "         <-ddType flag?> <-HModuli $HModuli1 $HModuli2 $HModuli3 ... -hStrain $HParams1 $HParams2 $HParams3 ...>\n";
 	opserr << "\n\n";
 	opserr << "	| Argument               | Type             | Description                                                                            |\n";
 	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
@@ -133,7 +133,7 @@ OPS_VonMisesDMM(void)
 	// user defined yield surfaces
 	double* HParams = nullptr; Vector hps(1);
 	double* HModuli = nullptr; Vector hmod(1);
-	double* DParams = nullptr; Vector dps(1);
+	double* HDilatancies = nullptr; Vector dps(1);
 
 	// other inputs
 	int integrationType = 0;		// use implicit integration by default
@@ -273,38 +273,57 @@ OPS_VonMisesDMM(void)
 			}
 		}
 
-		// input #14 - recieve yield surface G/Gmax ratios
+		// input #14 - recieve yield surface Gsec/Gmax ratios
 		if (strcmp(inputstring, "-hModuli") == 0) {
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "FATAL: OPS_VonMisesDMM() - please enter $HModuli vector for each yield surface after flag: -hModuli (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter G Modulus vector for each yield surface after flag: -hModuli (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HModuli = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HModuli) < 0) {
-				opserr << "FATAL: OPS_VonMisesDMM() - invalid HModuli! (must be " << TNYS << " many doubles  after flag: -hModuli)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid G Moduli! (must be " << TNYS << " many doubles  after flag: -hModuli)\n";
 				return theMaterial;
 			}
 			hmod = Vector(TNYS);
 			for (int i = 0; i < TNYS; i++) { hmod(i) = HModuli[i]; }
 		}
 
-		// input #15 - recieve yield surface hardening parameters (strain discretization)
+		// input #15 - recieve yield surface dilatancy
+		if (strcmp(inputstring, "-hDilatancies") == 0) {
+			// do some checks
+			int numArgs = OPS_GetNumRemainingInputArgs();
+			if (numArgs < abs(TNYS)) {
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter Dilatancy vector for each yield surface after flag: -hDilatancies (must be doubles)\n";
+				return theMaterial;
+			}
+			// recive
+			numData = int(abs(TNYS));
+			HDilatancies = new double[abs(TNYS)];
+			if (OPS_GetDoubleInput(&numData, HDilatancies) < 0) {
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid Dilatancies! (must be " << TNYS << " many doubles  after flag: -hDilatancies)\n";
+				return theMaterial;
+			}
+			dps = Vector(TNYS);
+			for (int i = 0; i < TNYS; i++) { dps(i) = HDilatancies[i]; }
+		}
+
+		// input #16 - recieve yield surface hardening parameters (strain discretization)
 		if (strcmp(inputstring, "-hStrains") == 0) {
 			// do some checks
 			int numArgs = OPS_GetNumRemainingInputArgs();
 			if (numArgs < abs(TNYS)) {
-				opserr << "FATAL: OPS_VonMisesDMM() - please enter vector of hardening parameters for each yield surface after flag: -hStrains (must be doubles)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - please enter vector of Hardening Parameters for each yield surface after flag: -hStrains (must be doubles)\n";
 				return theMaterial;
 			}
 			// recive
 			numData = int(abs(TNYS));
 			HParams = new double[abs(TNYS)];
 			if (OPS_GetDoubleInput(&numData, HParams) < 0) {
-				opserr << "FATAL: OPS_VonMisesDMM() - invalid  hardening parameters! (must be " << TNYS << " many doubles  after flag: -hStrains)\n";
+				opserr << "FATAL: OPS_VonMisesDMM() - invalid Hardening Parameters! (must be " << TNYS << " many doubles  after flag: -hStrains)\n";
 				return theMaterial;
 			}
 			hps = Vector(TNYS);
@@ -364,8 +383,8 @@ OPS_VonMisesDMM(void)
 		if (HParams != nullptr) {
 			opserr << "HParams         : " << hps;
 		}
-		if (DParams != nullptr) {
-			opserr << "DParams         : " << dps;
+		if (HDilatancies != nullptr) {
+			opserr << "HDilatancies    : " << dps;
 		}
 		opserr << "\n";
 	}

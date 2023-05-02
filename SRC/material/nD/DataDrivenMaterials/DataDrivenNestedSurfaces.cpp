@@ -281,6 +281,9 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 	if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
 	yieldSurface.setTau(size * 0.01, 0);
 	yieldSurface.setEta(Href, 0);
+	if (yieldSurface.isNonAssociated()) {
+		yieldSurface.setTheta(DParams(0), 0);
+	}
 
 	// last yield surface
 	if (yieldSurface.getPhi() > 0.) {
@@ -292,6 +295,9 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 	Href = 0;
 	yieldSurface.setTau(size, yieldSurface.getTNYS());
 	yieldSurface.setEta(Href, yieldSurface.getTNYS());
+	if (yieldSurface.isNonAssociated()) {
+		yieldSurface.setTheta(DParams(yieldSurface.getTNYS() - 1), yieldSurface.getTNYS());
+	}
 
 	// other yield surfaces
 	for (int i = 1; i < (yieldSurface.getTNYS()); i++) {
@@ -309,6 +315,10 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 		if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
 		yieldSurface.setTau(size, i);
 		yieldSurface.setEta(Href, i);
+
+		if (yieldSurface.isNonAssociated()) {
+			yieldSurface.setTheta(DParams(i), i);
+		}
 	}
 }
 
@@ -373,5 +383,10 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 
 		yieldSurface.setTau(size, i);
 		yieldSurface.setEta(Href, i);
+
+		if (yieldSurface.isNonAssociated()) {
+			double dilatancy = tan(yieldSurface.getPsi() * M_PI / 180);
+			yieldSurface.setTheta(dilatancy, i);
+		}
 	}
 }
