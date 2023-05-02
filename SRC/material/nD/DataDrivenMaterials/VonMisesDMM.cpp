@@ -309,7 +309,7 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 	Vector dpds = Vector(6);	// normal tensor
 
 	// compute the normal to the plastic potential
-	if (ys.isNonAssociated()) {
+	if (false) {
 		// dPdS = Q' + P" * kronecker
 		double dilatancy = ys.getTheta(num_ys);				// dilatancy radius
 		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
@@ -318,6 +318,24 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));					// Q'
 		dpds += 1.0 / 3.0 * sqrt(2.0 / 3.0) * (dilatancy) * TensorM::I(6);	// P"
 		//dpds += 1.0 / 3.0 * (sqrt(2.0 / 3.0) * dilatancy - ((TensorM::dotdot(zeta, alpha)) / sqrt(TensorM::dotdot(zeta, zeta)))) * TensorM::I(6);	// P"
+	}
+	else if (ys.isNonAssociated()) {
+		// if dilatancy > 1 -> theta_bar < 0 [contraction] else if if dilatancy < 1 -> theta_bar > 0 [dilation]
+		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+		Vector tau = getStressDeviator(stress);	// shifted stress deviator tensor
+
+		// compute P"
+		double dilatancy = ys.getTheta(num_ys);				// dilatancy multiplier
+		dilatancy = 0.5;
+		double theta = sqrt(TensorM::dotdot(tau, tau));
+		double theta_bar = dilatancy;
+		double P_double_prime = ((pow((theta / theta_bar), 2) - 1) / (pow((theta / theta_bar), 2) + 1)) / 3.0;
+		//opserr << "theta = " << theta << "\n";
+		//opserr << "P_double_prime = " << P_double_prime * 3 << "\n";
+
+		// evaluate the derivative dPdS = Q' + P" * kronecker
+		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
+		dpds += (2 / theta) * TensorM::I(6);
 	}
 	else {
 		dpds = get_dF_dS(stress, num_ys); // Associated flow
