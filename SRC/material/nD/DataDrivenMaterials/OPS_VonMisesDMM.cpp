@@ -125,7 +125,7 @@ OPS_VonMisesDMM(void)
 
 	// initialize material parameters
 	bool beVerbose = false;
-	int maxTNYS = 1000;
+	int maxTNYS = 250;
 	int tag = 0; int TNYS = 0; double rho = 0.0;
 	double Kref = 0.0; double Gref = 0.0; double Pref = 0.0; double modn = 0.0;
 	double cohesion = 0.0; double frictionAngle = 0.0; double dilatancyAngle = 0.0; double peakShearStrain = 0.0;

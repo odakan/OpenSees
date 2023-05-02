@@ -233,9 +233,11 @@ void DataDrivenNestedSurfaces::setUpOfflineSurfaces(YieldSurfacePackage& yieldSu
 void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref,  double &Modn) {
 	// set up plastic modulus and hardening parameter sets based on the user input strain and G/Gmax pairs
 
-	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
-	double refStrain, peakShear, coneHeight;
+	double  stress1(0.0), stress2(0.0), strain1(0.0),   strain2(0.0),   size(0.0),
+		    Hep_ref(0.0), Href(0.0),    refStrain(0.0), peakShear(0.0), coneHeight(0.0);
 
+
+	// do some check and regulations
 	if (yieldSurface.getPsi() > 0) {   // ignore user defined friction angle
 		double tmax = 0.0; for (int i = 0; i < yieldSurface.getTNYS(); i++) { tmax = fmax(tmax, Gref * HModuli(i) * HParams(i)); }
 		double Mnys = -(sqrt(3.0) * tmax - 2. * yieldSurface.getCohesion()) / Pref;
@@ -266,34 +268,45 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 		Modn = 0.0; // also ignore user defined pressDependCoeff
 	}
 
+
+
 	// first yield surface
-	size = sqrt(3.0) * Gref * HModuli(0) * HParams(0) * 0.1 / coneHeight;
+	if (yieldSurface.getPhi() > 0.) {
+		size = Gref * HModuli(0) * HParams(0) / coneHeight;
+	}
+	else if (yieldSurface.getPhi() == 0.) {
+		size =  Gref * HModuli(0) * HParams(0);
+	}
 	Href = Gref * HModuli(0) * HParams(0) / HParams(0);
 	if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
-	yieldSurface.setTau(size, 0);
+	yieldSurface.setTau(size * 0.01, 0);
 	yieldSurface.setEta(Href, 0);
 
 	// last yield surface
-	size = sqrt(3.0) * Gref * HModuli(yieldSurface.getTNYS()-1) * HParams(yieldSurface.getTNYS()-1) / coneHeight;
+	if (yieldSurface.getPhi() > 0.) {
+		size = Gref * HModuli(yieldSurface.getTNYS() - 1) * HParams(yieldSurface.getTNYS() - 1) / coneHeight;
+	}
+	else if (yieldSurface.getPhi() == 0.) {
+		size = Gref * HModuli(yieldSurface.getTNYS() - 1) * HParams(yieldSurface.getTNYS() - 1);
+	}
 	Href = 0;
 	yieldSurface.setTau(size, yieldSurface.getTNYS());
 	yieldSurface.setEta(Href, yieldSurface.getTNYS());
 
+	// other yield surfaces
 	for (int i = 1; i < (yieldSurface.getTNYS()); i++) {
 		strain1 = HParams(i-1);
 		stress1 = Gref * HModuli(i - 1) * HParams(i - 1);
 		strain2 = HParams(i);
 		stress2 = Gref * HModuli(i) * HParams(i);
-
-		size = sqrt(3.0) * stress1 / coneHeight;
-		Href = (stress2 - stress1) / (strain2 - strain1);
-
-		if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
-
-		if (i == yieldSurface.getTNYS()) {
-			Href = 0.0;
+		if (yieldSurface.getPhi() > 0.) {
+			size = stress1 / coneHeight;
 		}
-
+		else if (yieldSurface.getPhi() == 0.) {
+			size = stress1;
+		}
+		Href = (stress2 - stress1) / (strain2 - strain1);
+		if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
 		yieldSurface.setTau(size, i);
 		yieldSurface.setEta(Href, i);
 	}
@@ -302,8 +315,8 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref) {
 	// set up plastic modulus and hardening parameter sets based on the hyperbolic backbone model
 
-	double  stress1, stress2, strain1, strain2, size, Hep_ref, Href;
-	double refStrain, peakShear, coneHeight;
+	double  stress1(0.0), stress2(0.0), strain1(0.0),   strain2(0.0),   size(0.0), 
+			Hep_ref(0.0), Href(0.0),    refStrain(0.0), peakShear(0.0), coneHeight(0.0);
 	
 	if (yieldSurface.getPhi() > 0) {
 		double sinPhi = sin(yieldSurface.getPhi() * M_PI / 180.);
@@ -355,7 +368,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		}
 
 		if (i == 0) {
-			size = stressInc * 0.1;
+			size = stressInc * 0.01;
 		}
 
 		yieldSurface.setTau(size, i);
