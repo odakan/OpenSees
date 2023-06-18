@@ -734,6 +734,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 			double curr_yf_value = yieldFunction(ST, ys.now());			// yield function value
 			if (curr_yf_value < ABSOLUTE_TOLERANCE) {					// elastic un/re-loading
 				sv.sig = ST;
+				sv.Cep = sv.Ce;
 			}
 			else {														// plastic loading
 				int converged = 0;

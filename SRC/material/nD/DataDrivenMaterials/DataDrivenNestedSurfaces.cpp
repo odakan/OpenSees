@@ -325,9 +325,16 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref) {
 	// set up plastic modulus and hardening parameter sets based on the hyperbolic backbone model
 
-	double  stress1(0.0), stress2(0.0), strain1(0.0),   strain2(0.0),   size(0.0), 
-			Hep_ref(0.0), Href(0.0),    refStrain(0.0), peakShear(0.0), coneHeight(0.0);
+	double  stress1(0.0), stress2(0.0), strain1(0.0), strain2(0.0), size(0.0),
+		Hep_ref(0.0), Href(0.0), refStrain(0.0), peakShear(0.0), coneHeight(0.0),
+		psi_bar(0.0), dilatancy(0.0);
+
+	int tnys = yieldSurface.getTNYS();
 	
+	if (yieldSurface.isNonAssociated()) {
+		psi_bar = tan(yieldSurface.getPsi() * M_PI / 180);	// compute the coefficient of dilation
+	}
+
 	if (yieldSurface.getPhi() > 0) {
 		double sinPhi = sin(yieldSurface.getPhi() * M_PI / 180.);
 		double MnyieldSurface = 6. * sinPhi / (3. - sinPhi);
@@ -336,15 +343,15 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		peakShear = sqrt(2.) * coneHeight * MnyieldSurface / 3.;
 		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
 	}
-	else if (yieldSurface.getPhi() == 0.0) {			// cohesion = peakShearStrength
+	else if (yieldSurface.getPhi() == 0.0) {			// cohesion = peakShear
 		peakShear = 2 * sqrt(2.) * yieldSurface.getCohesion() / 3;
 		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
 		yieldSurface.setPresid(0.0);
 	}
 
-	double stressInc = peakShear / (yieldSurface.getTNYS());
+	double stressInc = peakShear / (tnys);
 
-	for (int i = 0; i <= yieldSurface.getTNYS(); i++) {
+	for (int i = 0; i <= tnys; i++) {
 		stress1 = i * stressInc;
 		stress2 = stress1 + stressInc;
 		strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
@@ -373,7 +380,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 			Href = LARGE_NUMBER;
 		}
 
-		if (i == yieldSurface.getTNYS()) {
+		if (i == tnys) {
 			Href = 0;
 		}
 
@@ -385,7 +392,8 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		yieldSurface.setEta(Href, i);
 
 		if (yieldSurface.isNonAssociated()) {
-			double dilatancy = tan(yieldSurface.getPsi() * M_PI / 180);
+			// do contracting volumetric flow with hyperbolic decay [from psi_bar to 0]
+			dilatancy = fabs(psi_bar) * 2 * (i - tnys) / (i - 2 * tnys);
 			yieldSurface.setTheta(dilatancy, i);
 		}
 	}

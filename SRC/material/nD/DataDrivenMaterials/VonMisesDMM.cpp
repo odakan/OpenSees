@@ -205,12 +205,12 @@ double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool y
 	// if yield_stress is false, return the yield function value. Otherwise, return the yield strength.
 
 	// get the current limit stress
-	double strength = sqrt(2.0 / 3.0) * ys.getTau(num_ys);
+	double strength = ys.getTau(num_ys);
 
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
 		Vector zeta = getShiftedDeviator(stress, num_ys);
-		strength = sqrt(TensorM::dotdot(zeta, zeta)) - strength;
+		strength = sqrt(3.0/ 2.0 * TensorM::dotdot(zeta, zeta)) - strength;
 	}
 
 	// done
@@ -310,25 +310,16 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 
 	// compute the normal to the plastic potential
 	if (ys.isNonAssociated()) {
-		// if dilatancy > 1 -> theta_bar < 0 [contraction] else if if dilatancy < 1 -> theta_bar > 0 [dilation]
+		// Non-associated flow
 		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
-		Vector tau = getStressDeviator(stress);	// shifted stress deviator tensor
-		Vector alpha = ys.getAlpha(num_ys);
-
-		// compute P"
 		double dilatancy = ys.getTheta(num_ys);				// dilatancy multiplier
-		double theta = sqrt(TensorM::dotdot(tau, tau));
-		double theta_bar = dilatancy;
-		double P_double_prime = ((pow((theta / theta_bar), 2) - 1) / (pow((theta / theta_bar), 2) + 1)) / 3.0;
-		//opserr << "theta = " << theta << "\n";
-		//opserr << "P_double_prime = " << P_double_prime * 3 << "\n";
-
 		// evaluate the derivative dPdS = Q' + P" * kronecker
-		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
-		dpds += 1.0 / 3.0 * ( dilatancy) * TensorM::I(6);
+		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
+		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(6);		// compute P"
 	}
 	else {
-		dpds = get_dF_dS(stress, num_ys); // Associated flow
+		// Associated flow
+		dpds = get_dF_dS(stress, num_ys);
 	}
 
 	return dpds;
