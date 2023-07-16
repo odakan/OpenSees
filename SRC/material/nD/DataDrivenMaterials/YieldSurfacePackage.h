@@ -84,7 +84,7 @@ public:
 	double getPeakStrain(void);
 	double getTau(const int index);
 	double getEta(const int index);
-	double getTheta(const int index);
+	double getBeta(const int index);
 	Vector getAlpha(const int index);
 	Vector getAlpha_commit(const int index);
 
@@ -97,7 +97,7 @@ public:
 	void setCohesion(double value);
 	void setTau(double value, const int index);
 	void setEta(double value, const int index);
-	void setTheta(double value, const int index);
+	void setBeta(double value, const int index);
 	void setAlpha(Vector value, const int index);
 	void setAlpha_commit(Vector value, const int index);	
 
@@ -130,8 +130,8 @@ private:
 	Vector tau_commit = Vector(1);			// committed limit isotropic stress (used when online)
 	Vector eta = Vector(1);					// plastic modulus
 	Vector eta_commit = Vector(1);			// committed plastic modulus (used when online)
-	Vector theta = Vector(1);				// dilatancy parameter
-	Vector theta_commit = Vector(1);		// committed dilatancy parameter (used when online)
+	Vector beta = Vector(1);				// dilatancy parameter
+	Vector beta_commit = Vector(1);		    // committed dilatancy parameter (used when online)
 	Matrix alpha = Matrix(6, 1);			// backstress (TNYS + 1)
 	Matrix alpha_commit = Matrix(6, 1);		// commited backstress (TNYS + 1)
 	int nYs = 0;							// number of active yield surfaces

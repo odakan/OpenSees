@@ -50,8 +50,8 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 	tau_commit = Vector(3);
 	eta = Vector(3);
 	eta_commit = Vector(3);
-	theta = Vector(3);
-	theta_commit = Vector(3);
+	beta = Vector(3);
+	beta_commit = Vector(3);
 	alpha = Matrix(6, 3);
 	alpha_commit = Matrix(6, 3);
 }
@@ -67,7 +67,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
-	theta = Vector(tnys + 1);
+	beta = Vector(tnys + 1);
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
 
@@ -86,7 +86,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vecto
 	eta = Vector(tnys + 1);
 	if (hDilation.Size() > 1) {
 		nonassociated = true;
-		theta = Vector(tnys + 1);
+		beta = Vector(tnys + 1);
 	}
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
@@ -109,7 +109,7 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 	eta = Vector(tnys + 1);
 	if (dilatancyAngle != 0.0) {
 		nonassociated = true;
-		theta = Vector(tnys + 1);
+		beta = Vector(tnys + 1);
 	}
 	alpha = Matrix(6, tnys + 1);
 	alpha_commit = Matrix(6, tnys + 1);
@@ -160,8 +160,8 @@ void YieldSurfacePackage::printStats(bool detail) {
 		opserr << "Commited limit stresses         =  " << tau_commit;
 		opserr << "Plastic Moduli                  =  " << eta;
 		opserr << "Commited plastic moduli         =  " << eta_commit;
-		opserr << "Dilatancy parameters            =  " << theta;
-		opserr << "Commited dilatancy parameters   =  " << theta_commit;
+		opserr << "Dilatancy parameters            =  " << beta;
+		opserr << "Commited dilatancy parameters   =  " << beta_commit;
 		opserr << "Active no. of surfaces          =  " << nYs << "\n";
 		opserr << "Commited active no. of surfaces =  " << nYs_commit << "\n";
 		opserr << "Current yield surface           =  " << num << "\n";
@@ -259,34 +259,34 @@ double YieldSurfacePackage::getEta(const int index){
 	}
 }
 
-double YieldSurfacePackage::getTheta(const int index) {
+double YieldSurfacePackage::getBeta(const int index) {
 
 	if (index < 0) {
-		opserr << "FATAL: YieldSurfacePackage::getTheta() - a yield surface with negative number was requested!";
+		opserr << "FATAL: YieldSurfacePackage::getBeta() - a yield surface with negative number was requested!";
 		exit(-1);
 	}
 
 	if (do_online) {
 		if (index == (nYs_commit + 1)) {
-			return theta(2);	// the next yield surface
+			return beta(2);	// the next yield surface
 		}
 		else if (index == nYs_commit) {
-			return theta(1);	// the current yield surface
+			return beta(1);	// the current yield surface
 		}
 		else if (index == (nYs_commit - 1)) {
-			return theta(0);	// the previous yield surface
+			return beta(0);	// the previous yield surface
 		}
 		else {
-			opserr << "FATAL: YieldSurfacePackage::getTheta() - a yield surface that is older than two steps was requested!";
+			opserr << "FATAL: YieldSurfacePackage::getBeta() - a yield surface that is older than two steps was requested!";
 			exit(-1);
 		}
 	}
 	else {
 		if (index < tnys) {
-			return theta(index);
+			return beta(index);
 		}
 		else {
-			return theta(tnys);
+			return beta(tnys);
 		}
 	}
 }
@@ -472,22 +472,22 @@ void YieldSurfacePackage::setEta(const double value, const int index) {
 	}
 }
 
-void YieldSurfacePackage::setTheta(const double value, const int index) {
+void YieldSurfacePackage::setBeta(const double value, const int index) {
 
 	if (index < 0) {
-		opserr << "FATAL: YieldSurfacePackage::setTheta() - a yield surface with negative number was requested!";
+		opserr << "FATAL: YieldSurfacePackage::setBeta() - a yield surface with negative number was requested!";
 		exit(-1);
 	}
 
 	if (do_online) {
-		theta(index) = value;
+		beta(index) = value;
 	}
 	else {
 		if (index <= tnys) {
-			theta(index) = value;
+			beta(index) = value;
 		}
 		else {
-			opserr << "FATAL: YieldSurfacePackage::setTheta() - a yield surface further than TNYS was requested!";
+			opserr << "FATAL: YieldSurfacePackage::setBeta() - a yield surface further than TNYS was requested!";
 			exit(-1);
 		}
 	}

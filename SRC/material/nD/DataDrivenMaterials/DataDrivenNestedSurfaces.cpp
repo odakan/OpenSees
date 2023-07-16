@@ -233,8 +233,8 @@ void DataDrivenNestedSurfaces::setUpOfflineSurfaces(YieldSurfacePackage& yieldSu
 void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref,  double &Modn) {
 	// set up plastic modulus and hardening parameter sets based on the user input strain and G/Gmax pairs
 
-	double  stress1(0.0), stress2(0.0), strain1(0.0),   strain2(0.0),   size(0.0),
-		    Hep_ref(0.0), Href(0.0),    refStrain(0.0), peakShear(0.0), coneHeight(0.0);
+	double  stress1(0.0), stress2(0.0), strain1(0.0),   strain2(0.0),   size(0.0),       dilatancy(0.0),
+		    Hep_ref(0.0), Href(0.0),    refStrain(0.0), peakShear(0.0), coneHeight(0.0), strain_vol1(0.0), strain_vol2(0.0);
 
 
 	// do some check and regulations
@@ -268,7 +268,13 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 		Modn = 0.0; // also ignore user defined pressDependCoeff
 	}
 
-
+	/*
+	 *	Required user-input parameters for each yield surface
+	 *	-----------------------------------------------------------------------------------------------------------------------------------
+	*	HParams: -> Octahedral shear strain = 2.0 * sqrt(2.0 / 3.0 * J2') where J2' is the second invariant of the strain deviator tensor 
+	*	HModuli: -> Secant shear modulus reduction curve (Gsec / Gmax)
+	*	DParams: -> Secant dilatancy curve (Evol / Eoct) where Evol and Eoct are the volumetric and octahedral shear strains, respectively
+	*/
 
 	// first yield surface
 	if (yieldSurface.getPhi() > 0.) {
@@ -282,7 +288,7 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 	yieldSurface.setTau(size * 0.01, 0);
 	yieldSurface.setEta(Href, 0);
 	if (yieldSurface.isNonAssociated()) {
-		yieldSurface.setTheta(DParams(0), 0);
+		yieldSurface.setBeta(DParams(0), 0);
 	}
 
 	// last yield surface
@@ -296,7 +302,8 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 	yieldSurface.setTau(size, yieldSurface.getTNYS());
 	yieldSurface.setEta(Href, yieldSurface.getTNYS());
 	if (yieldSurface.isNonAssociated()) {
-		yieldSurface.setTheta(DParams(yieldSurface.getTNYS() - 1), yieldSurface.getTNYS());
+		dilatancy = 0;  // assume constant volume deformation
+		yieldSurface.setBeta(dilatancy, yieldSurface.getTNYS());
 	}
 
 	// other yield surfaces
@@ -317,7 +324,10 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(YieldSurfacePackage& yiel
 		yieldSurface.setEta(Href, i);
 
 		if (yieldSurface.isNonAssociated()) {
-			yieldSurface.setTheta(DParams(i), i);
+			strain_vol1 = DParams(i - 1) * strain1;
+			strain_vol2 = DParams(i) * strain2;
+			dilatancy = (strain_vol2 - strain_vol1) / (strain2 - strain1);
+			yieldSurface.setBeta(dilatancy, i);
 		}
 	}
 }
@@ -394,7 +404,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		if (yieldSurface.isNonAssociated()) {
 			// do contracting volumetric flow with hyperbolic decay [from psi_bar to 0]
 			dilatancy = fabs(psi_bar) * 2 * (i - tnys) / (i - 2 * tnys);
-			yieldSurface.setTheta(dilatancy, i);
+			yieldSurface.setBeta(dilatancy, i);
 		}
 	}
 }

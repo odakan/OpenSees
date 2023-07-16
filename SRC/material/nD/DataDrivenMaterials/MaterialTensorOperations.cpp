@@ -89,10 +89,10 @@ Matrix TensorM::IIvol(const int N) {
 		IIvol(2, 2) = 1;
 	}
 	else if (N == 3) {
-		IIvol(0, 0) = 1;
-		IIvol(0, 1) = 1;
-		IIvol(1, 0) = 1;
-		IIvol(1, 1) = 1;
+		IIvol(0, 0) = 0.5;
+		IIvol(0, 1) = 0.5;
+		IIvol(1, 0) = 0.5;
+		IIvol(1, 1) = 0.5;
 	}
 	else {
 		opserr << "FATAL: TensorM::IIvol() - invalid material dimension!!\n";
@@ -105,18 +105,18 @@ Matrix TensorM::IIdev(const int N) {
 	//return 4th order Deviatoric Tensor in Voigt notation
 	Matrix IIdev(N, N);
 	if (N == 6) {
-		IIdev(0, 0) = 2.0 / 3.0;
-		IIdev(0, 1) = -1.0 / 3.0;
-		IIdev(0, 2) = -1.0 / 3.0;
-		IIdev(1, 0) = -1.0 / 3.0;
-		IIdev(1, 1) = 2.0 / 3.0;
-		IIdev(1, 2) = -1.0 / 3.0;
-		IIdev(2, 0) = -1.0 / 3.0;
-		IIdev(2, 1) = -1.0 / 3.0;
-		IIdev(2, 2) = 2.0 / 3.0;
-		IIdev(3, 3) = 0.5;
-		IIdev(4, 4) = 0.5;
-		IIdev(5, 5) = 0.5;
+		IIdev(0, 0) = 4.0 / 3.0;
+		IIdev(0, 1) = -2.0 / 3.0;
+		IIdev(0, 2) = -2.0 / 3.0;
+		IIdev(1, 0) = -2.0 / 3.0;
+		IIdev(1, 1) = 4.0 / 3.0;
+		IIdev(1, 2) = -2.0 / 3.0;
+		IIdev(2, 0) = -2.0 / 3.0;
+		IIdev(2, 1) = -2.0 / 3.0;
+		IIdev(2, 2) = 4.0 / 3.0;
+		IIdev(3, 3) = 1.0;
+		IIdev(4, 4) = 1.0;
+		IIdev(5, 5) = 1.0;
 	}
 	else if (N == 3) {
 		IIdev(0, 0) = 2.0 / 3.0;

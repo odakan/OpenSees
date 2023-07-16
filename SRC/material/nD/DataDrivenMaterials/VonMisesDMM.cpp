@@ -210,7 +210,7 @@ double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool y
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
 		Vector zeta = getShiftedDeviator(stress, num_ys);
-		strength = sqrt(3.0/ 2.0 * TensorM::dotdot(zeta, zeta)) - strength;
+		strength = sqrt(1.0 / 3.0 * TensorM::dotdot(zeta, zeta)) - strength;
 	}
 
 	// done
@@ -225,7 +225,7 @@ Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_ys) {
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 
 	// compute the normal tensor
-	dfds = zeta / sqrt(TensorM::dotdot(zeta, zeta));
+	dfds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
 	// done
 	return dfds;
@@ -239,7 +239,7 @@ Vector VonMisesDMM::get_dF_dA(const Vector& stress, const int num_ys) {
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 
 	// compute the normal tensor
-	dfda = -1 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+	dfda = -1 * 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
 	// done
 	return dfda;
@@ -260,7 +260,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 		Vector current_zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor (current)
 
 		// compute normal
-		Vector Q_prime = current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		Vector Q_prime = 2.0 / 3.0 * current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
 		dhda = H_prime * Q_prime;
 	}
 	else {
@@ -284,7 +284,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 		Vector next_zeta = getShiftedDeviator(stress, num_ys + 1);	// shifted stress deviator tensor (next)
 
 		// compute normal
-		Vector Q_prime = current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		Vector Q_prime = 2.0 / 3.0 * current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
 		//Vector direction = (next_strength / current_strength) * current_zeta - next_zeta; // Prevost
 		Vector direction = current_zeta - (current_strength / next_strength) * next_zeta; // Gu et al.
 		double denominator = TensorM::dotdot(Q_prime, direction);
@@ -310,11 +310,11 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 
 	// compute the normal to the plastic potential
 	if (ys.isNonAssociated()) {
-		// Non-associated flow
+		// Non-associated flow (Use a Drucker-Prager surface)
 		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
-		double dilatancy = ys.getTheta(num_ys);				// dilatancy multiplier
+		double dilatancy = ys.getBeta(num_ys);				// dilatancy parameter
 		// evaluate the derivative dPdS = Q' + P" * kronecker
-		dpds = zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
+		dpds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
 		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(6);		// compute P"
 	}
 	else {

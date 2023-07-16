@@ -679,7 +679,7 @@ void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, co
 		sv.Hmod = Href * pow(abs(Pavg / Pref), Modn);	// update plastic shear modulus
 	}
 	
-	sv.Ce = sv.Kmod * TensorM::IIvol(6) + 2 * sv.Gmod * TensorM::IIdev(6);	// compute elastic modulus
+	sv.Ce = sv.Kmod * TensorM::IIvol(6) + sv.Gmod * TensorM::IIdev(6);	// compute elastic modulus
 }
 
 void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do_tangent) {
@@ -750,6 +750,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 					}
 					// compute the elastoplastic tangent
 					if (do_tangent) { computeElastoplasticTangent(ys.now(), sv.sig); }
+					if (converged) { if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::updateInternal() -> cutting-plane algorithm converged!\n"; } }
 				}
 				else if (solution_strategy == 1) {
 					converged = piecewiseLinearSolution(ST, do_tangent);
@@ -759,7 +760,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 					exit(-1);
 				}
 				if (!converged) {
-					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - return mapping algorithm did not converge!\n";
+					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - return-mapping algorithm did not converge!\n";
 					exit(-1);
 				}
 			}
@@ -895,10 +896,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		next_yf_value = yieldFunction(sv.sig, ys.next());					// next yf_value
 		double curr_H_prime = TensorM::dotdot((-1 * xi), rr);				// current H'
 		int sign_H_prime = (curr_H_prime > 0) ? 1 : ((curr_H_prime < 0) ? -1 : 0);
-		//opserr << "curr_H_prime = " << curr_H_prime << "\n";
-		//opserr << "sign_H_prime = " << sign_H_prime << "\n";
 		if ((ys.now() >= ys.getTNYS()) || ((next_yf_value * sign_H_prime) < ABSOLUTE_TOLERANCE)) {
-			if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() -> return-mapping converged after " << iteration_counter << " iterations!\n"; }
 			convergence = 1;
 			break; // end while loop: algorithm is done...
 		}
