@@ -103,6 +103,7 @@ public:
 	MaterialStateVariables(void) = default;
 
 	// full constructors
+	MaterialStateVariables(const double nOrd);
 	MaterialStateVariables(const MaterialStateVariables&) = default;
 
 	// destructor

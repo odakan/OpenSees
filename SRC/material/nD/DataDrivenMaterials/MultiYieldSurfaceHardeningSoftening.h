@@ -169,7 +169,7 @@ public:
 
 protected:
 	// material parameters & constants
-	int nOrd = 6;									// Material order (dimension) [3 or 6] (3D by default)
+	int nOrd = 6;									// Material order (dimension) [3 or 6]
 	double rho = 0.0;								// Mass density
 	double Kref = 0.0;								// Reference bulk modulus
 	double Gref = 0.0;								// Reference shear modulus

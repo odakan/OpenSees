@@ -45,6 +45,15 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 	do_online = true;
 	tnys = 3;
 	nonassociated = true;
+
+	// set material order
+	if (OPS_GetNDM() == 2) {		// PlaneStrain
+		nOrd = 3;
+	}
+	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+		nOrd = 6;
+	}
+
 	// initililze only the  previous, current and next yield surfaces 
 	tau = Vector(3);
 	tau_commit = Vector(3);
@@ -52,8 +61,8 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 	eta_commit = Vector(3);
 	beta = Vector(3);
 	beta_commit = Vector(3);
-	alpha = Matrix(6, 3);
-	alpha_commit = Matrix(6, 3);
+	alpha = Matrix(nOrd, 3);
+	alpha_commit = Matrix(nOrd, 3);
 }
 
 YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
@@ -64,12 +73,21 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
 	do_online = false;
 	tnys = t0;
 	nonassociated = true;
+
+	// set material order
+	if (OPS_GetNDM() == 2) {		// PlaneStrain
+		nOrd = 3;
+	}
+	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+		nOrd = 6;
+	}
+
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
 	beta = Vector(tnys + 1);
-	alpha = Matrix(6, tnys + 1);
-	alpha_commit = Matrix(6, tnys + 1);
+	alpha = Matrix(nOrd, tnys + 1);
+	alpha_commit = Matrix(nOrd, tnys + 1);
 
 }
 
@@ -81,6 +99,15 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vecto
 	matID = mat;
 	do_online = false;
 	tnys = t0;
+
+	// set material order
+	if (OPS_GetNDM() == 2) {		// PlaneStrain
+		nOrd = 3;
+	}
+	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+		nOrd = 6;
+	}
+
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
@@ -88,8 +115,8 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vecto
 		nonassociated = true;
 		beta = Vector(tnys + 1);
 	}
-	alpha = Matrix(6, tnys + 1);
-	alpha_commit = Matrix(6, tnys + 1);
+	alpha = Matrix(nOrd, tnys + 1);
+	alpha_commit = Matrix(nOrd, tnys + 1);
 }
 
 
@@ -104,6 +131,16 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 	dilatancyAngle = d0; peakShearStrain = p0; 
 	residualPressure = Pres0; referencePressure = Pref0;
 	do_online = false;
+
+	// set material order
+	if (OPS_GetNDM() == 2) {		// PlaneStrain
+		nOrd = 3;
+	}
+	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+		nOrd = 6;
+	}
+
+
 	// initialize all the yield surfaces
 	tau = Vector(tnys + 1);
 	eta = Vector(tnys + 1);
@@ -111,8 +148,8 @@ YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
 		nonassociated = true;
 		beta = Vector(tnys + 1);
 	}
-	alpha = Matrix(6, tnys + 1);
-	alpha_commit = Matrix(6, tnys + 1);
+	alpha = Matrix(nOrd, tnys + 1);
+	alpha_commit = Matrix(nOrd, tnys + 1);
 }
 
 
@@ -293,7 +330,7 @@ double YieldSurfacePackage::getBeta(const int index) {
 
 Vector YieldSurfacePackage::getAlpha(const int index) {
 
-	Vector Vect = Vector(6);
+	Vector Vect = Vector(nOrd);
 
 	if (index < 0) {
 		opserr << "FATAL: YieldSurfacePackage::getAlpha() - a yield surface with negative number was requested!";
@@ -302,17 +339,17 @@ Vector YieldSurfacePackage::getAlpha(const int index) {
 
 	if (do_online) {
 		if (index == (nYs_commit + 1)) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, 2);
 			}
 		}
 		else if (index == nYs_commit) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, 1);
 			}
 		}
 		else if (index == (nYs_commit - 1)) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, 0);
 			}
 		}
@@ -323,12 +360,12 @@ Vector YieldSurfacePackage::getAlpha(const int index) {
 	}
 	else {
 		if (index < tnys) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, index);
 			}
 		}
 		else {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, tnys);
 			}
 		}
@@ -339,7 +376,7 @@ Vector YieldSurfacePackage::getAlpha(const int index) {
 
 Vector YieldSurfacePackage::getAlpha_commit(const int index) {
 
-	Vector Vect = Vector(6);
+	Vector Vect = Vector(nOrd);
 
 	if (index < 0) {
 		opserr << "FATAL: YieldSurfacePackage::getAlpha_commit() - a yield surface with negative number was requested!";
@@ -348,17 +385,17 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index) {
 
 	if (do_online) {
 		if (index == (nYs_commit + 1)) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, 2);
 			}
 		}
 		else if (index == nYs_commit) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, 1);
 			}
 		}
 		else if (index == (nYs_commit - 1)) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, 0);
 			}
 		}
@@ -369,12 +406,12 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index) {
 	}
 	else {
 		if (index < tnys) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, index);
 			}
 		}
 		else {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, tnys);
 			}
 		}
@@ -505,7 +542,7 @@ void YieldSurfacePackage::setAlpha(const Vector value, const int index) {
 	}
 	else {
 		if (index <= tnys) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				alpha(i, index) = value(i);
 			}
 		}
@@ -528,7 +565,7 @@ void YieldSurfacePackage::setAlpha_commit(const Vector value, const int index) {
 	}
 	else {
 		if (index <= tnys) {
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < nOrd; i++) {
 				alpha_commit(i, index) = value(i);
 			}
 		}

@@ -35,11 +35,6 @@
 #include <MaterialResponse.h>
 
 //	-- TO DO LIST --
-// 
-// 2) FIX compute elastoplastic tangent
-//
-// 3) FIX elastic tangent computation (Voigt notation 
-//		compatible with elastoplastic one)
 //
 // 4) MAKE SURE all the necessary OpenSees functions are there
 //
@@ -55,8 +50,20 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 	:NDMaterial(tag, classTag), rho(r0), Kref(K0), Gref(G0), 
 	Pref(P0), Modn(m0), theData(data), beVerbose(verbosity)
 {
-	
 	// handle solution options
+		// handle dimension
+	if (OPS_GetNDM() == 2) {		// PlaneStrain
+		nOrd = 3;
+	}
+	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+		nOrd = 6;
+	}
+	else {
+		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - unknown model dimension...\n";
+		exit(-1);
+	}
+
+		// material integration
 	if (itype == 1) {
 		use_implex = true;
 	}
@@ -64,6 +71,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		use_implex = false;
 	}
 
+		// material data
 	if (ddtype == 1) {						// offline
 		use_online_approach = false;
 		use_data_driven_surface = true;
@@ -200,7 +208,7 @@ int MultiYieldSurfaceHardeningSoftening::revertToLastCommit(void) {
 
 int MultiYieldSurfaceHardeningSoftening::revertToStart(void) {
 	// reset state variables
-	sv = MaterialStateVariables();
+	sv = MaterialStateVariables(nOrd);
 	ys = YieldSurfacePackage();
 	materialStage = 0;
 
@@ -216,24 +224,25 @@ int MultiYieldSurfaceHardeningSoftening::revertToStart(void) {
 int MultiYieldSurfaceHardeningSoftening::setTrialStrain(const Vector& strain) {
 	
 	// set the strain state
-	if (nOrd == 3) { // PlaneStrain
-		static Vector temp(6);
-		temp(0) = strain(0);
-		temp(1) = strain(1);
-		temp(2) = 0.0;
-		temp(3) = strain(2);
-		temp(4) = 0.0;
-		temp(5) = 0.0;
-		sv.eps = temp;
-	}
-	else if (nOrd == 6) { // ThreeDimensional
-		sv.eps = strain;
-	}
-	else {
-		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::::setTrialStrain() - material type is: " << getType() << "\n";
-		opserr << "But the strain vector size is: " << strain.Size() << "\n";
-		exit(-1);
-	}
+	sv.eps = strain;
+	//if (nOrd == 3) { // PlaneStrain
+	//	static Vector temp(6);
+	//	temp(0) = strain(0);
+	//	temp(1) = strain(1);
+	//	temp(2) = 0.0;
+	//	temp(3) = strain(2);
+	//	temp(4) = 0.0;
+	//	temp(5) = 0.0;
+	//	sv.eps = temp;
+	//}
+	//else if (nOrd == 6) { // ThreeDimensional
+	//	sv.eps = strain;
+	//}
+	//else {
+	//	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::::setTrialStrain() - material type is: " << getType() << "\n";
+	//	opserr << "But the strain vector size is: " << strain.Size() << "\n";
+	//	exit(-1);
+	//}
 
 	// implex time step
 	if (!sv.dtime_is_user_defined) {
@@ -355,7 +364,7 @@ int MultiYieldSurfaceHardeningSoftening::getOrder(void) const {
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
-	Vector mState(6);
+	Vector mState(nOrd);
 
 	return mState;
 }
@@ -368,12 +377,13 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
 
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& stress = gs.p;
-	if (nOrd == 3) { //PlaneStrain
-		stress(0) = sv.sig(0); stress(1) = sv.sig(1); stress(3) = sv.sig(3);
-	}
-	else { //ThreeDimensional
-		stress = sv.sig;
-	}
+	stress = sv.sig;
+	//if (nOrd == 3) { //PlaneStrain
+	//	stress(0) = sv.sig(0); stress(1) = sv.sig(1); stress(3) = sv.sig(3);
+	//}
+	//else { //ThreeDimensional
+	//	stress = sv.sig;
+	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress() -> " << stress; }
 
@@ -385,12 +395,13 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStrain(void) {
 
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& strain = gs.u;
-	if (nOrd == 3) { //PlaneStrain
-		strain(0) = sv.eps(0); strain(1) = sv.eps(1); strain(3) = sv.eps(3);
-	}
-	else { //ThreeDimensional
-		strain = sv.eps;
-	}
+	strain = sv.eps;
+	//if (nOrd == 3) { //PlaneStrain
+	//	strain(0) = sv.eps(0); strain(1) = sv.eps(1); strain(3) = sv.eps(3);
+	//}
+	//else { //ThreeDimensional
+	//	strain = sv.eps;
+	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain() -> " << strain; }
 
@@ -403,14 +414,15 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getTangent(void) {
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& stiff = gs.K;
 	stiff.Zero();
-	if (nOrd == 3) { //PlaneStrain
-		stiff(0, 0) = sv.Cep(0, 0); stiff(0, 1) = sv.Cep(0, 1); stiff(0, 3) = sv.Cep(0, 3);
-		stiff(1, 0) = sv.Cep(1, 0); stiff(1, 1) = sv.Cep(1, 1); stiff(1, 3) = sv.Cep(1, 3);
-		stiff(3, 0) = sv.Cep(3, 0); stiff(3, 1) = sv.Cep(3, 1); stiff(3, 3) = sv.Cep(3, 3);
-	}
-	else { //ThreeDimensional
-		stiff = sv.Cep;
-	}
+	stiff = sv.Cep;
+	//if (nOrd == 3) { //PlaneStrain
+	//	stiff(0, 0) = sv.Cep(0, 0); stiff(0, 1) = sv.Cep(0, 1); stiff(0, 2) = sv.Cep(0, 3);
+	//	stiff(1, 0) = sv.Cep(1, 0); stiff(1, 1) = sv.Cep(1, 1); stiff(1, 2) = sv.Cep(1, 3);
+	//	stiff(2, 0) = sv.Cep(3, 0); stiff(2, 1) = sv.Cep(3, 1); stiff(2, 2) = sv.Cep(3, 3);
+	//}
+	//else { //ThreeDimensional
+	//	stiff = sv.Cep;
+	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getTangent() -> " << stiff; }
 
@@ -420,18 +432,17 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getTangent(void) {
 const Matrix& MultiYieldSurfaceHardeningSoftening::getInitialTangent(void) {
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& stiff = gs.K0;
-	auto& zeros = gs.p;
 	stiff.Zero();
-	zeros.Zero();
-	sv.Ce = Kref * TensorM::IIvol(6) + 2 * Gref * TensorM::IIdev(6);	// compute initial elastic modulus
-	if (nOrd == 3) { //PlaneStrain
-		stiff(0, 0) = sv.Ce(0, 0); stiff(0, 1) = sv.Ce(0, 1); stiff(0, 3) = sv.Ce(0, 3);
-		stiff(1, 0) = sv.Ce(1, 0); stiff(1, 1) = sv.Ce(1, 1); stiff(1, 3) = sv.Ce(1, 3);
-		stiff(3, 0) = sv.Ce(3, 0); stiff(3, 1) = sv.Ce(3, 1); stiff(3, 3) = sv.Ce(3, 3);
-	}
-	else { //ThreeDimensional
-		stiff = sv.Ce;
-	}
+	sv.Ce = Kref * TensorM::IIvol(nOrd) + Gref * TensorM::IIdev(nOrd);	// compute initial elastic modulus
+	stiff = sv.Ce;
+	//if (nOrd == 3) { //PlaneStrain
+	//	stiff(0, 0) = sv.Ce(0, 0); stiff(0, 1) = sv.Ce(0, 1); stiff(0, 2) = sv.Ce(0, 3);
+	//	stiff(1, 0) = sv.Ce(1, 0); stiff(1, 1) = sv.Ce(1, 1); stiff(1, 2) = sv.Ce(1, 3);
+	//	stiff(2, 0) = sv.Ce(3, 0); stiff(2, 1) = sv.Ce(3, 1); stiff(2, 2) = sv.Ce(3, 3);
+	//}
+	//else { //ThreeDimensional
+	//	stiff = sv.Ce;
+	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getInitialTangent() -> " << stiff; }
 
@@ -606,12 +617,31 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 	// the get methods
 double MultiYieldSurfaceHardeningSoftening::getK(void) { return sv.Kmod; }
 double MultiYieldSurfaceHardeningSoftening::getG(void) { return sv.Gmod; }
-double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_ys) { return yieldFunction(Vector(6), num_ys, true); }
+double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_ys) { return yieldFunction(Vector(nOrd), num_ys, true); }
 const Vector MultiYieldSurfaceHardeningSoftening::getStressVector(void) { return sv.sig_commit; }
 const Vector MultiYieldSurfaceHardeningSoftening::getStrainVector(void) { return sv.eps_commit; }
 const Vector MultiYieldSurfaceHardeningSoftening::getPlasticStrainVector(void) { return sv.xs_commit; }
-double MultiYieldSurfaceHardeningSoftening::getMeanStress(const Vector& stress) { return (1. / 3. * (stress(0) + stress(1) + stress(2))); }
-Vector MultiYieldSurfaceHardeningSoftening::getStressDeviator(const Vector& stress) {return stress - (getMeanStress(stress) * TensorM::I(6));}
+
+double MultiYieldSurfaceHardeningSoftening::getMeanStress(const Vector& stress) { 
+	double pressure = 0;
+	if (nOrd == 3) {
+		pressure = (0.5 * (stress(0) + stress(1)));
+	}
+	else if (nOrd == 6) {
+		pressure = (1. / 3. * (stress(0) + stress(1) + stress(2)));
+	}
+	return pressure;
+}
+
+Vector MultiYieldSurfaceHardeningSoftening::getStressDeviator(const Vector& stress) {
+	Vector deviator = Vector(nOrd);
+	double pressure = getMeanStress(stress);
+	Vector kronecker = TensorM::I(nOrd);
+	for (int i = 0; i < nOrd; i++) {
+		deviator(i) = stress(i) - (pressure * kronecker(i));
+	}
+	return deviator;
+}
 
 Vector MultiYieldSurfaceHardeningSoftening::getShiftedDeviator(const Vector& stress, const int num_ys) {
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldFunction() -> subclass responsibility\n";
@@ -627,28 +657,28 @@ double MultiYieldSurfaceHardeningSoftening::yieldFunction(const Vector& stress, 
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dF_dS(const Vector& stress, const int num_ys) {
-	Vector zero(6);
+	Vector zero(nOrd);
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dF_dS() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dF_dA(const Vector& stress, const int num_ys) {
-	Vector zero(6);
+	Vector zero(nOrd);
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dF_dA() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dH_dA(const Vector& stress, const int num_ys) {
-	Vector zero(6);
+	Vector zero(nOrd);
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dH_dA() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
 }
 
 Vector MultiYieldSurfaceHardeningSoftening::get_dP_dS(const Vector& stress, const int num_ys) {
-	Vector zero(6);
+	Vector zero(nOrd);
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::get_dP_dS() -> subclass responsibility\n";
 	exit(-1);
 	return zero;
@@ -679,7 +709,7 @@ void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, co
 		sv.Hmod = Href * pow(abs(Pavg / Pref), Modn);	// update plastic shear modulus
 	}
 	
-	sv.Ce = sv.Kmod * TensorM::IIvol(6) + sv.Gmod * TensorM::IIdev(6);	// compute elastic modulus
+	sv.Ce = sv.Kmod * TensorM::IIvol(nOrd) + sv.Gmod * TensorM::IIdev(nOrd);	// compute elastic modulus
 }
 
 void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do_tangent) {
@@ -691,6 +721,10 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 
 	// initialize step plastic multiplier
 	sv.lambda = 0.0;
+	Vector ST = Vector(nOrd);
+	Vector eps_incr = Vector(nOrd);
+	Vector edev_incr = Vector(nOrd);
+	Vector sig_step = Vector(nOrd);
 	
 	// time factor for explicit extrapolation
 	double time_factor = 1.0;
@@ -703,8 +737,8 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 	time_factor = 1.0;
 
 	// compute the strain increment (independent variable)
-	Vector eps_incr = sv.eps - sv.eps_commit;
-
+	eps_incr = sv.eps - sv.eps_commit;
+	
 	if (materialStage == 0) {										// linear elastic material
 		sv.sig = sv.sig + TensorM::inner(sv.Ce, (eps_incr));
 		sv.Cep = sv.Ce;
@@ -727,10 +761,10 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 
 
 		}
-		else {														// elastoplastic material	
+		else {														// elastoplastic material
 			// IMPLICIT step: solve constitutive equations
 			updateModulus(sv.sig, ys.now());							// update elastic modulus
-			Vector ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		// trial stress
+			ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
 			double curr_yf_value = yieldFunction(ST, ys.now());			// yield function value
 			if (curr_yf_value < ABSOLUTE_TOLERANCE) {					// elastic un/re-loading
 				sv.sig = ST;
@@ -740,10 +774,10 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 				int converged = 0;
 				if (solution_strategy == 0) {
 					// do return-mapping in steps
-					Vector edev_incr = getStressDeviator(eps_incr);		// strain increment deviator
+					edev_incr = getStressDeviator(eps_incr);		// strain increment deviator
 					double edev_step = sqrt(3.0 * 0.5 * TensorM::dotdot(edev_incr, edev_incr));
 					int num_step = fmax(1, ((edev_step / CPLANE_STRAIN_STEP) + 1));
-					Vector sig_step = (TensorM::inner(sv.Ce, (eps_incr)) / num_step);
+					sig_step = (TensorM::inner(sv.Ce, (eps_incr)) / num_step);
 					for (int i = 0; i < num_step; i++) {
 						ST = sv.sig + sig_step;
 						converged = cuttingPlaneAlgorithm(ST, do_tangent);
@@ -819,8 +853,8 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 	int convergence = 0;
 
 	// initialize rate tensors
-	Vector nn(6);      Vector mm(6);      Vector xi(6);      Vector rr(6);
-	Vector next_nn(6); Vector next_mm(6); Vector next_xi(6); Vector next_rr(6);
+	Vector nn(nOrd);      Vector mm(nOrd);      Vector xi(nOrd);      Vector rr(nOrd);
+	Vector next_nn(nOrd); Vector next_mm(nOrd); Vector next_xi(nOrd); Vector next_rr(nOrd);
 
 	// Algorithm 7.2 Prevost (1985)
 	// Step 1 - initialize
@@ -952,7 +986,7 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 	int convergence = 0;
 
 	// initialize rate tensors
-	Vector nn(6); Vector mm(6); Vector rr(6);
+	Vector nn(nOrd); Vector mm(nOrd); Vector rr(nOrd);
 
 	// Formulation by Gu et al. (2011)
 	// Step 1 - initialize
@@ -975,7 +1009,7 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 		Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
 
 		// Differentiation of the elastic trial deviatoric stress with respect to the current deviatoric strain
-		if (do_tangent) { Matrix dTtr_dE = 2 * sv.Gmod * TensorM::II4(6); }
+		if (do_tangent) { Matrix dTtr_dE = 2 * sv.Gmod * TensorM::II4(nOrd); }
 
 		// compute contact stress
 		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
@@ -985,7 +1019,7 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 		Vector alpha = ys.getAlpha(ys.now());
 		Vector tau_star = ((curr_K / Ki) * zeta_trial) + alpha;	// eqn. 9
 		//////////////////////////////////////////////////////////////////////////////
-		Vector sig_star = tau_star + getMeanStress(sv.sig) * TensorM::I(6);
+		Vector sig_star = tau_star + getMeanStress(sv.sig) * TensorM::I(nOrd);
 
 		// Differentiation of the contact stress with respect to the current deviatoric strain
 		if (do_tangent) {
@@ -1023,7 +1057,7 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 		}
 
 		// compute plastic stress eqn. 13
-		Vector  SP = Vector(6);
+		Vector  SP = Vector(nOrd);
 		if (ys.now() == 0) {
 			SP = ((2 * sv.Gmod * curr_H_prime) / (curr_H_prime + 2 * sv.Gmod)) * sv.xs;
 		}
@@ -1115,8 +1149,8 @@ double MultiYieldSurfaceHardeningSoftening::zbrentStress(const Vector& start_str
 	double tol1 = 0.0;
 	double xm = 0.0;
 
-	static Vector sigma_a(6);
-	static Vector sigma_b(6);
+	static Vector sigma_a(nOrd);
+	static Vector sigma_b(nOrd);
 	sigma_a = start_stress * (1 - a) + end_stress * a;
 	sigma_b = start_stress * (1 - b) + end_stress * b;
 	double fa = yieldFunction(sigma_a, num_ys);

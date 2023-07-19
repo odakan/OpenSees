@@ -38,6 +38,7 @@
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
+#include <elementAPI.h>
 
 
 class YieldSurfacePackage {
@@ -112,6 +113,7 @@ private:
 	double referencePressure = 0.0;
 
 	// operational parameters
+	int nOrd = 6;						// material order
 	int matID = 0;						// tag of the attached material
 	int tnys = 0;						// total number of yield surfaces
 	bool do_online = false;				// activate on-the-fly update of the data-driven surfaces

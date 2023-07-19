@@ -21,6 +21,38 @@
 #include "MaterialStateVariables.h"
 
 // Public methods
+	// constructor
+MaterialStateVariables::MaterialStateVariables(const double nOrd)
+{
+	if (nOrd == 3) {
+		eps = Vector(3);
+		eps_commit = Vector(3);
+		sig = Vector(3);
+		sig_commit = Vector(3);
+		sig_implex = Vector(3);
+		xs = Vector(3);
+		xs_commit = Vector(3);
+		Ce = Matrix(3, 3);
+		Cep = Matrix(3, 3);
+	}
+	else if (nOrd == 6) {
+		eps = Vector(6);
+		eps_commit = Vector(6);
+		sig = Vector(6);
+		sig_commit = Vector(6);
+		sig_implex = Vector(6);
+		xs = Vector(6);
+		xs_commit = Vector(6);
+		Ce = Matrix(6, 6);
+		Cep = Matrix(6, 6);
+	}
+	else {
+		opserr << "FATAL: MaterialStateVariables::MaterialStateVariables() -> unknown model dimension!\n";
+		exit(-1);;
+	}
+	opserr << sig;
+}
+
 	// destructor
 MaterialStateVariables::~MaterialStateVariables(void)
 {

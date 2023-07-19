@@ -198,7 +198,15 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 
 // Private methods
 	// the get methods
-Vector VonMisesDMM::getShiftedDeviator(const Vector& stress, const int num_ys) { return getStressDeviator(stress) - ys.getAlpha(num_ys); }
+Vector VonMisesDMM::getShiftedDeviator(const Vector& stress, const int num_ys) {
+	Vector zeta = Vector(nOrd);
+	Vector deviator = getStressDeviator(stress);
+	Vector backpressure = ys.getAlpha(num_ys);
+	for (int i = 0; i < nOrd; i++) {
+		zeta(i) = deviator(i) - backpressure(i);
+	}
+	return zeta; 
+}
 
 	// yield surface operations
 double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool yield_stress = false) {
@@ -206,7 +214,7 @@ double VonMisesDMM::yieldFunction(const Vector& stress, const int num_ys, bool y
 
 	// get the current limit stress
 	double strength = ys.getTau(num_ys);
-
+	
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
 		Vector zeta = getShiftedDeviator(stress, num_ys);
@@ -221,7 +229,7 @@ Vector VonMisesDMM::get_dF_dS(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t stress
 	
 	// initialize the tensors
-	Vector dfds = Vector(6);							// normal tensor
+	Vector dfds = Vector(nOrd);							// normal tensor
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 
 	// compute the normal tensor
@@ -235,7 +243,7 @@ Vector VonMisesDMM::get_dF_dA(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t alpha(backstress)
 	
 	// initialize the tensors
-	Vector dfda = Vector(6);							// normal tensor
+	Vector dfda = Vector(nOrd);							// normal tensor
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 
 	// compute the normal tensor
@@ -249,7 +257,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 	// Return the rate of alpha(backstress)
 
 	// initialize the tensors
-	Vector dhda(6);												// normal tensor
+	Vector dhda(nOrd);												// normal tensor
 
 	// compute the normal
 	if (num_ys >= ys.getTNYS()) {
@@ -306,7 +314,7 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 	// Return the plastic flow direction (normal to the plastic potential w.r.t stress)
 
 	// initialize the tensors
-	Vector dpds = Vector(6);	// normal tensor
+	Vector dpds = Vector(nOrd);	// normal tensor
 
 	// compute the normal to the plastic potential
 	if (ys.isNonAssociated()) {
@@ -315,7 +323,7 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 		double dilatancy = ys.getBeta(num_ys);				// dilatancy parameter
 		// evaluate the derivative dPdS = Q' + P" * kronecker
 		dpds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
-		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(6);		// compute P"
+		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);		// compute P"
 	}
 	else {
 		// Associated flow
