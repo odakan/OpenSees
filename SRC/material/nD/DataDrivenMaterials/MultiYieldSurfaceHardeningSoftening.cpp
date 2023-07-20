@@ -42,6 +42,7 @@
 //
 // 6) CODE ThreeDimensional, PlaneStrain tangent and stress
 
+
 // Public methods
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
@@ -134,6 +135,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		rho = 0.;
 	}
 
+	// reset internal parameters
 	revertToStart();
 }
 
@@ -147,7 +149,6 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(void)
 	// destructor
 MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening(void)
 {
-	
 	// free the memory allocated to the data-driven nested yield surface object
 	if (theData != nullptr) {
 		if (theData->canDelete()) {	// make sure that no other material is using the object.
@@ -225,24 +226,6 @@ int MultiYieldSurfaceHardeningSoftening::setTrialStrain(const Vector& strain) {
 	
 	// set the strain state
 	sv.eps = strain;
-	//if (nOrd == 3) { // PlaneStrain
-	//	static Vector temp(6);
-	//	temp(0) = strain(0);
-	//	temp(1) = strain(1);
-	//	temp(2) = 0.0;
-	//	temp(3) = strain(2);
-	//	temp(4) = 0.0;
-	//	temp(5) = 0.0;
-	//	sv.eps = temp;
-	//}
-	//else if (nOrd == 6) { // ThreeDimensional
-	//	sv.eps = strain;
-	//}
-	//else {
-	//	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::::setTrialStrain() - material type is: " << getType() << "\n";
-	//	opserr << "But the strain vector size is: " << strain.Size() << "\n";
-	//	exit(-1);
-	//}
 
 	// implex time step
 	if (!sv.dtime_is_user_defined) {
@@ -378,12 +361,6 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& stress = gs.p;
 	stress = sv.sig;
-	//if (nOrd == 3) { //PlaneStrain
-	//	stress(0) = sv.sig(0); stress(1) = sv.sig(1); stress(3) = sv.sig(3);
-	//}
-	//else { //ThreeDimensional
-	//	stress = sv.sig;
-	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStress() -> " << stress; }
 
@@ -396,12 +373,6 @@ const Vector& MultiYieldSurfaceHardeningSoftening::getStrain(void) {
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& strain = gs.u;
 	strain = sv.eps;
-	//if (nOrd == 3) { //PlaneStrain
-	//	strain(0) = sv.eps(0); strain(1) = sv.eps(1); strain(3) = sv.eps(3);
-	//}
-	//else { //ThreeDimensional
-	//	strain = sv.eps;
-	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getStrain() -> " << strain; }
 
@@ -415,14 +386,6 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getTangent(void) {
 	auto& stiff = gs.K;
 	stiff.Zero();
 	stiff = sv.Cep;
-	//if (nOrd == 3) { //PlaneStrain
-	//	stiff(0, 0) = sv.Cep(0, 0); stiff(0, 1) = sv.Cep(0, 1); stiff(0, 2) = sv.Cep(0, 3);
-	//	stiff(1, 0) = sv.Cep(1, 0); stiff(1, 1) = sv.Cep(1, 1); stiff(1, 2) = sv.Cep(1, 3);
-	//	stiff(2, 0) = sv.Cep(3, 0); stiff(2, 1) = sv.Cep(3, 1); stiff(2, 2) = sv.Cep(3, 3);
-	//}
-	//else { //ThreeDimensional
-	//	stiff = sv.Cep;
-	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getTangent() -> " << stiff; }
 
@@ -435,14 +398,6 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getInitialTangent(void) {
 	stiff.Zero();
 	sv.Ce = Kref * TensorM::IIvol(nOrd) + Gref * TensorM::IIdev(nOrd);	// compute initial elastic modulus
 	stiff = sv.Ce;
-	//if (nOrd == 3) { //PlaneStrain
-	//	stiff(0, 0) = sv.Ce(0, 0); stiff(0, 1) = sv.Ce(0, 1); stiff(0, 2) = sv.Ce(0, 3);
-	//	stiff(1, 0) = sv.Ce(1, 0); stiff(1, 1) = sv.Ce(1, 1); stiff(1, 2) = sv.Ce(1, 3);
-	//	stiff(2, 0) = sv.Ce(3, 0); stiff(2, 1) = sv.Ce(3, 1); stiff(2, 2) = sv.Ce(3, 3);
-	//}
-	//else { //ThreeDimensional
-	//	stiff = sv.Ce;
-	//}
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getInitialTangent() -> " << stiff; }
 
@@ -519,11 +474,7 @@ int MultiYieldSurfaceHardeningSoftening::setParameter(const char** argv, int arg
 
 	// check for material tag
 	if (theMaterialTag == this->getTag()) {
-
-		if (strcmp(argv[0], "updateMaterialStage") == 0) {
-			return param.addObject(1, this);
-		}
-		else if (strcmp(argv[0], "shearModulus") == 0) {
+		if (strcmp(argv[0], "shearModulus") == 0) {
 			return param.addObject(10, this);
 		}
 		else if (strcmp(argv[0], "bulkModulus") == 0) {
@@ -546,28 +497,7 @@ int MultiYieldSurfaceHardeningSoftening::setParameter(const char** argv, int arg
 
 int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Information& info) {
 
-	if (responseID == 1) {
-		// update material stage and if nonlinear set up yield surfaces 
-		if (info.theInt > 0) {
-			// set-up yield surfaces
-			if (theData == nullptr) {
-				opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << getTag() <<
-					" could not access the yield surface database!";
-				exit(-1);
-			}
-			else {
-				if (theData->isAOK(getDataDriver())) {
-					ys = theData->generateYieldSurfaces(getTag(), getDataDriver(), Gref, Pref, Modn);
-					materialStage = info.theInt;
-				}
-				else {
-					opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << getTag() << 
-						" could not update material stage! Keeping the current stage = " << materialStage << " ...\n";
-				}
-			}
-		}
-	}
-	else if (responseID == 10) {
+	if (responseID == 10) {
 		Gref = info.theDouble;
 	}
 	else if (responseID == 11) {

@@ -50,7 +50,6 @@ MaterialStateVariables::MaterialStateVariables(const double nOrd)
 		opserr << "FATAL: MaterialStateVariables::MaterialStateVariables() -> unknown model dimension!\n";
 		exit(-1);;
 	}
-	opserr << sig;
 }
 
 	// destructor

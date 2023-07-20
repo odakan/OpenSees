@@ -33,6 +33,47 @@
 
 #include "VonMisesDMM.h"
 
+
+namespace global {
+	class MaterialList {
+	public:
+		int size = 0;
+		std::vector<VonMisesDMM*> mptr;
+
+	public:
+		MaterialList() = default;
+		MaterialList& resize(int N) {
+			if (N != size) {
+				mptr.resize(N);
+			}
+			size = mptr.size();
+			return *this;
+		}
+
+		MaterialList& append(VonMisesDMM* matptr) {
+			auto it = mptr.end();
+			mptr.insert(it, matptr);
+			size = mptr.size();
+			return *this;
+		}
+
+		MaterialList& remove(VonMisesDMM* matptr) {
+			auto it = std::find(mptr.begin(), mptr.end(), matptr);
+			if (it != mptr.end()) {
+				mptr.erase(it);
+				delete matptr; // If you are responsible for memory management, delete the object
+			}
+			size = mptr.size();
+			return *this;
+		}
+	};
+}
+
+
+// global material list
+auto& matID = global::MaterialList();
+
+
 // Public methods
 	// full constructor
 VonMisesDMM::VonMisesDMM(int tag, double r0,
@@ -42,8 +83,8 @@ VonMisesDMM::VonMisesDMM(int tag, double r0,
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_VonMisesDMM, r0,
 		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
-	
-
+	// append material to the list
+	matID.append(this);
 }
 
 // null constructor
@@ -55,22 +96,16 @@ VonMisesDMM::VonMisesDMM(void)
 // destructor
 VonMisesDMM::~VonMisesDMM(void)
 {
+	MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening();
+	matID.remove(this);
 }
 
 // return object info
 NDMaterial* VonMisesDMM::getCopy(void) {
 
 	VonMisesDMM* copy = nullptr;
-	// set material type and order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
-	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
 	copy = new VonMisesDMM(*this);
-	// done
-
+	 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
 		theData->checkin(); // do check-in
@@ -83,6 +118,7 @@ NDMaterial* VonMisesDMM::getCopy(void) {
 		opserr << ".\n\n";
 		return 0;
 	}
+	// done
 }
 
 NDMaterial* VonMisesDMM::getCopy(const char* type) {
@@ -106,6 +142,7 @@ NDMaterial* VonMisesDMM::getCopy(const char* type) {
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
 		theData->checkin(); // do check-in
+		matID.append(copy);
 		return copy;
 	}
 	else {
@@ -170,8 +207,10 @@ int VonMisesDMM::setParameter(const char** argv, int argc, Parameter& param) {
 
 	// check for material tag
 	if (theMaterialTag == this->getTag()) {
-
-		if (strcmp(argv[0], "frictionAngle") == 0) {
+		if (strcmp(argv[0], "updateMaterialStage") == 0) {
+			return param.addObject(1, this);
+		}
+		else if (strcmp(argv[0], "frictionAngle") == 0) {
 			return param.addObject(12, this);
 		}
 		else if (strcmp(argv[0], "cohesion") == 0) {
@@ -185,7 +224,30 @@ int VonMisesDMM::setParameter(const char** argv, int argc, Parameter& param) {
 
 int VonMisesDMM::updateParameter(int responseID, Information& info) {
 
-	if (responseID == 12) {
+	if (responseID == 1) {
+		// update material stage and if nonlinear set up yield surfaces 
+		if (info.theInt > 0) {
+			// set-up yield surfaces
+			for each (auto ptr in matID.mptr) {
+				if (ptr->theData == nullptr) {
+					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
+						" could not access the yield surface database!";
+					exit(-1);
+				}
+				else {
+					if (ptr->theData->isAOK(ptr->getDataDriver())) {
+						ptr->ys = ptr->theData->generateYieldSurfaces(ptr->getTag(), ptr->getDataDriver(), ptr->Gref, ptr->Pref, ptr->Modn);
+						ptr->materialStage = info.theInt;
+					}
+					else {
+						opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << getTag() <<
+							" could not update material stage! Keeping the current stage = " << ptr->materialStage << " ...\n";
+					}
+				}
+			}
+		}
+	}
+	else if (responseID == 12) {
 		//frictionAnglex[matN] = info.theDouble;
 	}
 	else if (responseID == 13) {
