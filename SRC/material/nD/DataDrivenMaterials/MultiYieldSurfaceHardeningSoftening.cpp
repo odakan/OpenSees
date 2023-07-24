@@ -639,7 +639,7 @@ void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, co
 		sv.Hmod = Href * pow(abs(Pavg / Pref), Modn);	// update plastic shear modulus
 	}
 	
-	sv.Ce = sv.Kmod * TensorM::IIvol(nOrd) + sv.Gmod * TensorM::IIdev(nOrd);	// compute elastic modulus
+	sv.Ce = sv.Kmod * TensorM::IIvol(nOrd) + 2 * sv.Gmod * TensorM::IIdev(nOrd);	// compute elastic modulus
 }
 
 void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do_tangent) {
@@ -684,10 +684,29 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 			//  DO implex ...
 			//  ...
 
-			/* ys.num = ys.num_commit -> this step is done inside ys.revertToLastCommit() function which
-			                             is called at the beginning of the updateInternal() method...   */
+			/* nYs = nYs_commit -> this step is done inside ys.revertToLastCommit() function which
+						            is called at the beginning of the updateInternal() method...   */
 			sv.lambda = sv.lambda_commit + (sv.lambda_commit - sv.lambda_commit_old) * time_factor;
 
+			updateModulus(sv.sig, ys.now());							// update elastic modulus
+			ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
+
+
+			Vector zeta = getShiftedDeviator(ST, ys.now());	// shifted stress deviator tensor
+			double dilatancy = ys.getBeta(ys.now());				// dilatancy parameter
+
+
+			Vector mm = 2.0 / 3.0 * zeta + 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);
+			Vector rr = Vector(6);
+
+
+			// Step 4 - update palstic strains and state variables
+				// update plastic strain
+			sv.xs = sv.xs + sv.lambda * mm;
+				// update stress
+			sv.sig = sv.sig - sv.lambda * TensorM::inner(sv.Ce, mm);
+				// update current and inner yield surfaces
+			
 
 
 		}
@@ -717,7 +736,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 					if (converged) { if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::updateInternal() -> cutting-plane algorithm converged!\n"; } }
 				}
 				else if (solution_strategy == 1) {
-					converged = piecewiseLinearSolution(ST, do_tangent);
+					converged = closestPointProjection(ST, do_tangent);
 				}
 				else {
 					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - unknown return mapping algorithm!\n";
@@ -774,6 +793,30 @@ void MultiYieldSurfaceHardeningSoftening::computeElastoplasticTangent(int num_ys
 	}
 
 	sv.Cep = sv.Ce - ((TensorM::inner(TensorM::outer(TensorM::inner(sv.Ce, mm), nn), sv.Ce))/denominator);
+}
+
+double MultiYieldSurfaceHardeningSoftening::linearizedFlow(const double dlambda) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+double MultiYieldSurfaceHardeningSoftening::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MultiYieldSurfaceHardeningSoftening::Qi(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MultiYieldSurfaceHardeningSoftening::Di(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
 }
 
 		// solution strategies
@@ -910,27 +953,28 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 	return convergence;
 }
 
-int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& sigma_trial, const bool do_tangent) {
+int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& sigma_trial, const bool do_tangent) {
+	// Formulation by Gu et al. (2011)
 
 	// convergence status
-	int convergence = 0;
+	int convergence = 0;	int maxIter = 500;	int iteration_counter = 0;
 
 	// initialize rate tensors
 	Vector nn(nOrd); Vector mm(nOrd); Vector rr(nOrd);
 
-	// Formulation by Gu et al. (2011)
-	// Step 1 - initialize
-	int maxIter = 500;
-	int iteration_counter = 0;
+	// initialize tangent tensors
+	Matrix dTtrdE(nOrd, nOrd); Matrix dStrdE(nOrd, nOrd);
+
+	// initialize return-mapping variables
 	double next_yf_value = 0;
-	double curr_H_prime = 0;
-	double old_H_prime = 0;
-	double dlambda = 0.0;
-	double curr_K = 0.0;
-	double next_K = 0.0;
+	double dlambda = 0.0;		double dlambda_bar = 0.0;
+	double curr_H_prime = 0;	double old_H_prime = 0;
+	double curr_K = 0.0;		double next_K = 0.0;
+	double coeff_1 = 0.0;		double coeff_2 = 0.0;
 
 	// set trial stress
 	sv.sig = sigma_trial;
+	if (do_tangent) { dTtrdE = 2 * sv.Gmod * TensorM::IIdev(nOrd); dStrdE = sv.Kmod * TensorM::IIvol(nOrd); }
 
 	while (iteration_counter < maxIter) {
 
@@ -938,75 +982,50 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 		Vector tau_trial = getStressDeviator(sv.sig);
 		Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
 
-		// Differentiation of the elastic trial deviatoric stress with respect to the current deviatoric strain
-		if (do_tangent) { Matrix dTtr_dE = 2 * sv.Gmod * TensorM::II4(nOrd); }
-
 		// compute contact stress
-		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
-		curr_K = ys.getTau(ys.now());												// current radius
-		//////////////////////////////////////////////////////////////////////////////
-		// Needs to be written generic for compatibility with other type of surfaces// 
 		Vector alpha = ys.getAlpha(ys.now());
-		Vector tau_star = ((curr_K / Ki) * zeta_trial) + alpha;	// eqn. 9
-		//////////////////////////////////////////////////////////////////////////////
-		Vector sig_star = tau_star + getMeanStress(sv.sig) * TensorM::I(nOrd);
-
-		// Differentiation of the contact stress with respect to the current deviatoric strain
-		if (do_tangent) {
-
-		}
+		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
+		curr_K = sqrt(3.0 / 2.0) * ys.getTau(ys.now());								// current radius
+		Vector zeta_star = ((curr_K / Ki) * zeta_trial);							// eqn. 9
+		Vector tau_star = zeta_star + alpha;
 
 		// compute the derivatives
-		nn = get_dF_dS(sig_star, ys.now());
-		mm = get_dP_dS(sig_star, ys.now());
-		rr = get_dH_dA(sig_star, ys.now());
+		nn = Qi(zeta_star, ys.now());
+		mm = Di(zeta_star, ys.now());
 
-		// Differentiation of the unit vector normal to the yield surface with respect to the current deviatoric strain
-		if (do_tangent) {
-
-		}
-
-		// compute lambda <L>/H' in eqn. 5
 		sv.Hmod = ys.getEta(ys.now());
 		old_H_prime = curr_H_prime;
 		curr_H_prime = 1 / ((1 / sv.Hmod) - (0.5 * sv.Gmod));
-		dlambda = fmax(TensorM::dotdot(nn, (tau_trial - tau_star)), 0) / curr_H_prime;
 
-		// update plastic strain and plastic multiplier
-		sv.lambda += dlambda;
-		sv.xs += dlambda * mm;
-
-		// Differentiation of the plastic multiplier with respect to the current deviatoric strain
-		if (do_tangent) {
-
-		}
-
-		// Differentiation of the plastic strain increment tensor with respect to the current deviatoric strain
-		if (do_tangent) {
-
-		}
-
-		// compute plastic stress eqn. 13
-		Vector  SP = Vector(nOrd);
-		if (ys.now() == 0) {
-			SP = ((2 * sv.Gmod * curr_H_prime) / (curr_H_prime + 2 * sv.Gmod)) * sv.xs;
+		coeff_1 = 1.0 / (curr_H_prime + 2 * sv.Gmod);
+		if (iteration_counter == 0) {
+			coeff_2 = 1.0;
 		}
 		else {
-			SP = ((2 * sv.Gmod * curr_H_prime) / (curr_H_prime + 2 * sv.Gmod)) *
-				((old_H_prime - curr_H_prime) / (old_H_prime)) * sv.xs;
+			coeff_2 = (old_H_prime - curr_H_prime) / (old_H_prime);
 		}
+		dlambda = coeff_1 * coeff_2 * TensorM::dotdot(nn, (tau_trial - tau_star));
 
-		// Differentiation of the plastic stress correction tensor with respect to the current deviatoric strain
+		Vector deps_dev_plastic = dlambda * nn;
+		Vector deps_vol_plastic = dlambda * mm;
+		Vector dtau_plastic = sv.Gmod * deps_dev_plastic;
+		Vector dsigma_vol_plastic = sv.Kmod * deps_vol_plastic;
+		
+		// update material internal variables
+		sv.xs += deps_dev_plastic + deps_vol_plastic;
+		sv.sig = sv.sig - (dtau_plastic + dsigma_vol_plastic);
+		sv.lambda += linearizedFlow(dlambda);
+
+		// compute the consistent tangent derivatives
 		if (do_tangent) {
-
-		}
-
-		// update stress
-		sv.sig = sv.sig - SP;
-
-		// Differentiation of the new trial stress after plastic correction with respect to the current deviatoric strain
-		if (do_tangent) {
-
+			Vector dKdE = (3.0 / (2.0 * Ki)) * TensorM::inner(zeta_trial, dTtrdE);
+			Matrix dTstdE = (curr_K / Ki) * dTtrdE - (curr_K / (Ki * Ki)) * TensorM::outer(zeta_trial, dKdE);
+			Matrix dQdE = 1.0 / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dTstdE - TensorM::inner(TensorM::outer(zeta_star, zeta_star), dTstdE)
+				/ sqrt(pow(TensorM::dotdot(zeta_star, zeta_star), 3));
+			Vector dDlbdE = coeff_1 * coeff_2 * (TensorM::inner((tau_trial - tau_star), dQdE) + TensorM::inner(nn, (dTtrdE - dTstdE)));
+			Matrix dTpldE = 2 * sv.Gmod * (TensorM::outer(dDlbdE, nn) + dlambda * dQdE);
+			// correct stress derivative
+			dTtrdE -= dTpldE;
 		}
 
 		// check if overshhoting the next yield surface
@@ -1019,6 +1038,11 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 		// increment number of yield surface
 		ys.increment();
 		iteration_counter++;
+	}
+
+	// compute consistent tangent
+	if (do_tangent) {
+		sv.Cep = TensorM::inner(dTtrdE, TensorM::IIdev(nOrd)) + dStrdE;
 	}
 
 	if (iteration_counter == maxIter) {
@@ -1047,11 +1071,6 @@ int MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution(const Vector& s
 	else {
 		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution() - division by 0 while updating the internal surfaces!\n";
 		return 0;
-	}
-
-	// Compute the consistent tangent operator
-	if (do_tangent) {
-
 	}
 
 	return convergence;

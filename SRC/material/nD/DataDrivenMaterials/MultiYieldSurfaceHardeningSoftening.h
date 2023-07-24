@@ -189,7 +189,7 @@ protected:
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
-	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = piecewise linear solution]
+	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = closest point projection]
 
 protected:
 	// the get methods
@@ -215,9 +215,15 @@ protected:
 	virtual Vector get_dH_dA(const Vector& stress, const int num_ys) = 0;							// Return normal to the hardening potential w.r.t alpha (backstress)
 	virtual Vector get_dP_dS(const Vector& stress, const int num_ys) = 0;							// Return normal to the plastic potential w.r.t stress
 
+	// closest point projection methods
+	virtual double linearizedFlow(const double dlambda) = 0;
+	virtual double yieldf(const Vector& stress, const int num_ys, bool yield_stress) = 0;
+	virtual Vector Qi(const Vector& stress, const int num_ys) = 0;
+	virtual Vector Di(const Vector& stress, const int num_ys) = 0;
+
 	// return-mapping
 	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
-	int piecewiseLinearSolution(const Vector& sigma_trial, const bool do_tangent);
+	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);
 
 	// update methods
 	void updateFailureSurface(const Vector& stress);									// Update the final yield surface (alpha)

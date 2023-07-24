@@ -140,5 +140,11 @@ private:
 	Vector get_dH_dA(const Vector& stress, const int num_ys);							// Return normal to the hardening potential w.r.t alpha (backstress)
 	Vector get_dP_dS(const Vector& stress, const int num_ys);							// Return normal to the plastic potential w.r.t stress
 
+	// closest point projection methods
+	double linearizedFlow(const double dlambda);
+	double yieldf(const Vector& stress, const int num_ys, bool yield_stress);
+	Vector Qi(const Vector& stress, const int num_ys);
+	Vector Di(const Vector& stress, const int num_ys);
+
 };
 #endif

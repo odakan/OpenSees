@@ -394,3 +394,27 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 
 	return dpds;
 }
+
+double VonMisesDMM::linearizedFlow(const double dlambda) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+double VonMisesDMM::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector VonMisesDMM::Qi(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector VonMisesDMM::Di(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}

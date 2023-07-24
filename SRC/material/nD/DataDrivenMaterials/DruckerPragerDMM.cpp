@@ -220,3 +220,27 @@ Vector DruckerPragerDMM::get_dP_dS(const Vector& stress, const int num_yield_sur
 	Vector mm(6);
 	return mm;
 }
+
+double DruckerPragerDMM::linearizedFlow(const double dlambda) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+double DruckerPragerDMM::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector DruckerPragerDMM::Qi(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector DruckerPragerDMM::Di(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}

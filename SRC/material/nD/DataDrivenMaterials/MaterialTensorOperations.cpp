@@ -45,34 +45,6 @@ Vector TensorM::I(const int N) {
 	return kD;
 }
 
-Matrix TensorM::II4(const int N) {
-	// return 4th order symmetric unit tensor
-	// I4 = 0.5 * (kron_il * kron_jk + kron_ik * kron_jl) * ei x ej x ek x el
-	Matrix I4(N, N);
-	if (N == 6) {
-		I4(0, 0) = 1;
-		I4(0, 1) = 1;
-		I4(0, 2) = 1;
-		I4(1, 0) = 1;
-		I4(1, 1) = 1;
-		I4(1, 2) = 1;
-		I4(2, 0) = 1;
-		I4(2, 1) = 1;
-		I4(2, 2) = 1;
-	}
-	else if (N == 3) {
-		I4(0, 0) = 1;
-		I4(0, 1) = 1;
-		I4(1, 0) = 1;
-		I4(1, 1) = 1;
-	}
-	else {
-		opserr << "FATAL: TensorM::II4() - invalid material dimension!!\n";
-		exit(-1);
-	}
-	return I4;
-}
-
 Matrix TensorM::IIvol(const int N) {
 	// return 4th order Volumetric Tensor in Voigt notation
 	// IIvol = I1 tensor I1
@@ -105,25 +77,25 @@ Matrix TensorM::IIdev(const int N) {
 	//return 4th order Deviatoric Tensor in Voigt notation
 	Matrix IIdev(N, N);
 	if (N == 6) {
-		IIdev(0, 0) = 4.0 / 3.0;
-		IIdev(0, 1) = -2.0 / 3.0;
-		IIdev(0, 2) = -2.0 / 3.0;
-		IIdev(1, 0) = -2.0 / 3.0;
-		IIdev(1, 1) = 4.0 / 3.0;
-		IIdev(1, 2) = -2.0 / 3.0;
-		IIdev(2, 0) = -2.0 / 3.0;
-		IIdev(2, 1) = -2.0 / 3.0;
-		IIdev(2, 2) = 4.0 / 3.0;
-		IIdev(3, 3) = 1.0;
-		IIdev(4, 4) = 1.0;
-		IIdev(5, 5) = 1.0;
-	}
-	else if (N == 3) {
 		IIdev(0, 0) = 2.0 / 3.0;
 		IIdev(0, 1) = -1.0 / 3.0;
+		IIdev(0, 2) = -1.0 / 3.0;
 		IIdev(1, 0) = -1.0 / 3.0;
 		IIdev(1, 1) = 2.0 / 3.0;
-		IIdev(2, 2) = 0.5;
+		IIdev(1, 2) = -1.0 / 3.0;
+		IIdev(2, 0) = -1.0 / 3.0;
+		IIdev(2, 1) = -1.0 / 3.0;
+		IIdev(2, 2) = 2.0 / 3.0;
+		IIdev(3, 3) = 0.5;
+		IIdev(4, 4) = 0.5;
+		IIdev(5, 5) = 0.5;
+	}
+	else if (N == 3) {
+		IIdev(0, 0) = 1.0 / 3.0;
+		IIdev(0, 1) = -0.5 / 3.0;
+		IIdev(1, 0) = -0.5 / 3.0;
+		IIdev(1, 1) = 1.0 / 3.0;
+		IIdev(2, 2) = 0.25;
 	}
 	else {
 		opserr << "FATAL: TensorM::IIdev() - invalid material dimension!!\n";

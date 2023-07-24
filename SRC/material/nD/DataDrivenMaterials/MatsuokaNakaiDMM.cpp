@@ -224,3 +224,27 @@ Vector MatsuokaNakaiDMM::get_dP_dS(const Vector& stress, const int num_yield_sur
 	Vector mm(6);
 	return mm;
 }
+
+double MatsuokaNakaiDMM::linearizedFlow(const double dlambda) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+double MatsuokaNakaiDMM::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MatsuokaNakaiDMM::Qi(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MatsuokaNakaiDMM::Di(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
