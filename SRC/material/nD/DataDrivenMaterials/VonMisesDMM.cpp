@@ -235,8 +235,9 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 					exit(-1);
 				}
 				else {
+					updateModuli(sv.sig);
 					if (ptr->theData->isAOK(ptr->getDataDriver())) {
-						ptr->ys = ptr->theData->generateYieldSurfaces(ptr->getTag(), ptr->getDataDriver(), ptr->Gref, ptr->Pref, ptr->Modn);
+						ptr->ys = ptr->theData->generateYieldSurfaces(ptr->getTag(), ptr->getDataDriver(), sv.Gmod, ptr->Pref, ptr->Modn);
 						ptr->materialStage = info.theInt;
 					}
 					else {
@@ -396,25 +397,25 @@ Vector VonMisesDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 }
 
 double VonMisesDMM::linearizedFlow(const double dlambda) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	opserr << "FATAL: VonMisesDMM::linearizedFlow() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 double VonMisesDMM::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	opserr << "FATAL: VonMisesDMM::yieldf() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 Vector VonMisesDMM::Qi(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	opserr << "FATAL: VonMisesDMM::Qi() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 Vector VonMisesDMM::Di(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	opserr << "FATAL: VonMisesDMM::Di() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }

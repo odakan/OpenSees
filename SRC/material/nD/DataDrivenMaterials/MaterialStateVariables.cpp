@@ -70,6 +70,8 @@ int MaterialStateVariables::commitState(void) {
 	xs_commit = xs;
 	lambda_commit_old = lambda_commit;
 	lambda_commit = lambda;
+	ksi_commit_old = ksi_commit;
+	ksi_commit = ksi;
 
 	return 0;
 }
@@ -82,6 +84,8 @@ int MaterialStateVariables::revertToLastCommit(void) {
 	xs = xs_commit;
 	lambda = lambda_commit;
 	lambda_commit = lambda_commit_old;
+	ksi = ksi_commit;
+	ksi_commit = ksi_commit_old;
 
 	return 0;
 }
@@ -133,15 +137,18 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "MaterialStateVariables::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
 		opserr << "Stress                  =  " << sig;
-		opserr << "Comitted Stress         =  " << sig_commit;
+		opserr << "Comitted stress         =  " << sig_commit;
 		opserr << "Strain                  =  " << eps;
-		opserr << "Comitted Strain         =  " << eps_commit;
+		opserr << "Comitted strain         =  " << eps_commit;
 		opserr << "-------------------- Pastic Internal Variables --------------------\n";
-		opserr << "Plastic Strain          =  " << xs;
-		opserr << "Commited Plastic Strain =  " << xs_commit;
+		opserr << "Plastic strain          =  " << xs;
+		opserr << "Commited plastic strain =  " << xs_commit;
 		opserr << "Plastic multiplier      =  " << lambda << "\n";
 		opserr << "Commited pl. multiplier =  " << lambda_commit << "\n";
 		opserr << "Prev. comm. pl. mult.   =  " << lambda_commit_old << "\n";
+		opserr << "Translation direction   =  " << ksi << "\n";
+		opserr << "Commited tr. direction  =  " << ksi_commit << "\n";
+		opserr << "Prev. comm. tr. dir.    =  " << ksi_commit_old << "\n";
 		opserr << "------------------ Consistent Tangent Operator ------------------\n";
 		opserr << "Kt = " << Cep;
 	}
@@ -151,7 +158,8 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "Stress             =  " << sig;
 		opserr << "Strain             =  " << eps;
 		opserr << "Plastic multiplier =  " << lambda << "\n";
-		opserr << "Plastic Strain     =  " << xs << "\n";
+		opserr << "Plastic strain     =  " << xs << "\n";
+		opserr << "Translation dir.   =  " << ksi << "\n";
 	}
 }
 

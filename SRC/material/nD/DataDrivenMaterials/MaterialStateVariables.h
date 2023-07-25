@@ -65,8 +65,11 @@ class MaterialStateVariables {
 public:
 	// state variables
 	/*	IMPLEX variables:
-			lambda: in the explicit step, lambda is extrapolated using 
-					lambda_commit and lambda_commit_old
+			lambda	: lambda-bar, rephrased (linearized) plastic flow, in the explicit step, lambda is 
+					extrapolated using lambda_commit and lambda_commit_old
+
+			ksi		: ksi_bar, rephrased (linearized) translation direction, in the explicit step, ksi 
+					is extrapolated using ksi_commit and ksi_commit_old
 
 			dtime_n:
 
@@ -84,9 +87,12 @@ public:
 	Vector sig_implex = Vector(6);			// only for output
 	Vector xs = Vector(6);					// equivalent plastic strain
 	Vector xs_commit = Vector(6);			// committed equivalent plastic strain
-	double lambda = 0.0;					// plastic multiplier
+	double lambda = 0.0;					// plastic multiplier (linearized)
 	double lambda_commit = 0.0;				// committed plastic multiplier
 	double lambda_commit_old = 0.0;			// previously committed plastic multiplier
+	double ksi = 0.0;						// surface translation direction (linearized)
+	double ksi_commit = 0.0;				// committed translation direction
+	double ksi_commit_old = 0.0;			// previously committed translation direction
 	double dtime_n = 0.0;					// time factor
 	double dtime_n_commit = 0.0;			// committed time factor
 	bool dtime_is_user_defined = false;

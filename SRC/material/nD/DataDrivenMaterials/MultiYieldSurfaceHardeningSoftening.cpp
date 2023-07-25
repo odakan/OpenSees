@@ -214,7 +214,7 @@ int MultiYieldSurfaceHardeningSoftening::revertToStart(void) {
 	materialStage = 0;
 
 	// reset elastoplastic stiffness
-	updateModulus(sv.sig, 0);
+	sv.Ce = Kref * TensorM::IIvol(nOrd) + 2 * Gref * TensorM::IIdev(nOrd);	// compute initial elastic modulus
 	sv.Cep = sv.Ce;
 
 	// done
@@ -285,7 +285,6 @@ int MultiYieldSurfaceHardeningSoftening::setTrialStrainIncr(const Vector& strain
 
 void MultiYieldSurfaceHardeningSoftening::setTheSurfaces(YieldSurfacePackage* theSurfaces) { ys = *theSurfaces; }
 
-
 	// return material info
 NDMaterial* MultiYieldSurfaceHardeningSoftening::getCopy(void) {
 	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::getCopy(void) -> subclass responsibility\n";
@@ -314,7 +313,6 @@ const char* MultiYieldSurfaceHardeningSoftening::getType(void) const {
 	}
 }
 
-
 int MultiYieldSurfaceHardeningSoftening::getDataDriver(void) {
 
 	int preference = 0;		// automatic backbone genration
@@ -331,7 +329,6 @@ int MultiYieldSurfaceHardeningSoftening::getDataDriver(void) {
 
 	return preference;
 }
-
 
 int MultiYieldSurfaceHardeningSoftening::getOrder(void) const {
 
@@ -353,6 +350,7 @@ Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
 }
 
 double MultiYieldSurfaceHardeningSoftening::getGref(void) { return Gref; }
+
 double MultiYieldSurfaceHardeningSoftening::getPref(void) { return Pref; }
 
 	// return stress & strain
@@ -396,8 +394,7 @@ const Matrix& MultiYieldSurfaceHardeningSoftening::getInitialTangent(void) {
 	auto& gs = tools::getGlobalStorage(nOrd);
 	auto& stiff = gs.K0;
 	stiff.Zero();
-	sv.Ce = Kref * TensorM::IIvol(nOrd) + Gref * TensorM::IIdev(nOrd);	// compute initial elastic modulus
-	stiff = sv.Ce;
+	stiff = Kref * TensorM::IIvol(nOrd) + 2 * Gref * TensorM::IIdev(nOrd);	// compute initial elastic modulus
 
 	if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::getInitialTangent() -> " << stiff; }
 
@@ -546,10 +543,15 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 // Private methods
 	// the get methods
 double MultiYieldSurfaceHardeningSoftening::getK(void) { return sv.Kmod; }
+
 double MultiYieldSurfaceHardeningSoftening::getG(void) { return sv.Gmod; }
+
 double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_ys) { return yieldFunction(Vector(nOrd), num_ys, true); }
+
 const Vector MultiYieldSurfaceHardeningSoftening::getStressVector(void) { return sv.sig_commit; }
+
 const Vector MultiYieldSurfaceHardeningSoftening::getStrainVector(void) { return sv.eps_commit; }
+
 const Vector MultiYieldSurfaceHardeningSoftening::getPlasticStrainVector(void) { return sv.xs_commit; }
 
 double MultiYieldSurfaceHardeningSoftening::getMeanStress(const Vector& stress) { 
@@ -614,30 +616,45 @@ Vector MultiYieldSurfaceHardeningSoftening::get_dP_dS(const Vector& stress, cons
 	return zero;
 }
 
+	// closest point projection methods
+double MultiYieldSurfaceHardeningSoftening::linearizedFlow(const double dlambda) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+double MultiYieldSurfaceHardeningSoftening::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MultiYieldSurfaceHardeningSoftening::Qi(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
+Vector MultiYieldSurfaceHardeningSoftening::Di(const Vector& stress, const int num_ys) {
+	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	exit(-1);
+	return 0;
+}
+
 	// material internal operations
-void MultiYieldSurfaceHardeningSoftening::updateModulus(const Vector& stress, const int num_ys) {
+void MultiYieldSurfaceHardeningSoftening::updateModuli(const Vector& stress) {
 	
 	// get parameters
-	double Href = ys.getEta(num_ys);
 	sv.Gmod = Gref;
 	sv.Kmod = Kref;
-	sv.Hmod = Href;
 
 	// update elastic modulus w.r.t. average pressure
-	if (materialStage == 0) { // do not update if elastic stage
-		sv.Gmod = Gref;
-		sv.Kmod = Kref;
-		sv.Hmod = Href;
+	double Pavg = getMeanStress(stress);	// compute average pressure
+	if (Pavg > 0.0) {						// prevent tensile stress update
+		Pavg = 0.0;
 	}
-	else {
-		double Pavg = getMeanStress(stress);	// compute average pressure
-		if (Pavg > 0.0) {						// prevent tensile stress update
-			Pavg = 0.0;
-		}
-		sv.Gmod = Gref * pow(abs(Pavg / Pref), Modn);	// update shear modulus
-		sv.Kmod = Kref * pow(abs(Pavg / Pref), Modn);	// update bulk modulus
-		sv.Hmod = Href * pow(abs(Pavg / Pref), Modn);	// update plastic shear modulus
-	}
+	sv.Gmod = Gref * pow(abs(Pavg / Pref), Modn);	// update shear modulus
+	sv.Kmod = Kref * pow(abs(Pavg / Pref), Modn);	// update bulk modulus
 	
 	sv.Ce = sv.Kmod * TensorM::IIvol(nOrd) + 2 * sv.Gmod * TensorM::IIdev(nOrd);	// compute elastic modulus
 }
@@ -653,18 +670,6 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 	sv.lambda = 0.0;
 	Vector ST = Vector(nOrd);
 	Vector eps_incr = Vector(nOrd);
-	Vector edev_incr = Vector(nOrd);
-	Vector sig_step = Vector(nOrd);
-	
-	// time factor for explicit extrapolation
-	double time_factor = 1.0;
-	if (do_implex && use_implex && (sv.dtime_n_commit > 0.0))
-		time_factor = sv.dtime_n / sv.dtime_n_commit;
-	// note: the implex method just wants the ratio of the new to the old time step
-	// not the real time step, so it is just fine to assume it to be 1.
-	// otherwise we have to deal with the problem of the opensees pseudo-time step
-	// being the load multiplier in continuation methods...
-	time_factor = 1.0;
 
 	// compute the strain increment (independent variable)
 	eps_incr = sv.eps - sv.eps_commit;
@@ -674,46 +679,18 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 		sv.Cep = sv.Ce;
 	}
 	else if (materialStage == 2) {									// nonlinear elastic material
-		updateModulus(sv.sig, ys.now());								// update elastic modulus
 		sv.sig = sv.sig + TensorM::inner(sv.Ce, (eps_incr));
 		sv.Cep = sv.Ce;
 	}
-	else {					
+	else {
+		// compute trial stress
+		ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
 		if (do_implex && use_implex) {
 			// EXPLICIT step: do explicit extrapolation
-			//  DO implex ...
-			//  ...
-
-			/* nYs = nYs_commit -> this step is done inside ys.revertToLastCommit() function which
-						            is called at the beginning of the updateInternal() method...   */
-			sv.lambda = sv.lambda_commit + (sv.lambda_commit - sv.lambda_commit_old) * time_factor;
-
-			updateModulus(sv.sig, ys.now());							// update elastic modulus
-			ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
-
-
-			Vector zeta = getShiftedDeviator(ST, ys.now());	// shifted stress deviator tensor
-			double dilatancy = ys.getBeta(ys.now());				// dilatancy parameter
-
-
-			Vector mm = 2.0 / 3.0 * zeta + 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);
-			Vector rr = Vector(6);
-
-
-			// Step 4 - update palstic strains and state variables
-				// update plastic strain
-			sv.xs = sv.xs + sv.lambda * mm;
-				// update stress
-			sv.sig = sv.sig - sv.lambda * TensorM::inner(sv.Ce, mm);
-				// update current and inner yield surfaces
-			
-
-
+			implExIntegration(ST);
 		}
 		else {														// elastoplastic material
 			// IMPLICIT step: solve constitutive equations
-			updateModulus(sv.sig, ys.now());							// update elastic modulus
-			ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
 			double curr_yf_value = yieldFunction(ST, ys.now());			// yield function value
 			if (curr_yf_value < ABSOLUTE_TOLERANCE) {					// elastic un/re-loading
 				sv.sig = ST;
@@ -723,26 +700,37 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 				int converged = 0;
 				if (solution_strategy == 0) {
 					// do return-mapping in steps
-					edev_incr = getStressDeviator(eps_incr);		// strain increment deviator
+					Vector edev_incr = getStressDeviator(eps_incr);		// strain increment deviator
 					double edev_step = sqrt(3.0 * 0.5 * TensorM::dotdot(edev_incr, edev_incr));
 					int num_step = fmax(1, ((edev_step / CPLANE_STRAIN_STEP) + 1));
-					sig_step = (TensorM::inner(sv.Ce, (eps_incr)) / num_step);
+					Vector sig_step = (TensorM::inner(sv.Ce, (eps_incr)) / num_step);
 					for (int i = 0; i < num_step; i++) {
 						ST = sv.sig + sig_step;
-						converged = cuttingPlaneAlgorithm(ST, do_tangent);
+						converged += cuttingPlaneAlgorithm(ST, do_tangent);
 					}
 					// compute the elastoplastic tangent
 					if (do_tangent) { computeElastoplasticTangent(ys.now(), sv.sig); }
-					if (converged) { if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::updateInternal() -> cutting-plane algorithm converged!\n"; } }
+					if (converged) { 
+						if (beVerbose) { 
+							opserr << "MultiYieldSurfaceHardeningSoftening::updateInternal() -> cutting-plane (CP) algorithm converged in "
+								<< converged << " iterations!\n";
+						}
+					} else { opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateInternal() - cutting-plane (CP) algorithm failed!\n"; }
 				}
 				else if (solution_strategy == 1) {
 					converged = closestPointProjection(ST, do_tangent);
+					if (converged != 0) {
+						if (beVerbose) {
+							opserr << "MultiYieldSurfaceHardeningSoftening::updateInternal() -> closest-point-projection (CPP) algorithm converged in "
+								<< converged << " iterations!\n";
+						}
+					} else { opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateInternal() - closest-point-projection (CPP) algorithm failed!\n"; }
 				}
 				else {
 					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - unknown return mapping algorithm!\n";
 					exit(-1);
 				}
-				if (!converged) {
+				if (converged == 0) {
 					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateInternal() - return-mapping algorithm did not converge!\n";
 					exit(-1);
 				}
@@ -793,30 +781,6 @@ void MultiYieldSurfaceHardeningSoftening::computeElastoplasticTangent(int num_ys
 	}
 
 	sv.Cep = sv.Ce - ((TensorM::inner(TensorM::outer(TensorM::inner(sv.Ce, mm), nn), sv.Ce))/denominator);
-}
-
-double MultiYieldSurfaceHardeningSoftening::linearizedFlow(const double dlambda) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
-	exit(-1);
-	return 0;
-}
-
-double MultiYieldSurfaceHardeningSoftening::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
-	exit(-1);
-	return 0;
-}
-
-Vector MultiYieldSurfaceHardeningSoftening::Qi(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
-	exit(-1);
-	return 0;
-}
-
-Vector MultiYieldSurfaceHardeningSoftening::Di(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
-	exit(-1);
-	return 0;
 }
 
 		// solution strategies
@@ -945,11 +909,8 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		iteration_counter++;
 	}
 
-	if (iteration_counter >= maxIter) {
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - return-mapping failed!\n";
-		return 0;
-	}
-
+	// if converged, return number of iterations instead
+	if (convergence) { convergence = fmax(iteration_counter, 1); }
 	return convergence;
 }
 
@@ -957,10 +918,10 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	// Formulation by Gu et al. (2011)
 
 	// convergence status
-	int convergence = 0;	int maxIter = 500;	int iteration_counter = 0;
+	int convergence = 0; int maxIter = 500;	int iteration_counter = 0;
 
 	// initialize rate tensors
-	Vector nn(nOrd); Vector mm(nOrd); Vector rr(nOrd);
+	Vector nn(nOrd); Vector mm(nOrd);
 
 	// initialize tangent tensors
 	Matrix dTtrdE(nOrd, nOrd); Matrix dStrdE(nOrd, nOrd);
@@ -979,42 +940,82 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	while (iteration_counter < maxIter) {
 
 		// get trial stress deviator
+		
 		Vector tau_trial = getStressDeviator(sv.sig);
 		Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
+		//opserr << "sv.sig before correction = " << sv.sig;
+		//opserr << "tau_trial before correction = " << tau_trial;
+		//opserr << "zeta_trial before correction = " << zeta_trial;
 
 		// compute contact stress
-		Vector alpha = ys.getAlpha(ys.now());
+		Vector curr_alpha = ys.getAlpha(ys.now());
+		Vector next_alpha = ys.getAlpha(ys.next());
 		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
-		curr_K = sqrt(3.0 / 2.0) * ys.getTau(ys.now());								// current radius
+		curr_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.now())), 1e-4);				// current radius
+		next_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.next())), 1e-4);				// next radius
 		Vector zeta_star = ((curr_K / Ki) * zeta_trial);							// eqn. 9
-		Vector tau_star = zeta_star + alpha;
+		Vector tau_star = zeta_star + curr_alpha;
+		//opserr << "zeta_star = " << zeta_star;
 
 		// compute the derivatives
-		nn = Qi(zeta_star, ys.now());
-		mm = Di(zeta_star, ys.now());
+		nn = zeta_star / sqrt(TensorM::dotdot(zeta_star, zeta_star));
+		mm = zeta_star / sqrt(TensorM::dotdot(zeta_star, zeta_star));
 
 		sv.Hmod = ys.getEta(ys.now());
-		old_H_prime = curr_H_prime;
-		curr_H_prime = 1 / ((1 / sv.Hmod) - (0.5 * sv.Gmod));
+		curr_H_prime = (2 * sv.Gmod * sv.Hmod) / (2 * sv.Gmod - sv.Hmod);
 
 		coeff_1 = 1.0 / (curr_H_prime + 2 * sv.Gmod);
-		if (iteration_counter == 0) {
+		if (ys.now() == 0) {
 			coeff_2 = 1.0;
 		}
 		else {
+			double old_Hmod = ys.getEta(ys.prev());
+			old_H_prime = (2 * sv.Gmod * old_Hmod) / (2 * sv.Gmod - old_Hmod);
 			coeff_2 = (old_H_prime - curr_H_prime) / (old_H_prime);
 		}
-		dlambda = coeff_1 * coeff_2 * TensorM::dotdot(nn, (tau_trial - tau_star));
+		dlambda = coeff_1 * coeff_2 * TensorM::dotdot(nn, (zeta_trial - zeta_star));
+		//opserr << "coeff_1 = " << coeff_1 << " coeff_2 = " << coeff_2 << "\n";
+		//opserr << "dlambda = " << dlambda << "\n";
 
-		Vector deps_dev_plastic = dlambda * nn;
-		Vector deps_vol_plastic = dlambda * mm;
-		Vector dtau_plastic = sv.Gmod * deps_dev_plastic;
-		Vector dsigma_vol_plastic = sv.Kmod * deps_vol_plastic;
+		// compute corrected stress
+		tau_trial -= 2 * sv.Gmod * dlambda * mm;
+		//opserr << "tau_trial after correction = " << tau_trial;
+		//zeta_trial = tau_trial - curr_alpha;
+
+		// compute the direction of translation
+		double A = TensorM::dotdot(tau_trial, tau_trial);
+		double B = 2 * TensorM::dotdot((curr_alpha - next_alpha), (tau_trial - curr_alpha));
+		double C = TensorM::dotdot((curr_alpha - next_alpha), (curr_alpha - next_alpha)) - 2.0 / 3.0 * next_K * next_K;
+		double ksi = fmax(((-B + sqrt(B*B - 4*A*C)) / (2*A)), ((-B - sqrt(B*B - 4*A*C)) / (2*A)));
+		Vector tau_trans = curr_alpha + ksi * (tau_trial - curr_alpha);
+		Vector mu_alpha = (tau_trans - curr_alpha) - (curr_K / next_K) * (tau_trans - next_alpha);
+		//mu_alpha = getStressDeviator(mu_alpha);
+		mu_alpha = mu_alpha / sqrt(TensorM::dotdot(mu_alpha, mu_alpha));	// unit vector
+
+		// compute translation magnitude
+		double D = TensorM::dotdot(mu_alpha, mu_alpha);
+		double E = -2 * TensorM::dotdot(mu_alpha, (tau_trial- curr_alpha));
+		double F = TensorM::dotdot((tau_trial - curr_alpha), (tau_trial - curr_alpha)) - 2.0 / 3.0 * curr_K * curr_K;
+		double ksi_mag = fmin(((-E + sqrt(E*E - 4*D*F)) / (2*D)), ((-E + sqrt(E*E - 4*D*F)) / (2*D)));
 		
+		// update current yield surface
+		curr_alpha = curr_alpha + ksi_mag * mu_alpha;	// update the center
+		ys.setAlpha(curr_alpha, ys.now());
+
+		// update inner yield surfaces
+		zeta_trial = tau_trial - curr_alpha;
+		for (int i = 0; i < ys.getNYS(); ++i) {
+			double inner_K = sqrt(3.0 / 2.0) * ys.getTau(ys.now());
+			Vector inner_alpha = ys.getAlpha(i);
+			inner_alpha = tau_trial - (inner_K * zeta_trial) / curr_K;
+			ys.setAlpha(inner_alpha, i);
+		}
+
 		// update material internal variables
-		sv.xs += deps_dev_plastic + deps_vol_plastic;
-		sv.sig = sv.sig - (dtau_plastic + dsigma_vol_plastic);
-		sv.lambda += linearizedFlow(dlambda);
+		sv.xs += dlambda * mm;
+		sv.sig -= dlambda * TensorM::inner(sv.Ce, mm);
+		sv.ksi += curr_H_prime / (TensorM::dotdot(nn, mu_alpha)) * dlambda;
+		sv.lambda += sqrt(3.0 / 2.0) / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dlambda;
 
 		// compute the consistent tangent derivatives
 		if (do_tangent) {
@@ -1022,16 +1023,16 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 			Matrix dTstdE = (curr_K / Ki) * dTtrdE - (curr_K / (Ki * Ki)) * TensorM::outer(zeta_trial, dKdE);
 			Matrix dQdE = 1.0 / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dTstdE - TensorM::inner(TensorM::outer(zeta_star, zeta_star), dTstdE)
 				/ sqrt(pow(TensorM::dotdot(zeta_star, zeta_star), 3));
-			Vector dDlbdE = coeff_1 * coeff_2 * (TensorM::inner((tau_trial - tau_star), dQdE) + TensorM::inner(nn, (dTtrdE - dTstdE)));
+			Vector dDlbdE = coeff_1 * coeff_2 * (TensorM::inner((zeta_trial - zeta_star), dQdE) + TensorM::inner(nn, (dTtrdE - dTstdE)));
 			Matrix dTpldE = 2 * sv.Gmod * (TensorM::outer(dDlbdE, nn) + dlambda * dQdE);
 			// correct stress derivative
-			dTtrdE -= dTpldE;
+			dTtrdE -= TensorM::inner(dTpldE, TensorM::IIdev(nOrd));
+
 		}
 
 		// check if overshhoting the next yield surface
 		next_yf_value = yieldFunction(sv.sig, ys.next());			// next yf_value
 		if ((ys.now() >= ys.getTNYS()) || (next_yf_value < ABSOLUTE_TOLERANCE)) {
-			if (beVerbose) { opserr << "MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution() -> return-mapping converged after " << iteration_counter << " iterations!\n"; }
 			convergence = 1;
 			break; // end while loop: algorithm is done...
 		}
@@ -1040,40 +1041,55 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 		iteration_counter++;
 	}
 
-	// compute consistent tangent
+	// update consistent tangent
 	if (do_tangent) {
-		sv.Cep = TensorM::inner(dTtrdE, TensorM::IIdev(nOrd)) + dStrdE;
+		sv.Cep = dTtrdE + dStrdE;
 	}
 
-	if (iteration_counter == maxIter) {
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution() - return-mapping failed!\n";
-		return 0;
-	}
-
-	// After convergence compute the direction of translation
-		// update current yield surface
-	Vector alpha = ys.getAlpha(ys.now());
-	alpha = alpha + dlambda * rr;	// update the center
-	ys.setAlpha(alpha, ys.now());
-
-		// update inner yield surfaces
-	double yield_stress = getSizeYS(ys.now());
-	if (yield_stress > ABSOLUTE_TOLERANCE) {
-		Vector zeta = getShiftedDeviator(sv.sig, ys.now());
-		for (int i = 0; i < ys.getNYS(); ++i) {
-			Vector inner_zeta = getShiftedDeviator(sv.sig, i);
-			Vector inner_alpha = ys.getAlpha(i);
-			double inner_radius = getSizeYS(i);
-			inner_alpha = inner_alpha + dlambda * (inner_zeta - inner_radius / yield_stress * zeta);
-			ys.setAlpha(inner_alpha, i);
-		}
-	}
-	else {
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::piecewiseLinearSolution() - division by 0 while updating the internal surfaces!\n";
-		return 0;
-	}
-
+	// if converged, return number of iterations instead
+	if (convergence) { convergence = fmax(iteration_counter, 1); }
 	return convergence;
+}
+
+int MultiYieldSurfaceHardeningSoftening::implExIntegration(const Vector& sigma_trial) {
+
+
+	// time factor for explicit extrapolation
+	double time_factor = 1.0;
+	if ((sv.dtime_n_commit > 0.0))
+		time_factor = sv.dtime_n / sv.dtime_n_commit;
+	// note: the implex method just wants the ratio of the new to the old time step
+	// not the real time step, so it is just fine to assume it to be 1.
+	// otherwise we have to deal with the problem of the opensees pseudo-time step
+	// being the load multiplier in continuation methods...
+	time_factor = 1.0;
+
+
+	/* nYs = nYs_commit -> this step is done inside ys.revertToLastCommit() function which
+									is called at the beginning of the updateInternal() method...   */
+	sv.lambda = sv.lambda_commit + (sv.lambda_commit - sv.lambda_commit_old) * time_factor;
+
+
+
+
+
+	Vector zeta = getShiftedDeviator(sigma_trial, ys.now());	// shifted stress deviator tensor
+	double dilatancy = ys.getBeta(ys.now());				// dilatancy parameter
+
+
+	Vector mm = 2.0 / 3.0 * zeta + 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);
+	Vector rr = Vector(6);
+
+
+	// Step 4 - update palstic strains and state variables
+		// update plastic strain
+	sv.xs = sv.xs + sv.lambda * mm;
+	// update stress
+	sv.sig = sv.sig - sv.lambda * TensorM::inner(sv.Ce, mm);
+	// update current and inner yield surfaces
+
+
+	return 0;
 }
 
 		// root search algorithm

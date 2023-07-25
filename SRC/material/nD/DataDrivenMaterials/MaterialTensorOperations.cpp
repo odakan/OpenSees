@@ -45,6 +45,29 @@ Vector TensorM::I(const int N) {
 	return kD;
 }
 
+Matrix TensorM::I4(const int N) {
+	// return 4th order identity tennsor in Voigt notation
+	Matrix I4(N, N);
+	if (N == 6) {
+		I4(0, 0) = 1;
+		I4(1, 1) = 1;
+		I4(2, 2) = 1;
+		I4(3, 3) = 0.5;
+		I4(4, 4) = 0.5;
+		I4(5, 5) = 0.5;
+	}
+	else if (N == 3) {
+		I4(0, 0) = 0.5;
+		I4(1, 1) = 0.5;
+		I4(2, 2) = 0.5;
+	}
+	else {
+		opserr << "FATAL: TensorM::I4() - invalid material dimension!!\n";
+		exit(-1);
+	}
+	return I4;
+}
+
 Matrix TensorM::IIvol(const int N) {
 	// return 4th order Volumetric Tensor in Voigt notation
 	// IIvol = I1 tensor I1

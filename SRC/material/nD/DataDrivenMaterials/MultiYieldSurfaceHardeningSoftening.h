@@ -189,7 +189,7 @@ protected:
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
-	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = closest point projection]
+	int solution_strategy = 1;						// [0 = cutting plane algorithm, 1 = closest point projection]
 
 protected:
 	// the get methods
@@ -204,9 +204,9 @@ protected:
 	virtual Vector getShiftedDeviator(const Vector& stress, const int num_ys) = 0;	// shifted deviatoric stress tensor (Ziegler's rule)
 
 	// material internal operations
-	void updateModulus(const Vector& stress, const int num_ys);				// Update elastic modulus
-	void updateInternal(const bool do_implex, const bool do_tangent);		// Update materal internal state
-	void computeElastoplasticTangent(int num_ys, const Vector& stress);		// Compute the algorithmic tangent operator
+	void updateModuli(const Vector& stress);								// update elastic tensor
+	void updateInternal(const bool do_implex, const bool do_tangent);		// update materal internal state
+	void computeElastoplasticTangent(int num_ys, const Vector& stress);		// compute the elasto-plastic tangent operator, Cep becomes E-P tangent
 
 	// yield surface operations (must be overloaded by the sub-class)
 	virtual double yieldFunction(const Vector& stress, const int num_ys, bool yield_stress) = 0;	// Return yield function (F) value
@@ -222,11 +222,12 @@ protected:
 	virtual Vector Di(const Vector& stress, const int num_ys) = 0;
 
 	// return-mapping
-	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);
-	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);
+	int implExIntegration(const Vector& sigma_trial);								// Extrapolation step of material equations, Cep becomes implex tangent 
+	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);	// Explicit solution of material equations, Cep is not updated, call E-P after
+	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);	// Implicit solution of material equations, Cep becomes consistent tangent
 
 	// update methods
-	void updateFailureSurface(const Vector& stress);									// Update the final yield surface (alpha)
+	void updateFailureSurface(const Vector& stress);								// Update the final yield surface (alpha)
 
 	// root search algortihm
 	double zbrentStress(const Vector& start_stress, const Vector& end_stress, 

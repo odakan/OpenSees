@@ -39,7 +39,7 @@ public:
 
 
 	static Vector I(const int N);
-	static Matrix II4(const int N);
+	static Matrix I4(const int N);
 	static Matrix IIvol(const int N);
 	static Matrix IIdev(const int N);
 	
