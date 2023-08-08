@@ -104,6 +104,8 @@ constexpr double ABSOLUTE_TOLERANCE = 1e-4;
 constexpr double RELATIVE_TOLERANCE = 1e-6;
 constexpr double MACHINE_EPSILON = DBL_EPSILON;
 constexpr double SMALL_PERTURBATION = 1.0e-9;
+constexpr double SMALL_VALUE = 1.0e-8;
+constexpr double LARGE_VALUE = 1.0e8;
 constexpr int BRENT_MAXITER = 20;
 constexpr double BRENT_TOLERANCE = 1e-6;
 

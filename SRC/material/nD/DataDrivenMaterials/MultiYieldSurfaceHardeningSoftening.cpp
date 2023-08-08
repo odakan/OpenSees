@@ -943,30 +943,37 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	while (iteration_counter < maxIter) {
 
 		// get trial stress deviator
-		
 		Vector tau_trial = getStressDeviator(sv.sig);
 		Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
-		//opserr << "sv.sig before correction = " << sv.sig;
-		//opserr << "tau_trial before correction = " << tau_trial;
-		opserr << "zeta_trial = " << zeta_trial;
+		//opserr << "current_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
+		//opserr << "sv.sig     = " << sv.sig;
+		//opserr << "tau_trial  = " << tau_trial;
+		//opserr << "zeta_trial = " << zeta_trial;
 
 		// compute contact stress
 		Vector curr_alpha = ys.getAlpha(ys.now());
 		Vector next_alpha = ys.getAlpha(ys.next());
 		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
-		curr_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.now())), 1e-8);				// current radius
-		next_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.next())), 1e-8);				// next radius
+		curr_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.now())), SMALL_VALUE);		// current radius
+		next_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.next())), SMALL_VALUE);		// next radius
 		Vector zeta_star = ((curr_K / Ki) * zeta_trial);							// eqn. 9
 		Vector tau_star = zeta_star + curr_alpha;
-		opserr << "zeta_star = " << zeta_star;
+		//opserr << "zeta_star = " << zeta_star;
 
 		// compute the derivatives
 		nn = zeta_star / sqrt(TensorM::dotdot(zeta_star, zeta_star));
 		mm = zeta_star / sqrt(TensorM::dotdot(zeta_star, zeta_star));
 
+		// compute plastic modulus H'
 		sv.Hmod = ys.getEta(ys.now());
-		curr_H_prime = (2 * sv.Gmod * sv.Hmod) / (2 * sv.Gmod - sv.Hmod);
+		if (abs(2 * sv.Gmod - sv.Hmod) < SMALL_VALUE) {
+			curr_H_prime = LARGE_VALUE;
+		}
+		else {
+			curr_H_prime = (2 * sv.Gmod * sv.Hmod) / (2 * sv.Gmod - sv.Hmod);
+		}
 
+		// compute iteration plastic multiplier
 		coeff_1 = 1.0 / (curr_H_prime + 2 * sv.Gmod);
 		if (ys.now() == 0) {
 			coeff_2 = 1.0;
@@ -977,13 +984,12 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 			coeff_2 = (old_H_prime - curr_H_prime) / (old_H_prime);
 		}
 		dlambda = coeff_1 * coeff_2 * TensorM::dotdot(nn, (tau_trial - tau_star));
-		opserr << "coeff_1 = " << coeff_1 << " coeff_2 = " << coeff_2 << "\n";
-		opserr << "dlambda = " << dlambda << "\n";
+		//opserr << "coeff_1 = " << coeff_1 << " coeff_2 = " << coeff_2 << "\n";
+		//opserr << "dlambda = " << dlambda << "\n";
 
 		// update material internal variables
 		sv.xs = sv.xs + dlambda * mm;
 		sv.sig = sv.sig - dlambda * TensorM::inner(sv.Ce, mm);
-		sv.lambda = sv.lambda + sqrt(3.0 / 2.0) / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dlambda;
 
 		// compute the direction of translation
 		tau_trial = getStressDeviator(sv.sig);
@@ -996,6 +1002,10 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 		Vector mu_alpha = (tau_trans - curr_alpha) - (curr_K / next_K) * (tau_trans - next_alpha);
 		//mu_alpha = getStressDeviator(mu_alpha);
 		mu_alpha = mu_alpha / sqrt(TensorM::dotdot(mu_alpha, mu_alpha));	// unit vector
+
+		// update rephrased variables (IMPL-EX: implicit correction)
+		sv.lambda = sv.lambda + sqrt(3.0 / 2.0) / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dlambda;
+		sv.ksi = sv.ksi + curr_H_prime / (TensorM::dotdot(nn, mu_alpha)) * dlambda;
 
 		// compute translation magnitude
 		double D = TensorM::dotdot(mu_alpha, mu_alpha);
@@ -1015,9 +1025,6 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 			ys.setAlpha(inner_alpha, i);
 		}
 
-		// update rephrased translation
-		sv.ksi = sv.ksi + curr_H_prime / (TensorM::dotdot(nn, mu_alpha)) * dlambda;
-
 		// compute the consistent tangent derivatives
 		if (do_tangent) {
 			Vector dKdE = (3.0 / (2.0 * Ki)) * TensorM::inner(zeta_trial, dTtrdE); //covariant
@@ -1033,6 +1040,8 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 
 		// check if overshhoting the next yield surface
 		next_yf_value = yieldFunction(sv.sig, ys.next());			// next yf_value
+		//opserr << "current_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
+		//opserr << "next_yf_value    = " << next_yf_value << "\n";
 		if ((ys.now() >= ys.getTNYS()) || (next_yf_value < ABSOLUTE_TOLERANCE)) {
 			convergence = 1;
 			break; // end while loop: algorithm is done...

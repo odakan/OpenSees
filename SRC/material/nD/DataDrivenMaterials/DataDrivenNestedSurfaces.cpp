@@ -340,7 +340,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		psi_bar(0.0), dilatancy(0.0);
 
 	int tnys = yieldSurface.getTNYS();
-	
+
 	if (yieldSurface.isNonAssociated()) {
 		psi_bar = tan(yieldSurface.getPsi() * M_PI / 180);	// compute the coefficient of dilation
 	}
@@ -353,18 +353,33 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		peakShear = sqrt(2.) * coneHeight * MnyieldSurface / 3.;
 		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
 	}
-	else if (yieldSurface.getPhi() == 0.0) {			// cohesion = peakShear
-		peakShear = 2 * sqrt(2.) * yieldSurface.getCohesion() / 3;
+	else if (yieldSurface.getPhi() == 0.0) {			// cohesion = 2 * sqrt(2.) / 3.0 * peakShear
+		peakShear = 2.0 * sqrt(2.) * yieldSurface.getCohesion() / 3.0;
 		refStrain = (yieldSurface.getPeakStrain() * peakShear) / (Gref * yieldSurface.getPeakStrain() - peakShear);
 		yieldSurface.setPresid(0.0);
 	}
 
-	double stressInc = peakShear / (tnys);
+	double stressInc = peakShear / tnys;
 
-	for (int i = 0; i <= tnys; i++) {
-		stress1 = i * stressInc;
-		stress2 = stress1 + stressInc;
+	// first yield surface
+	stress1 = stressInc * 0.01;
+	strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+	stress2 = stressInc;
+	strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
+	if (yieldSurface.getPhi() > 0.) {
+		size = 3. * stress1 / sqrt(2.) / coneHeight;
+	}
+	else if (yieldSurface.getPhi() == 0.) {
+		size = 3. * stress1 / sqrt(2.);
+	}
+	Href = (stress2 - stress1) / (strain2 - strain1);
+	yieldSurface.setTau(size, 0);
+	yieldSurface.setEta(Href, 0);
+
+	for (int i = 1; i <= tnys; i++) {
+		stress1 = stressInc * i;
 		strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+		stress2 = stress1 + stressInc;
 		strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
 		if (yieldSurface.getPhi() > 0.) {
 			size = 3. * stress1 / sqrt(2.) / coneHeight;
@@ -373,30 +388,10 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 			size = 3. * stress1 / sqrt(2.);
 		}
 
-		Hep_ref = 2. * (stress2 - stress1) / (strain2 - strain1);
+		Href = (stress2 - stress1) / (strain2 - strain1);
 
-		if ((2. * Gref - Hep_ref) <= 0) {
-			Href = LARGE_NUMBER;
-		}
-		else {
-			Href = (2. * Gref * Hep_ref) / (2. * Gref - Hep_ref);
-		}
-
-		if (Href < 0) {
-			Href = 0;
-		}
-
-		if (Href > LARGE_NUMBER) {
-			Href = LARGE_NUMBER;
-		}
-
-		if (i == tnys) {
-			Href = 0;
-		}
-
-		if (i == 0) {
-			size = 3.0 / sqrt(2.0) * stressInc * 0.01;
-		}
+		if (Href > LARGE_NUMBER) { Href = LARGE_NUMBER; }
+		if (i == tnys) { Href = 0; }
 
 		yieldSurface.setTau(size, i);
 		yieldSurface.setEta(Href, i);

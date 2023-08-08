@@ -163,7 +163,7 @@ double TensorM::dotdot(const Vector& A, const Vector& B) {
 	}
 
 	double scalar = 0;
-	for (int i = 0; i < (NB - 1); i++) {
+	for (int i = 0; i < NB; i++) {
 		scalar += A(i) * Bc(i);
 	}
 	return scalar;
@@ -187,8 +187,8 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 	}
 	Matrix Ac(NAr, NAc);
 	if (NAc == 3) {
-		for (int i = 0; i < 2; i++) {
-			for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
 				if (j == 2) {
 					Ac(i, j) = 2 * A(i, j);
 				}
@@ -199,8 +199,8 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 		}
 	}
 	else if (NAc == 6) {
-		for (int i = 0; i < 5; i++) {
-			for (int j = 0; j < 5; j++) {
+		for (int i = 0; i < 6; i++) {
+			for (int j = 0; j < 6; j++) {
 				if (j > 2) {
 					Ac(i, j) = 2 * A(i, j);
 				}
@@ -215,8 +215,8 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 		exit(-1);
 	}
 	Matrix C(NBc, NBc);
-	for (int i = 0; i < (NBc - 1); i++) {
-		for (int j = 0; j < (NBc - 1); j++) {
+	for (int i = 0; i < NBc; i++) {
+		for (int j = 0; j < NBc; j++) {
 			C(i, j) += Ac(i, j) * B(i, j);
 		}
 	}
@@ -240,8 +240,8 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 	}
 	//Matrix Ac(NAr, NAc);
 	//if (NAc == 3) {
-	//	for (int i = 0; i < 2; i++) {
-	//		for (int j = 0; j < 2; j++) {
+	//	for (int i = 0; i < 3; i++) {
+	//		for (int j = 0; j < 3; j++) {
 	//			if (j == 2) {
 	//				Ac(i, j) = 2 * A(i, j);
 	//			}
@@ -252,8 +252,8 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 	//	}
 	//}
 	//else if (NAc == 6) {
-	//	for (int i = 0; i < 5; i++) {
-	//		for (int j = 0; j < 5; j++) {
+	//	for (int i = 0; i < 6; i++) {
+	//		for (int j = 0; j < 6; j++) {
 	//			if (j > 2) {
 	//				Ac(i, j) = 2 * A(i, j);
 	//			}
@@ -268,8 +268,8 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 	//	exit(-1);
 	//}
 	Vector C(NAc);
-	for (int i = 0; i < (NAc - 1); i++) {
-		for (int j = 0; j < (NAc - 1); j++) {
+	for (int i = 0; i < NAc; i++) {
+		for (int j = 0; j < NAc; j++) {
 			C(i) += A(i, j) * B(j);
 		}
 	}
@@ -293,8 +293,8 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 	}
 	Matrix Bc(NBr, NBc);
 	if (NBc == 3) {
-		for (int i = 0; i < 2; i++) {
-			for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
 				if (j == 2) {
 					Bc(i, j) = 2 * B(i, j);
 				}
@@ -305,8 +305,8 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 		}
 	}
 	else if (NBc == 6) {
-		for (int i = 0; i < 5; i++) {
-			for (int j = 0; j < 5; j++) {
+		for (int i = 0; i < 6; i++) {
+			for (int j = 0; j < 6; j++) {
 				if (j > 2) {
 					Bc(i, j) = 2 * B(i, j);
 				}
@@ -321,8 +321,8 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 		exit(-1);
 	}
 	Vector C(NBc);
-	for (int i = 0; i < (NBc - 1); i++) {
-		for (int j = 0; j < (NBc - 1); j++) {
+	for (int i = 0; i < NBc; i++) {
+		for (int j = 0; j < NBc; j++) {
 			C(j) += A(i) * Bc(i, j);
 		}
 	}
