@@ -140,8 +140,9 @@ double TensorM::determinant(const Vector& A) {
 }
 
 double TensorM::dotdot(const Vector& A, const Vector& B) {
-	// c = Aij * Bij - double dot operation between two
-	//				   square matrices in Voigt notation
+	// c = A^ij (contravariant) * B^ij (contravariant)
+	// - double dot operation between two
+	//	 square matrices in Voigt notation
 	int NA = A.Size();
 	int NB = B.Size();
 	if (NA != NB) {
@@ -169,8 +170,9 @@ double TensorM::dotdot(const Vector& A, const Vector& B) {
 }
 
 Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
-	// Cijkl = Aijmn * Bmnkl - inner product between two 4th 
-	//						   order tensors in Voigt notation
+	// C^ij^kl (contravariant) = A^ij_mn (mixed-variant) * B_mn^kl (covariant)
+	// - inner product between two 4th 
+	//	 order tensors in Voigt notation
 	int NAr = A.noRows();
 	int NAc = A.noCols();
 	int NBr = B.noRows();
@@ -185,8 +187,8 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 	}
 	Matrix Ac(NAr, NAc);
 	if (NAc == 3) {
-		for (int i = 0; i < (NAc - 1); i++) {
-			for (int j = 0; j < (NAc - 1); j++) {
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 2; j++) {
 				if (j == 2) {
 					Ac(i, j) = 2 * A(i, j);
 				}
@@ -197,8 +199,8 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 		}
 	}
 	else if (NAc == 6) {
-		for (int i = 0; i < (NAc - 1); i++) {
-			for (int j = 0; j < (NAc - 1); j++) {
+		for (int i = 0; i < 5; i++) {
+			for (int j = 0; j < 5; j++) {
 				if (j > 2) {
 					Ac(i, j) = 2 * A(i, j);
 				}
@@ -222,8 +224,9 @@ Matrix TensorM::inner(const Matrix& A, const Matrix& B) {
 }
 
 Vector TensorM::inner(const Matrix& A, const Vector& B) {
-	// Cij = Aijkl * Bkl  - double dot operation between a 4th order tensor
-	//						and a square matrice in Voigt notation
+	// C^ij (contravariant) = A^ij_kl (mixed-variant) * B_kl (covariant)  
+	// - double dot operation between a 4th order tensor
+	//	 and a square matrice in Voigt notation
 	int NAr = A.noRows();
 	int NAc = A.noCols();
 	int NB = B.Size();
@@ -235,47 +238,48 @@ Vector TensorM::inner(const Matrix& A, const Vector& B) {
 		opserr << "FATAL: TensorM::inner() - size mismatch!!\n";
 		exit(-1);
 	}
-	Matrix Ac(NAr, NAc);
-	if (NAc == 3) {
-		for (int i = 0; i < (NAc - 1); i++) {
-			for (int j = 0; j < (NAc - 1); j++) {
-				if (j == 2) {
-					Ac(i, j) = 2 * A(i, j);
-				}
-				else {
-					Ac(i, j) = A(i, j);
-				}
-			}
-		}
-	}
-	else if (NAc == 6) {
-		for (int i = 0; i < (NAc - 1); i++) {
-			for (int j = 0; j < (NAc - 1); j++) {
-				if (j > 2) {
-					Ac(i, j) = 2 * A(i, j);
-				}
-				else {
-					Ac(i, j) = A(i, j);
-				}
-			}
-		}
-	}
-	else {
-		opserr << "FATAL: TensorM::inner() - invalid material dimension!!\n";
-		exit(-1);
-	}
+	//Matrix Ac(NAr, NAc);
+	//if (NAc == 3) {
+	//	for (int i = 0; i < 2; i++) {
+	//		for (int j = 0; j < 2; j++) {
+	//			if (j == 2) {
+	//				Ac(i, j) = 2 * A(i, j);
+	//			}
+	//			else {
+	//				Ac(i, j) = A(i, j);
+	//			}
+	//		}
+	//	}
+	//}
+	//else if (NAc == 6) {
+	//	for (int i = 0; i < 5; i++) {
+	//		for (int j = 0; j < 5; j++) {
+	//			if (j > 2) {
+	//				Ac(i, j) = 2 * A(i, j);
+	//			}
+	//			else {
+	//				Ac(i, j) = A(i, j);
+	//			}
+	//		}
+	//	}
+	//}
+	//else {
+	//	opserr << "FATAL: TensorM::inner() - invalid material dimension!!\n";
+	//	exit(-1);
+	//}
 	Vector C(NAc);
 	for (int i = 0; i < (NAc - 1); i++) {
 		for (int j = 0; j < (NAc - 1); j++) {
-			C(i) += Ac(i, j) * B(j);
+			C(i) += A(i, j) * B(j);
 		}
 	}
 	return C;
 }
 
 Vector TensorM::inner(const Vector& A, const Matrix& B) {
-	// Cij = Aij * Bijkl - double dot operation between a 4th order tensor
-	//					   and a square matrice in Voigt notation
+	// C_kl (covariant) = A^ij (contravariant) * B^ij_kl (mixed-variant)
+	// - double dot operation between a 4th order tensor
+	//	 and a square matrice in Voigt notation
 	int NBr = B.noRows();
 	int NBc = B.noCols();
 	int NA = A.Size();
@@ -289,8 +293,8 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 	}
 	Matrix Bc(NBr, NBc);
 	if (NBc == 3) {
-		for (int i = 0; i < (NBc - 1); i++) {
-			for (int j = 0; j < (NBc - 1); j++) {
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 2; j++) {
 				if (j == 2) {
 					Bc(i, j) = 2 * B(i, j);
 				}
@@ -301,8 +305,8 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 		}
 	}
 	else if (NBc == 6) {
-		for (int i = 0; i < (NBc - 1); i++) {
-			for (int j = 0; j < (NBc - 1); j++) {
+		for (int i = 0; i < 5; i++) {
+			for (int j = 0; j < 5; j++) {
 				if (j > 2) {
 					Bc(i, j) = 2 * B(i, j);
 				}
@@ -319,7 +323,7 @@ Vector TensorM::inner(const Vector& A, const Matrix& B) {
 	Vector C(NBc);
 	for (int i = 0; i < (NBc - 1); i++) {
 		for (int j = 0; j < (NBc - 1); j++) {
-			C(i) += A(i) * Bc(i, j);
+			C(j) += A(i) * Bc(i, j);
 		}
 	}
 	return C;

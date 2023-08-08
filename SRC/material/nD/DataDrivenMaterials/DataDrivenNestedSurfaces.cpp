@@ -395,7 +395,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(YieldSurfacePackage& yield
 		}
 
 		if (i == 0) {
-			size = stressInc * 0.01;
+			size = 3.0 / sqrt(2.0) * stressInc * 0.01;
 		}
 
 		yieldSurface.setTau(size, i);

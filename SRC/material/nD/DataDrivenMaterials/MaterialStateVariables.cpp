@@ -146,9 +146,9 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "Plastic multiplier      =  " << lambda << "\n";
 		opserr << "Commited pl. multiplier =  " << lambda_commit << "\n";
 		opserr << "Prev. comm. pl. mult.   =  " << lambda_commit_old << "\n";
-		opserr << "Translation direction   =  " << ksi << "\n";
-		opserr << "Commited tr. direction  =  " << ksi_commit << "\n";
-		opserr << "Prev. comm. tr. dir.    =  " << ksi_commit_old << "\n";
+		opserr << "Translation multiplier  =  " << ksi << "\n";
+		opserr << "Commited tr. multiplier =  " << ksi_commit << "\n";
+		opserr << "Prev. comm. tr. mult.   =  " << ksi_commit_old << "\n";
 		opserr << "------------------ Consistent Tangent Operator ------------------\n";
 		opserr << "Kt = " << Cep;
 	}
@@ -158,8 +158,8 @@ void MaterialStateVariables::printStats(bool detail) {
 		opserr << "Stress             =  " << sig;
 		opserr << "Strain             =  " << eps;
 		opserr << "Plastic multiplier =  " << lambda << "\n";
+		opserr << "Translation mult.  =  " << ksi << "\n";
 		opserr << "Plastic strain     =  " << xs << "\n";
-		opserr << "Translation dir.   =  " << ksi << "\n";
 	}
 }
 
