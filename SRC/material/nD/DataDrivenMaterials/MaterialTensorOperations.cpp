@@ -23,6 +23,22 @@
 
 double TensorM::macCaulay(const double N) { double val = (N + fabs(N)) * 0.5; return val; }
 
+Vector TensorM::quadratic(const double A, const double B, const double C) {
+	// check if the roots are real
+	// solve and return the roots of a quadratic equation
+	Vector roots(2);
+	double discriminant = sqrt(B * B - 4 * A * C);
+	if (discriminant > 0) {
+		roots(0) = ((-B + discriminant) / (2 * A));
+		roots(1) = ((-B - discriminant) / (2 * A));
+		return roots;
+	}
+	else {
+		opserr << "FATAL: TensorM::quadratic() - No real roots!!\n";
+		exit(-1);
+	}
+}
+
 
 Vector TensorM::I(const int N) {
 	// return identity matrix in Voigt notation

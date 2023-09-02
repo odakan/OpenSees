@@ -191,7 +191,7 @@ protected:
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)
 	int materialStage = 0;							// use updateMaterialStage [0 = linear elastic, 1 = elastoplastic, 2 = nonlinear elastic]
-	int solution_strategy = 1;						// [0 = cutting plane algorithm, 1 = closest point projection]
+	int solution_strategy = 0;						// [0 = cutting plane algorithm, 1 = closest point projection]
 
 protected:
 	// the get methods
@@ -224,7 +224,7 @@ protected:
 	virtual Vector Di(const Vector& stress, const int num_ys) = 0;
 
 	// return-mapping
-	int implExIntegration(const Vector& sigma_trial);								// Extrapolation step of material equations, Cep becomes implex tangent 
+	int implExIntegration(const Vector& sigma_trial, const bool do_tangent);	    // Extrapolation step of material equations, Cep becomes implex tangent 
 	int cuttingPlaneAlgorithm(const Vector& sigma_trial, const bool do_tangent);	// Explicit solution of material equations, Cep is not updated, call E-P after
 	int closestPointProjection(const Vector& sigma_trial, const bool do_tangent);	// Implicit solution of material equations, Cep becomes consistent tangent
 

@@ -36,6 +36,7 @@ public:
 
 
 	static double macCaulay(const double N);
+	static Vector quadratic(const double A, const double B, const double C);
 
 
 	static Vector I(const int N);

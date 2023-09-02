@@ -34,14 +34,6 @@
 #include "MultiYieldSurfaceHardeningSoftening.h"
 #include <MaterialResponse.h>
 
-//	-- TO DO LIST --
-//
-// 4) MAKE SURE all the necessary OpenSees functions are there
-//
-// 5) CODE all OpenSees related public functions
-//
-// 6) CODE ThreeDimensional, PlaneStrain tangent and stress
-
 
 // Public methods
 	// full constructor
@@ -690,7 +682,7 @@ void MultiYieldSurfaceHardeningSoftening::updateInternal(bool do_implex, bool do
 		ST = sv.sig + TensorM::inner(sv.Ce, (eps_incr));		    // trial stres
 		if (do_implex && use_implex) {
 			// EXPLICIT step: do explicit extrapolation
-			implExIntegration(ST);
+			implExIntegration(ST, do_tangent);
 		}
 		else {														// elastoplastic material
 			// IMPLICIT step: solve constitutive equations
@@ -923,6 +915,9 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	// convergence status
 	int convergence = 0; int maxIter = 500;	int iteration_counter = 0;
 
+	// initialize trial state
+	Vector tau_trial, zeta_trial, curr_alpha, next_alpha, zeta_star, tau_star;
+
 	// initialize rate tensors
 	Vector nn(nOrd); Vector mm(nOrd);
 
@@ -943,22 +938,22 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 	while (iteration_counter < maxIter) {
 
 		// get trial stress deviator
-		Vector tau_trial = getStressDeviator(sv.sig);
-		Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
-		//opserr << "current_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
-		//opserr << "sv.sig     = " << sv.sig;
-		//opserr << "tau_trial  = " << tau_trial;
-		//opserr << "zeta_trial = " << zeta_trial;
+		tau_trial = getStressDeviator(sv.sig);
+		zeta_trial = getShiftedDeviator(tau_trial, ys.now());
+		opserr << "trial_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
+		opserr << "sv.sig     = " << sv.sig;
+		opserr << "tau_trial  = " << tau_trial;
+		opserr << "zeta_trial = " << zeta_trial;
 
 		// compute contact stress
-		Vector curr_alpha = ys.getAlpha(ys.now());
-		Vector next_alpha = ys.getAlpha(ys.next());
+		curr_alpha = ys.getAlpha(ys.now());
+		next_alpha = ys.getAlpha(ys.next());
 		double Ki = sqrt((3.0 / 2.0) * TensorM::dotdot(zeta_trial, zeta_trial));	// eqn. 10
 		curr_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.now())), SMALL_VALUE);		// current radius
 		next_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.next())), SMALL_VALUE);		// next radius
-		Vector zeta_star = ((curr_K / Ki) * zeta_trial);							// eqn. 9
-		Vector tau_star = zeta_star + curr_alpha;
-		//opserr << "zeta_star = " << zeta_star;
+		zeta_star = ((curr_K / Ki) * zeta_trial);							// eqn. 9
+		tau_star = zeta_star + curr_alpha;
+		opserr << "zeta_star = " << zeta_star;
 
 		// compute the derivatives
 		nn = zeta_star / sqrt(TensorM::dotdot(zeta_star, zeta_star));
@@ -975,7 +970,7 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 
 		// compute iteration plastic multiplier
 		coeff_1 = 1.0 / (curr_H_prime + 2 * sv.Gmod);
-		if (ys.now() == 0) {
+		if (iteration_counter == 0) {
 			coeff_2 = 1.0;
 		}
 		else {
@@ -984,46 +979,12 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 			coeff_2 = (old_H_prime - curr_H_prime) / (old_H_prime);
 		}
 		dlambda = coeff_1 * coeff_2 * TensorM::dotdot(nn, (tau_trial - tau_star));
-		//opserr << "coeff_1 = " << coeff_1 << " coeff_2 = " << coeff_2 << "\n";
-		//opserr << "dlambda = " << dlambda << "\n";
+		opserr << "coeff_1 = " << coeff_1 << " coeff_2 = " << coeff_2 << "\n";
+		opserr << "dlambda = " << dlambda << "\n";
 
 		// update material internal variables
 		sv.xs = sv.xs + dlambda * mm;
 		sv.sig = sv.sig - dlambda * TensorM::inner(sv.Ce, mm);
-
-		// compute the direction of translation
-		tau_trial = getStressDeviator(sv.sig);
-		zeta_trial = getShiftedDeviator(tau_trial, ys.now());
-		double A = TensorM::dotdot(tau_trial, tau_trial);
-		double B = 2 * TensorM::dotdot((curr_alpha - next_alpha), (tau_trial - curr_alpha));
-		double C = TensorM::dotdot((curr_alpha - next_alpha), (curr_alpha - next_alpha)) - 2.0 / 3.0 * next_K * next_K;
-		double ksi = fmax(((-B + sqrt(B*B - 4*A*C)) / (2*A)), ((-B - sqrt(B*B - 4*A*C)) / (2*A)));
-		Vector tau_trans = curr_alpha + ksi * (tau_trial - curr_alpha);
-		Vector mu_alpha = (tau_trans - curr_alpha) - (curr_K / next_K) * (tau_trans - next_alpha);
-		//mu_alpha = getStressDeviator(mu_alpha);
-		mu_alpha = mu_alpha / sqrt(TensorM::dotdot(mu_alpha, mu_alpha));	// unit vector
-
-		// update rephrased variables (IMPL-EX: implicit correction)
-		sv.lambda = sv.lambda + sqrt(3.0 / 2.0) / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dlambda;
-		sv.ksi = sv.ksi + curr_H_prime / (TensorM::dotdot(nn, mu_alpha)) * dlambda;
-
-		// compute translation magnitude
-		double D = TensorM::dotdot(mu_alpha, mu_alpha);
-		double E = -2 * TensorM::dotdot(mu_alpha, (tau_trial- curr_alpha));
-		double F = TensorM::dotdot((tau_trial - curr_alpha), (tau_trial - curr_alpha)) - 2.0 / 3.0 * curr_K * curr_K;
-		double ksi_mag = fmin(((-E + sqrt(E*E - 4*D*F)) / (2*D)), ((-E + sqrt(E*E - 4*D*F)) / (2*D)));
-		
-		// update current yield surface
-		curr_alpha = curr_alpha + ksi_mag * mu_alpha;	// update the center
-		ys.setAlpha(curr_alpha, ys.now());
-
-		// update inner yield surfaces
-		for (int i = 0; i < ys.getNYS(); ++i) {
-			double inner_K = sqrt(3.0 / 2.0) * ys.getTau(ys.now());
-			Vector inner_alpha = ys.getAlpha(i);
-			inner_alpha = tau_trial - (inner_K * zeta_trial) / curr_K;
-			ys.setAlpha(inner_alpha, i);
-		}
 
 		// compute the consistent tangent derivatives
 		if (do_tangent) {
@@ -1032,7 +993,7 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 			Matrix dQdE = 1.0 / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dTstdE - TensorM::inner(TensorM::outer(zeta_star, zeta_star), dTstdE)
 				/ sqrt(pow(TensorM::dotdot(zeta_star, zeta_star), 3)); //mixed-variant (contra-co)
 			Vector dDlbdE = coeff_1 * coeff_2 * (TensorM::inner((tau_trial - tau_star), dQdE) + TensorM::inner(nn, (dTtrdE - dTstdE))); //covariant
-			Matrix dTpldE = 2 * sv.Gmod * (TensorM::outer(dDlbdE, nn) + dlambda * dQdE);
+			Matrix dTpldE = 2 * sv.Gmod * (TensorM::outer(dDlbdE, mm) + dlambda * dQdE);
 			// correct stress derivative
 			dTtrdE = dTtrdE - TensorM::inner(dTpldE, TensorM::IIdev(nOrd));
 
@@ -1040,8 +1001,6 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 
 		// check if overshhoting the next yield surface
 		next_yf_value = yieldFunction(sv.sig, ys.next());			// next yf_value
-		//opserr << "current_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
-		//opserr << "next_yf_value    = " << next_yf_value << "\n";
 		if ((ys.now() >= ys.getTNYS()) || (next_yf_value < ABSOLUTE_TOLERANCE)) {
 			convergence = 1;
 			break; // end while loop: algorithm is done...
@@ -1050,19 +1009,61 @@ int MultiYieldSurfaceHardeningSoftening::closestPointProjection(const Vector& si
 		ys.increment();
 		iteration_counter++;
 	}
+	
+	// compute the direction of translation
+	Vector roots(2);
+	tau_trial = getStressDeviator(sv.sig);
+	zeta_trial = getShiftedDeviator(tau_trial, ys.now());
+	double A = TensorM::dotdot(tau_trial, tau_trial);
+	double B = 2 * TensorM::dotdot((curr_alpha - next_alpha), (tau_trial - curr_alpha));
+	double C = TensorM::dotdot((curr_alpha - next_alpha), (curr_alpha - next_alpha)) - 2.0 / 3.0 * next_K * next_K;
+	roots = TensorM::quadratic(A, B, C);
+	double ksi = fmax(roots(0), roots(1));
+	Vector tau_trans = curr_alpha + ksi * (tau_trial - curr_alpha);
+	Vector mu_alpha = (tau_trans - curr_alpha) - (curr_K / next_K) * (tau_trans - next_alpha);
+	//mu_alpha = getStressDeviator(mu_alpha);
+	//mu_alpha = mu_alpha / sqrt(TensorM::dotdot(mu_alpha, mu_alpha));	// unit vector
+
+	// update rephrased variables (IMPL-EX: implicit correction)
+	sv.lambda = sv.lambda + sqrt(3.0 / 2.0) / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dlambda;
+	sv.ksi = sv.ksi + curr_H_prime / (TensorM::dotdot(nn, mu_alpha)) * dlambda;
+
+	// compute translation magnitude
+	double D = TensorM::dotdot(mu_alpha, mu_alpha);
+	double E = -2 * TensorM::dotdot(mu_alpha, (tau_trial - curr_alpha));
+	double F = TensorM::dotdot((tau_trial - curr_alpha), (tau_trial - curr_alpha)) - 2.0 / 3.0 * curr_K * curr_K;
+	roots = TensorM::quadratic(D, E, F);
+	double ksi_mag = fmin(roots(0), roots(1));
+
+	// update current yield surface
+	curr_alpha += ksi_mag * mu_alpha;	// update the center
+	ys.setAlpha(curr_alpha, ys.now());
+
+	// update inner yield surfaces
+	for (int i = 0; i < ys.getNYS(); i++) {
+		double inner_K = sqrt(3.0 / 2.0) * ys.getTau(i);
+		Vector inner_alpha = ys.getAlpha(i);
+		inner_alpha = tau_trial - (inner_K * zeta_trial) / curr_K;
+		ys.setAlpha(inner_alpha, i);
+	}
 
 	// update consistent tangent
 	if (do_tangent) {
 		sv.Cep = dTtrdE + dStrdE;
 	}
 
+	opserr << "current_yf_value = " << yieldFunction(sv.sig, ys.now()) << "\n";
+	opserr << "next_yf_value    = " << next_yf_value << "\n";
+
 	// if converged, return number of iterations instead
-	if (convergence) { convergence = fmax(iteration_counter, 1); }
+	if (convergence) {convergence = ++iteration_counter; }
 	return convergence;
 }
 
-int MultiYieldSurfaceHardeningSoftening::implExIntegration(const Vector& sigma_trial) {
+int MultiYieldSurfaceHardeningSoftening::implExIntegration(const Vector& sigma_trial, const bool do_tangent) {
 
+	// set trial stress 
+	sv.sig = sigma_trial;
 
 	// time factor for explicit extrapolation
 	double time_factor = 1.0;
@@ -1074,30 +1075,57 @@ int MultiYieldSurfaceHardeningSoftening::implExIntegration(const Vector& sigma_t
 	// being the load multiplier in continuation methods...
 	time_factor = 1.0;
 
-
+	// extrapolate material internal variables
+	double dlambda = (sv.lambda_commit - sv.lambda_commit_old) * time_factor;
+	double dksi = (sv.ksi_commit - sv.ksi_commit_old) * time_factor;
 	/* nYs = nYs_commit -> this step is done inside ys.revertToLastCommit() function which
-									is called at the beginning of the updateInternal() method...   */
-	sv.lambda = sv.lambda_commit + (sv.lambda_commit - sv.lambda_commit_old) * time_factor;
+							is called at the beginning of the updateInternal() method...   */
+	sv.lambda = sv.lambda_commit + dlambda;
+	sv.ksi = sv.ksi_commit + dksi;
 
+	// get trial stress deviator
+	Vector tau_trial = getStressDeviator(sv.sig);
+	Vector zeta_trial = getShiftedDeviator(tau_trial, ys.now());
+	//double dilatancy = ys.getBeta(ys.now());				    // dilatancy parameter
 
+	// compute the derivatives
+	Vector nn = zeta_trial / sqrt(TensorM::dotdot(zeta_trial, zeta_trial));
+	Vector mm = zeta_trial / sqrt(TensorM::dotdot(zeta_trial, zeta_trial));
 
+	// calculate material state using explicit integration
+	sv.xs = sv.xs + dlambda * mm;
+	sv.sig = sv.sig - dlambda * TensorM::inner(sv.Ce, mm);
 
+	// compute the translation direction
+	double curr_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.now())), SMALL_VALUE);			// current radius
+	double next_K = fmax((sqrt(3.0 / 2.0) * ys.getTau(ys.next())), SMALL_VALUE);		// next radius
+	Vector curr_alpha = ys.getAlpha(ys.now());											// current backstress
+	Vector next_alpha = ys.getAlpha(ys.next());											// next backstress
+	Vector dir = next_K / curr_K * (tau_trial - curr_alpha) - (tau_trial - next_alpha);	// direction vector
 
-	Vector zeta = getShiftedDeviator(sigma_trial, ys.now());	// shifted stress deviator tensor
-	double dilatancy = ys.getBeta(ys.now());				// dilatancy parameter
+	// update current yield surface
+	curr_alpha = curr_alpha + dksi * dir;	// update the center
+	ys.setAlpha(curr_alpha, ys.now());
 
+	// update internal surfaces
+	for (int i = 0; i < ys.getNYS(); ++i) {
+		double inner_K = sqrt(3.0 / 2.0) * ys.getTau(ys.now());
+		Vector inner_alpha = ys.getAlpha(i);
+		inner_alpha = tau_trial - (inner_K * zeta_trial) / curr_K;
+		ys.setAlpha(inner_alpha, i);
+	}
 
-	Vector mm = 2.0 / 3.0 * zeta + 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);
-	Vector rr = Vector(6);
-
-
-	// Step 4 - update palstic strains and state variables
-		// update plastic strain
-	sv.xs = sv.xs + sv.lambda * mm;
-	// update stress
-	sv.sig = sv.sig - sv.lambda * TensorM::inner(sv.Ce, mm);
-	// update current and inner yield surfaces
-
+	// compute implex tangent
+	//if (do_tangent) {
+	//	Vector dKdE = (3.0 / (2.0 * Ki)) * TensorM::inner(zeta_trial, dTtrdE); //covariant
+	//	Matrix dTstdE = (curr_K / Ki) * dTtrdE - (curr_K / (Ki * Ki)) * TensorM::outer(zeta_trial, dKdE); //mixed-variant (contra-co)
+	//	Matrix dQdE = 1.0 / sqrt(TensorM::dotdot(zeta_star, zeta_star)) * dTstdE - TensorM::inner(TensorM::outer(zeta_star, zeta_star), dTstdE)
+	//		/ sqrt(pow(TensorM::dotdot(zeta_star, zeta_star), 3)); //mixed-variant (contra-co)
+	//	Vector dDlbdE = coeff_1 * coeff_2 * (TensorM::inner((tau_trial - tau_star), dQdE) + TensorM::inner(nn, (dTtrdE - dTstdE))); //covariant
+	//	Matrix dTpldE = 2 * sv.Gmod * (TensorM::outer(dDlbdE, mm) + dlambda * dQdE);
+	//	// correct stress derivative
+	//	dTtrdE = dTtrdE - TensorM::inner(dTpldE, TensorM::IIdev(nOrd));
+	//}
 
 	return 0;
 }
