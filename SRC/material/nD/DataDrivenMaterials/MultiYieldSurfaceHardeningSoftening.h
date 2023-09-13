@@ -147,6 +147,7 @@ public:
 		// used by the yield surface objects
 	double getGref(void);			// return reference shear modulus
 	double getPref(void);			// return reference pressure
+	double getGmod(void);			// return updated shear modulus
 
 	// return stress & strain
 	const Vector& getStress(void);
@@ -186,7 +187,7 @@ protected:
 
 	// solution options
 	bool use_data_driven_surface = false;			// yield surface flag [true: use data driven yield surfaces, false: use hyperbolic backbone]
-	bool use_online_approach = false;				// yield surface update approach flag [true: online, false: offline]
+	bool use_active_approach = false;				// yield surface update approach flag [true: active, false: passive]
 	bool use_user_custom_surface = false;			// use the set of yield surfaces defined by the user
 	bool use_implex = false;						// integration type flag: impl-ex or implicit (latter by default)
 	bool use_numerical_tangent = false;				// implicit tangent flag: numeric or elastoplastic (latter by default)

@@ -195,6 +195,9 @@
     <ClCompile Include="..\..\..\SRC\material\nD\BeamFiberMaterial2dPS.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\ConcreteMcftNonLinear5.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\ConcreteMcftNonLinear7.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialDataPoint.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialFileOperations.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialResponseDatabase.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DruckerPrager3DThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\DruckerPragerThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\ElasticIsotropic3DThermal.cpp" />
@@ -665,6 +668,9 @@
     <ClInclude Include="..\..\..\SRC\material\nD\BeamFiberMaterial2dPS.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\ConcreteMcftNonLinear5.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\ConcreteMcftNonLinear7.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialDataPoint.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialFileOperations.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialResponseDatabase.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DruckerPrager3DThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\DruckerPragerThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\ElasticIsotropic3DThermal.h" />

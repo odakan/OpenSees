@@ -1490,7 +1490,7 @@
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.cpp">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
-	<ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.cpp">
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.cpp">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.cpp">
@@ -1518,6 +1518,15 @@
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\VonMisesDMM.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialDataPoint.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialResponseDatabase.cpp">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialFileOperations.cpp">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClCompile>
   </ItemGroup>
@@ -2765,7 +2774,7 @@
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DataDrivenNestedSurfaces.h">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
-	<ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.h">
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\YieldSurfacePackage.h">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\DruckerPragerDMM.h">
@@ -2784,6 +2793,15 @@
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\VonMisesDMM.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialDataPoint.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialResponseDatabase.h">
+      <Filter>nD\DataDrivenMaterials</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\DataDrivenMaterials\MaterialFileOperations.h">
       <Filter>nD\DataDrivenMaterials</Filter>
     </ClInclude>
   </ItemGroup>

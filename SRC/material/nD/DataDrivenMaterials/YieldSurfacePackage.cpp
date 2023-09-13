@@ -31,21 +31,14 @@
 //
 // Description: This file contains the implementation for the YieldSurfacePackage class.
 
-
 #include "YieldSurfacePackage.h"
-
 
 // Public methods
 	// constructors
-YieldSurfacePackage::YieldSurfacePackage(int mat) 
+YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, DataDrivenNestedSurfaces* ptr, 
+	const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity):
+	matID(mat), datadriver(driver), lib(ptr), beVerbose(verbosity)
 {
-	// online constructor
-
-	matID = mat;
-	do_online = true;
-	tnys = 3;
-	nonassociated = true;
-
 	// set material order
 	if (OPS_GetNDM() == 2) {		// PlaneStrain
 		nOrd = 3;
@@ -54,104 +47,67 @@ YieldSurfacePackage::YieldSurfacePackage(int mat)
 		nOrd = 6;
 	}
 
-	// initililze only the  previous, current and next yield surfaces 
-	tau = Vector(3);
-	tau_commit = Vector(3);
-	eta = Vector(3);
-	eta_commit = Vector(3);
-	beta = Vector(3);
-	beta_commit = Vector(3);
-	alpha = Matrix(nOrd, 3);
-	alpha_commit = Matrix(nOrd, 3);
-}
+	// generate yield surfaces
+	if (datadriver == 0) {							// automatic backbone genration
+		// auto-backbone constructor
+		do_active = false;
 
-YieldSurfacePackage::YieldSurfacePackage(int mat, int t0)
-{
-	//offline constructor
+		// setup automatic yield surfaces
+		lib->setUpAutomaticSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
 
-	matID = mat;
-	do_online = false;
-	tnys = t0;
-	nonassociated = true;
-
-	// set material order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
+		// initialize remaining variables
+		alpha = Matrix(nOrd, tnys + 1);
+		alpha_commit = Matrix(nOrd, tnys + 1);
 	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
-
-	// initialize all the yield surfaces
-	tau = Vector(tnys + 1);
-	eta = Vector(tnys + 1);
-	beta = Vector(tnys + 1);
-	alpha = Matrix(nOrd, tnys + 1);
-	alpha_commit = Matrix(nOrd, tnys + 1);
-
-}
-
-
-YieldSurfacePackage::YieldSurfacePackage(int mat, int t0, Vector hStrains, Vector hModuli, Vector hDilation)
-{
-	//custom-backbone constructor
-
-	matID = mat;
-	do_online = false;
-	tnys = t0;
-
-	// set material order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
-	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
-
-	// initialize all the yield surfaces
-	tau = Vector(tnys + 1);
-	eta = Vector(tnys + 1);
-	if (hDilation.Size() > 1) {
+	else if (datadriver == 1) {						// passive: do not update once a set once generated
+		//passive constructor
+		do_active = false;
 		nonassociated = true;
-		beta = Vector(tnys + 1);
+
+		// setup passive yield surfaces
+		lib->setUpPassiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
+
+		// initialize remaining variables
+		alpha = Matrix(nOrd, tnys + 1);
+		alpha_commit = Matrix(nOrd, tnys + 1);
 	}
-	alpha = Matrix(nOrd, tnys + 1);
-	alpha_commit = Matrix(nOrd, tnys + 1);
-}
-
-
-YieldSurfacePackage::YieldSurfacePackage(int mat, int t0,
-	double c0, double f0, double d0, double p0, double Pres0, double Pref0)
-{
-	// auto-backbone constructor
-
-	matID = mat;
-	tnys = t0;
-	cohesion = c0; frictionAngle = f0;
-	dilatancyAngle = d0; peakShearStrain = p0; 
-	residualPressure = Pres0; referencePressure = Pref0;
-	do_online = false;
-
-	// set material order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
-	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
-
-
-	// initialize all the yield surfaces
-	tau = Vector(tnys + 1);
-	eta = Vector(tnys + 1);
-	if (dilatancyAngle != 0.0) {
+	else if (datadriver < -1 || datadriver > 1) {	// active: generate surfaces on-the-fly
+		// active constructor
+		do_active = true;
 		nonassociated = true;
-		beta = Vector(tnys + 1);
-	}
-	alpha = Matrix(nOrd, tnys + 1);
-	alpha_commit = Matrix(nOrd, tnys + 1);
-}
 
+		// setup active yield surfaces
+		lib->setUpActiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
+
+		// initialize remaining variables
+		tau_commit = Vector(tau.Size());
+		gamma_commit = Vector(gamma.Size());
+		eta_commit = Vector(eta.Size());
+		if (nonassociated) {
+			beta_commit = Vector(beta.Size());
+		}
+		alpha = Matrix(nOrd, tnys);
+		alpha_commit = Matrix(nOrd, tnys);
+	}
+	else if (datadriver == -1) {					// user custom surface generation
+		//custom-backbone constructor
+		do_active = false;
+
+		// setup custom yield surfaces
+		lib->setUpUserCustomSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
+
+		// initialize remaining variables
+		alpha = Matrix(nOrd, tnys + 1);
+		alpha_commit = Matrix(nOrd, tnys + 1);
+	} 
+	else {
+		opserr << "FATAL: YieldSurfacePackage() - unknown yield surface update method!\n";
+		exit(-1);
+	}
+
+	// print some detalied statistics
+	if (beVerbose) { printStats(true); }
+}
 
 	// destructor
 YieldSurfacePackage::~YieldSurfacePackage(void) 
@@ -225,12 +181,12 @@ int YieldSurfacePackage::prev(void) { return num - 1; }
 int YieldSurfacePackage::getTag(void) { return matID; }
 int YieldSurfacePackage::getNYS(void) { return nYs; }
 int YieldSurfacePackage::getTNYS(void) { return tnys; }
-double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
+int YieldSurfacePackage::getNYS_commit(void) { return nYs_commit; }
+/*double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
 double YieldSurfacePackage::getPsi(void) { return dilatancyAngle; }
 double YieldSurfacePackage::getPresid(void) { return residualPressure; }
-int YieldSurfacePackage::getNYS_commit(void) { return nYs_commit; }
 double YieldSurfacePackage::getCohesion(void) { return cohesion; }
-double YieldSurfacePackage::getPeakStrain(void) { return peakShearStrain; }
+double YieldSurfacePackage::getPeakStrain(void) { return peakShearStrain; }*/
 
 double YieldSurfacePackage::getTau(const int index) {
 
@@ -239,7 +195,7 @@ double YieldSurfacePackage::getTau(const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		if (index > nYs_commit) {
 			return tau(2);	// the next yield surface
 		}
@@ -271,7 +227,7 @@ double YieldSurfacePackage::getEta(const int index){
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		if (index == (nYs_commit + 1)) {
 			return eta(2);	// the next yield surface
 		}
@@ -303,7 +259,7 @@ double YieldSurfacePackage::getBeta(const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		if (index == (nYs_commit + 1)) {
 			return beta(2);	// the next yield surface
 		}
@@ -337,7 +293,7 @@ Vector YieldSurfacePackage::getAlpha(const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		if (index == (nYs_commit + 1)) {
 			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha(i, 2);
@@ -383,7 +339,7 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		if (index == (nYs_commit + 1)) {
 			for (int i = 0; i < nOrd; i++) {
 				Vect(i) = alpha_commit(i, 2);
@@ -424,7 +380,7 @@ Vector YieldSurfacePackage::getAlpha_commit(const int index) {
 	// set methods
 void YieldSurfacePackage::increment(void) {
 	
-	if (do_online) {
+	if (do_active) {
 		num++;
 		// call for new surface
 		nYs = tau.Size();
@@ -443,7 +399,7 @@ void YieldSurfacePackage::setTNYS(int value) {
 	// ask for re-compuation of yield surfaces with new value
 }
 
-void YieldSurfacePackage::setPhi(double value) { 
+/*void YieldSurfacePackage::setPhi(double value) {
 	
 	frictionAngle = value;
 	// ask for re-compuation of yield surfaces with new value
@@ -465,7 +421,7 @@ void YieldSurfacePackage::setCohesion(double value) {
 
 	cohesion = value;
 	// ask for re-compuation of yield surfaces with new value
-}
+}*/
 
 void YieldSurfacePackage::setTau(const double value, const int index) {
 
@@ -474,7 +430,7 @@ void YieldSurfacePackage::setTau(const double value, const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		tau(index) = value;
 	}
 	else {
@@ -495,7 +451,7 @@ void YieldSurfacePackage::setEta(const double value, const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		eta(index) = value;
 	}
 	else {
@@ -516,7 +472,7 @@ void YieldSurfacePackage::setBeta(const double value, const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 		beta(index) = value;
 	}
 	else {
@@ -537,7 +493,7 @@ void YieldSurfacePackage::setAlpha(const Vector value, const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 
 	}
 	else {
@@ -560,7 +516,7 @@ void YieldSurfacePackage::setAlpha_commit(const Vector value, const int index) {
 		exit(-1);
 	}
 
-	if (do_online) {
+	if (do_active) {
 
 	}
 	else {

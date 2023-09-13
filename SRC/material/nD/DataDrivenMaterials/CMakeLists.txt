@@ -6,7 +6,10 @@
 #==============================================================================#
 target_sources(OPS_Material
     PRIVATE
+	  MaterialFileOperations.cpp
       MaterialTensorOperations.cpp
+	  MaterialDataPoint.cpp
+	  MaterialResponseDatabase.cpp
       MaterialStateVariables.cpp
       DataDrivenNestedSurfaces.cpp
 	  YieldSurfacePackage.cpp
@@ -18,7 +21,10 @@ target_sources(OPS_Material
       OPS_DruckerPragerDMM.cpp
       OPS_MatsuokaNakaiDMM.cpp
     PUBLIC
+	  MaterialFileOperations.h
       MaterialTensorOperations.h
+	  MaterialDataPoint.h
+	  MaterialResponseDatabase.h
       MaterialStateVariables.h
       DataDrivenNestedSurfaces.h
 	  YieldSurfacePackage.h

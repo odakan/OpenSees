@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/YieldSurfacePackage.h$
 // $Revision: 1.0 $
-// $Date: 2022-XX-XX XX:XX:XX $
+// $Date: 2023-XX-XX XX:XX:XX $
 
 #ifndef YieldSurfacePackage_h
 #define YieldSurfacePackage_h
@@ -33,27 +33,20 @@
 // Created in:	April 2023
 //
 
-#define _USE_MATH_DEFINES
-
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
 #include <elementAPI.h>
-
+#include "DataDrivenNestedSurfaces.h"
 
 class YieldSurfacePackage {
 public:
 	// null constructor
 	YieldSurfacePackage(void) = default;
 
-	// full constructors
-	YieldSurfacePackage(int matID);																	// online constructor
-	YieldSurfacePackage(int matID, int tnys);														// offline constructor
-	YieldSurfacePackage(const YieldSurfacePackage&) = default;										// default constructor
-	YieldSurfacePackage(int matID, int tnys, Vector hStrains, Vector hModuli, Vector hDilation);	// custom-backbone constructor
-	YieldSurfacePackage(int matID, int tnys, double cohesion, double frictionAngle,					// auto-backbone constructor
-						double dilatancyAngle, double peakShearStrain, 
-						double residualPressure, double referencePressure);
+	// full constructors	
+	YieldSurfacePackage(const int matID, const int driver, DataDrivenNestedSurfaces* ptr, 
+		const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity);
 
 	// destructor
 	~YieldSurfacePackage(void);
@@ -77,12 +70,7 @@ public:
 	int getTag(void);
 	int getNYS(void);
 	int getTNYS(void);
-	double getPhi(void);
-	double getPsi(void);
-	double getPresid(void);
 	int getNYS_commit(void);
-	double getCohesion(void);
-	double getPeakStrain(void);
 	double getTau(const int index);
 	double getEta(const int index);
 	double getBeta(const int index);
@@ -92,10 +80,6 @@ public:
 	// set methods
 	void increment(void);									// increment current yield surface (ys)
 	void setTNYS(int value);
-	void setPhi(double value);
-	void setPsi(double value);
-	void setPresid(double value);
-	void setCohesion(double value);
 	void setTau(double value, const int index);
 	void setEta(double value, const int index);
 	void setBeta(double value, const int index);
@@ -104,20 +88,15 @@ public:
 
 
 private:
-	// yield surface paramters (local copy)
-	double cohesion = 0.0;
-	double frictionAngle = 0.0;
-	double dilatancyAngle = 0.0;
-	double peakShearStrain = 0.0;
-	double residualPressure = 0.0;
-	double referencePressure = 0.0;
-
 	// operational parameters
-	int nOrd = 6;						// material order
-	int matID = 0;						// tag of the attached material
-	int tnys = 0;						// total number of yield surfaces
-	bool do_online = false;				// activate on-the-fly update of the data-driven surfaces
-	bool nonassociated = false;			// associated or nonassociated flow
+	int nOrd = 6;								// material order
+	int matID = 0;								// tag of the attached material
+	int tnys = 0;								// total number of yield surfaces
+	int datadriver = 0;							// yield surface update method
+	bool do_active = false;						// activate on-the-fly update of the data-driven surfaces
+	bool beVerbose = false;						// be verbose about internal processes (use for debugging) (no by default)
+	bool nonassociated = false;					// associated or nonassociated flow
+	DataDrivenNestedSurfaces* lib = nullptr;	// pointer to the yield surface library
 
 	// yield surface state variables
 	/*	Note: nYs != ys
@@ -129,11 +108,13 @@ private:
 			The extrapolation is done by keeping ys constant -> ys = ys_commit.
 	*/
 	Vector tau = Vector(1);					// limit isotropic stress
-	Vector tau_commit = Vector(1);			// committed limit isotropic stress (used when online)
+	Vector tau_commit = Vector(1);			// committed limit isotropic stress (used in active update)
 	Vector eta = Vector(1);					// plastic modulus
-	Vector eta_commit = Vector(1);			// committed plastic modulus (used when online)
+	Vector eta_commit = Vector(1);			// committed plastic modulus (used in active update)
 	Vector beta = Vector(1);				// dilatancy parameter
-	Vector beta_commit = Vector(1);		    // committed dilatancy parameter (used when online)
+	Vector beta_commit = Vector(1);		    // committed dilatancy parameter (used in active update)
+	Vector gamma = Vector(1);				// hardening parameter (for output) (used in active and passive update)
+	Vector gamma_commit = Vector(1);		// committed hardening parameter (for output) (used in active update)
 	Matrix alpha = Matrix(6, 1);			// backstress (TNYS + 1)
 	Matrix alpha_commit = Matrix(6, 1);		// commited backstress (TNYS + 1)
 	int nYs = 0;							// number of active yield surfaces

@@ -56,7 +56,12 @@
  |                                                                                |
  +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----*/
 
+#include <fstream>
+#include <string>
+
+
 #include "VonMisesDMM.h"
+
 
 void Help(void) {
 	opserr << "\n";
@@ -106,6 +111,10 @@ void Help(void) {
 	opserr << "	|          $HParams2 ... | of doubles       |                                                                                        |\n";
 	opserr << "	|                        |                  |                                                                                        |\n";
 	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
+	opserr << "	| -dbPath $Path          | string           | absolute path of the database folder with experiments                                  |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|                        |                  |                                                                                        |\n";
+	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
 	opserr << "\n\n";
 }
 
@@ -136,8 +145,13 @@ OPS_VonMisesDMM(void)
 	double* HDilatancies = nullptr; Vector dps(1);
 
 	// other inputs
+	int nFiles = 0;
 	int integrationType = 0;		// use implicit integration by default
 	double dataDriverType = 0;		// use hyperbolic backbone by default
+	const char* dbPathDir = nullptr;		// pointer to the database directory
+	const char* dbMainFile = nullptr;		// pointer to the database main file
+	char* fullPath = nullptr;
+	bool isDatabase = false;
 
 
 	// begin recieving
@@ -151,6 +165,8 @@ OPS_VonMisesDMM(void)
 			// recive print help flag, print material command use and quit
 			if (strcmp(inputstring, "-help") == 0) {
 				Help();
+				opserr << "FATAL: OPS_VonMisesDMM() - Program terminated since '-help' is the first option in the VonMisesDMM nDmaterial declaration.\n";
+				opserr << "                           Remove or move the '-help' option further along the declaration to continue...\n";
 				exit(-1);
 			}
 		}
@@ -165,7 +181,8 @@ OPS_VonMisesDMM(void)
 
 	// input #1 - recieve unique material tag
 	if (OPS_GetInt(&numData, &tag) != 0) {
-		opserr << "FATAL: OPS_VonMisesDMM() - invalid tag? (must be an integer)\n";
+		opserr << "FATAL: OPS_VonMisesDMM() - invalid tag? (must be an integer)\n\n";
+		Help();
 		return theMaterial;
 	}
 
@@ -175,6 +192,7 @@ OPS_VonMisesDMM(void)
 
 		// input #2 - recieve material bulk modulus at reference pressure
 		if (strcmp(inputstring, "-K") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &Kref) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid Kref value after flag: -K (must be double)\n";
 				return theMaterial;
@@ -183,6 +201,7 @@ OPS_VonMisesDMM(void)
 
 		// input #3 - recieve material shear modulus at reference pressure
 		if (strcmp(inputstring, "-G") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &Gref) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid Gref value after flag: -G (must be double)\n";
 				return theMaterial;
@@ -191,6 +210,7 @@ OPS_VonMisesDMM(void)
 
 		// input #4 - recieve material reference pressure
 		if (strcmp(inputstring, "-P") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &Pref) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid Pref value after flag: -P (must be double)\n";
 				return theMaterial;
@@ -199,6 +219,7 @@ OPS_VonMisesDMM(void)
 
 		// input #5 - recieve material mass density
 		if (strcmp(inputstring, "-R") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &rho) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid rho value after flag: -r (must be double)\n";
 				return theMaterial;
@@ -207,6 +228,7 @@ OPS_VonMisesDMM(void)
 
 		// input #6 - recieve material elastic modulus update power
 		if (strcmp(inputstring, "-M") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &modn) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid modn value after flag: -m (must be double)\n";
 				return theMaterial;
@@ -215,6 +237,7 @@ OPS_VonMisesDMM(void)
 
 		// input #7 - recieve total number of yield surfaces
 		if (strcmp(inputstring, "-t") == 0) {
+			numData = 1;
 			if (OPS_GetIntInput(&numData, &TNYS) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid TNYS value after flag: -T (must be integer)\n";
 				return theMaterial;
@@ -228,6 +251,7 @@ OPS_VonMisesDMM(void)
 
 		// input #8 - recieve yield surface cohesion
 		if (strcmp(inputstring, "-c") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &cohesion) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid cohesion value after flag: -c (must be double)\n";
 				return theMaterial;
@@ -236,6 +260,7 @@ OPS_VonMisesDMM(void)
 
 		// input #9 - recieve yield surface friction angle
 		if (strcmp(inputstring, "-f") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &frictionAngle) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid frictionAngle value after flag: -f (must be double)\n";
 				return theMaterial;
@@ -244,6 +269,7 @@ OPS_VonMisesDMM(void)
 
 		// input #10 - recieve yield surface dilatancy angle
 		if (strcmp(inputstring, "-d") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &dilatancyAngle) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid dilatancyAngle value after flag: -d (must be double)\n";
 				return theMaterial;
@@ -252,6 +278,7 @@ OPS_VonMisesDMM(void)
 
 		// input #11 - recieve yield surface peak shear strain
 		if (strcmp(inputstring, "-s") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &peakShearStrain) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid peakShearStrain value after flag: -s (must be double)\n";
 				return theMaterial;
@@ -265,6 +292,7 @@ OPS_VonMisesDMM(void)
 
 		// input #13 - recieve yield surface data driver type
 		if (strcmp(inputstring, "-ddType") == 0) {
+			numData = 1;
 			if (OPS_GetDoubleInput(&numData, &dataDriverType) < 0) {
 				opserr << "FATAL: OPS_VonMisesDMM() - invalid data driver type after flag: -ddType (must be integer)\n";
 				opserr << "FATAL: OPS_VonMisesDMM() - [$val is a double. -1: user custom surface, 0 : hyperbolic backbone, 1 : offline wheras\n";
@@ -330,6 +358,62 @@ OPS_VonMisesDMM(void)
 			for (int i = 0; i < TNYS; i++) { hps(i) = HParams[i]; }
 		}
 
+		// input #17 - recieve the database path
+		if (strcmp(inputstring, "-dbPath") == 0) {
+			if (OPS_GetNumRemainingInputArgs() >= 4) {
+				for (int i = 0; i < 2; i++) {
+					inputstring = OPS_GetString();
+					if (strcmp(inputstring, "directory") == 0) {
+						dbPathDir = OPS_GetString();
+					}
+					else if (strcmp(inputstring, "filename") == 0)
+					{
+						dbMainFile = OPS_GetString();
+					}
+				}
+			}
+
+			// Calculate the length of the concatenated string
+			size_t totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1; // +1 for the null terminator
+
+			if (totalLength > 1) {
+				// Allocate memory for the full path
+				fullPath = new char[totalLength];
+				// Copy the directory to the full path
+				strcpy(fullPath, dbPathDir);
+				// Concatenate the filename to the full path
+				strcat(fullPath, dbMainFile);
+				try {
+					// Create an ifstream object to read the file
+					std::ifstream file_stream(fullPath);
+					// Database is present
+					isDatabase = true;
+					// Check if the file opened successfully
+					if (!file_stream.is_open()) {
+						opserr << "FATAL: OPS_VonMisesDMM() - failed to open the file at: " << fullPath << "\n";
+						exit(-1); // Return an error code
+					}
+					// Read and print the contents of the file line by line
+					std::string line;
+					while (std::getline(file_stream, line)) {
+						nFiles++;
+					}
+					// Close the file when done
+					file_stream.close();
+				}
+				catch (const std::exception&) {
+					continue;
+				}
+
+				// Free fullPath
+				delete[] fullPath;
+				fullPath = nullptr;
+			}
+
+			// Load the response database in to the memory as a linked list
+
+		}
+
 		// operational flags
 			// recive print help flag, print material command use, make verbose and continue
 		if (strcmp(inputstring, "-help") == 0) {
@@ -362,35 +446,45 @@ OPS_VonMisesDMM(void)
 	}
 
 	if (beVerbose) {
-		opserr << "\nOPS_VonMisesDMM:\n";
-		opserr << "-----------------\n";
-		opserr << "tag             : " << tag << "\n";
-		opserr << "rho             : " << rho << "\n";
-		opserr << "Kref            : " << Kref << "\n";
-		opserr << "Gref            : " << Gref << "\n";
-		opserr << "Pref            : " << Pref << "\n";
-		opserr << "Modn            : " << modn << "\n";
-		opserr << "TNYS            : " << TNYS << "\n";
-		opserr << "cohesion        : " << cohesion << "\n";
-		opserr << "frictionAngle   : " << frictionAngle << "\n";
-		opserr << "dilatancyAngle  : " << dilatancyAngle << "\n";
-		opserr << "peakShearStrain : " << peakShearStrain << "\n";
-		opserr << "driverType      : " << dataDriverType << "\n";
-		opserr << "integrationType : " << integrationType << "\n";
+		opserr << "\nOPS_VonMisesDMM\n";
+		opserr << "---------------------------------------------\n";
+		opserr << "tag              : " << tag << "\n";
+		opserr << "rho              : " << rho << "\n";
+		opserr << "Kref             : " << Kref << "\n";
+		opserr << "Gref             : " << Gref << "\n";
+		opserr << "Pref             : " << Pref << "\n";
+		opserr << "Modn             : " << modn << "\n";
+		opserr << "TNYS             : " << TNYS << "\n";
+		opserr << "cohesion         : " << cohesion << "\n";
+		opserr << "frictionAngle    : " << frictionAngle << "\n";
+		opserr << "dilatancyAngle   : " << dilatancyAngle << "\n";
+		opserr << "peakShearStrain  : " << peakShearStrain << "\n";
+		opserr << "driverType       : " << dataDriverType << "\n";
+		opserr << "integrationType  : " << integrationType << "\n";
 		if (HModuli != nullptr) {
-			opserr << "HModuli         : " << hmod;
+			opserr << "HModuli          : " << hmod;
 		}
 		if (HParams != nullptr) {
-			opserr << "HParams         : " << hps;
+			opserr << "HParams          : " << hps;
 		}
 		if (HDilatancies != nullptr) {
-			opserr << "HDilatancies    : " << dps;
+			opserr << "HDilatancies     : " << dps;
+		}
+		if (isDatabase) {
+			size_t totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1;
+			fullPath = new char[totalLength];
+			strcpy(fullPath, dbPathDir);
+			strcat(fullPath, dbMainFile);
+			opserr << "Path to database : " << fullPath << "\n";
+			opserr << "Number of cases  : " << nFiles << "\n";
+			delete[] fullPath;
+			fullPath = nullptr;
 		}
 		opserr << "\n";
 	}
 		
 	// create a nested yield surface object
-	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, dataDriverType, hmod, hps, dps, beVerbose);
+	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, dataDriverType, hmod, hps, dps, dbPathDir, dbMainFile, beVerbose);
 	
 	if (theData == nullptr) {
 		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";

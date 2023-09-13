@@ -1,8 +1,12 @@
 include ../../../../Makefile.def
 
-OBJS       = MaterialTensorOperations.o \
+OBJS       = MaterialFileOperations.o \
+            MaterialTensorOperations.o \
+            MaterialDataPoint.o \
+			MaterialResponseDatabase.o \
 			MaterialStateVariables.o \
 			DataDrivenNestedSurfaces.o \
+			YieldSurfacePackage.o \
 			MultiYieldSurfaceHardeningSoftening.o \
 			VonMisesDMM.o \
 			DruckerPragerDMM.o \

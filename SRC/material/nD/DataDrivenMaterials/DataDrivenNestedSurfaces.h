@@ -37,7 +37,7 @@
 #include <math.h>
 #include <Vector.h>
 #include <Matrix.h>
-#include "YieldSurfacePackage.h"
+#include "MaterialResponseDatabase.h"
 
 class DataDrivenNestedSurfaces {
 public:
@@ -47,7 +47,8 @@ public:
 	// full constructors
 	DataDrivenNestedSurfaces(const DataDrivenNestedSurfaces&) = default;								// copy constructor
 	DataDrivenNestedSurfaces(int tag, double cohesion, double frictionAngle, double dilationAngle,		// full constructor
-		double peakShearStrain,	double tnys, double deps, Vector hmoduli, Vector hparams, Vector dparams, bool verbosity);
+		double peakShearStrain,	int tnys, double deps, Vector hmoduli, Vector hparams, 
+		Vector dparams, const char* dbPathDir, const char* dbMainFile, bool verbosity);
 
 	// destructor
 	~DataDrivenNestedSurfaces(void);
@@ -65,29 +66,44 @@ public:
 	// get methods
 	int getTNYS(void);
 	double getCohesion(void);
-	double getPhi(void);
-	double getPsi(void);
+	double getFrictionAngle(void);
+	double getDilatancyAngle(void);
 	double getPeakStrain(void);
 	double getPref(void);
 
-	// generate yield surface
-	YieldSurfacePackage generateYieldSurfaces(const int matid, const int dataDriver, double& Gref, double& Pref, double& Modn);
+	// set methods
+	void setTNYS(const int val);
+	void setCohesion(const double val);
+	void setFrictionAngle(const double val);
+	void setDilatancyAngle(const double val);
+	void setPeakStrain(const double val);
+	void setPref(const double val);
+
+	// set-up yield surfaces
+	void setUpActiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta, 
+		Vector& gamma, const Vector& stress, const Vector&  strain);
+	void setUpPassiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta,
+		Vector& gamma, const Vector& stress, const Vector& strain);
+	void setUpAutomaticSurfaces(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta, 
+		const double Gref, const double Pref);
+	void setUpUserCustomSurfaces(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta,
+		const double Gref, const double Pref);
 
 private:
 	// default yield surface paramters
-	int tnys_init = 0;
-	double cohesion_init = 0.0;
-	double frictionAngle_init = 0.0;
-	double dilatancyAngle_init = 0.0;
-	double peakShearStrain_init = 0.0;
-	double residualPressure_init = 0.0;
-	double referencePressure_init = 0.0;
+	int tnys = 0;
+	double cohesion = 0.0;
+	double frictionAngle = 0.0;
+	double dilatancyAngle = 0.0;
+	double peakShearStrain = 0.0;
+	double residualPressure = 0.0;
+	double referencePressure = 0.0;
 
 	// operational variables
 	bool isAutomaticOK = false;
 	bool isUserCustomOK = false;
-	bool isOfflineOK = false;
-	bool isOnlineOK = false;
+	bool isPassiveOK = false;
+	bool isActiveOK = false;
 	bool isNonassociatedOK = false;		// associated or nonassociated flow
 	bool beVerbose = false;				// be verbose about internal processes (use for debugging) (no by default)					
 	int matID = 0;						// tag of the attached inital material object
@@ -97,12 +113,10 @@ private:
 	// user custom surface data
 	Vector HModuli = Vector(1); Vector HParams = Vector(1); Vector DParams = Vector(1);
 
+	// database
+	Database db;
+
 private:
-	// set up yield surfaces
-	void setUpOnlineSurfaces(YieldSurfacePackage& yieldSurface, double deps);
-	void setUpOfflineSurfaces(YieldSurfacePackage& yieldSurface);
-	void setUpAutomaticSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref);
-	void setUpUserCustomSurfaces(YieldSurfacePackage& yieldSurface, const double Gref, const double Pref, double& Modn);
 
 };
 #endif

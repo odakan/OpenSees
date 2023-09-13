@@ -65,21 +65,21 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 	}
 
 		// material data
-	if (ddtype == 1) {						// offline
-		use_online_approach = false;
+	if (ddtype == 1) {						// passive
+		use_active_approach = false;
 		use_data_driven_surface = true;
 	}
-	else if (ddtype > 0 && ddtype < 1) {	// online
-		use_online_approach = true;
+	else if (ddtype > 0 && ddtype < 1) {	// active
+		use_active_approach = true;
 		use_data_driven_surface = true;
 	}
 	else if (ddtype == 0) {					// automatic surface
-		use_online_approach = false;
+		use_active_approach = false;
 		use_data_driven_surface = false;
 		use_user_custom_surface = false;
 	}
 	else if (ddtype == -1) {				// user custom surface
-		use_online_approach = false;
+		use_active_approach = false;
 		use_data_driven_surface = false;
 		use_user_custom_surface = true;
 	}
@@ -313,9 +313,9 @@ int MultiYieldSurfaceHardeningSoftening::getDataDriver(void) {
 	int preference = 0;		// automatic backbone genration
 
 	if (use_data_driven_surface) {
-		preference = 1;		// offline: do not update once generated
-		if (use_online_approach) {
-			preference = 2;	// online: update on the fly using the data
+		preference = 1;		// passive: do not update once generated
+		if (use_active_approach) {
+			preference = 2;	// active: update on the fly using the data
 		}
 	}
 	else if (use_user_custom_surface) {
@@ -347,6 +347,8 @@ Vector MultiYieldSurfaceHardeningSoftening::getState(void) {
 double MultiYieldSurfaceHardeningSoftening::getGref(void) { return Gref; }
 
 double MultiYieldSurfaceHardeningSoftening::getPref(void) { return Pref; }
+
+double MultiYieldSurfaceHardeningSoftening::getGmod(void) { return sv.Gmod; }
 
 	// return stress & strain
 const Vector& MultiYieldSurfaceHardeningSoftening::getStress(void) {
@@ -472,6 +474,24 @@ int MultiYieldSurfaceHardeningSoftening::setParameter(const char** argv, int arg
 		else if (strcmp(argv[0], "bulkModulus") == 0) {
 			return param.addObject(11, this);
 		}
+		else if (strcmp(argv[0], "TNYS") == 0) {
+			return param.addObject(12, this);
+		}
+		else if (strcmp(argv[0], "cohesion") == 0) {
+			return param.addObject(13, this);
+		}
+		else if (strcmp(argv[0], "frictionAngle") == 0) {
+			return param.addObject(14, this);
+		}
+		else if (strcmp(argv[0], "dilatancyAngle") == 0) {
+			return param.addObject(15, this);
+		}
+		else if (strcmp(argv[0], "peakStrain") == 0) {
+			return param.addObject(16, this);
+		}
+		else if (strcmp(argv[0], "referencePressure") == 0) {
+			return param.addObject(17, this);
+		}
 		else if (strcmp(argv[0], "tangentType") == 0) {
 			return param.addObject(109, this);
 		}
@@ -494,6 +514,24 @@ int MultiYieldSurfaceHardeningSoftening::updateParameter(int responseID, Informa
 	}
 	else if (responseID == 11) {
 		Kref = info.theDouble;
+	}
+	else if (responseID == 12) {
+		theData->setTNYS(info.theDouble);
+	}
+	else if (responseID == 13) {
+		theData->setCohesion(info.theDouble);
+	}
+	else if (responseID == 14) {
+		theData->setFrictionAngle(info.theDouble);
+	}
+	else if (responseID == 15) {
+		theData->setDilatancyAngle(info.theDouble);
+	}
+	else if (responseID == 16) {
+		theData->setPeakStrain(info.theDouble);
+	}
+	else if (responseID == 17) {
+		theData->setPref(info.theDouble);
 	}
 	else if (responseID == 109) {
 		if (info.theInt == 0) {

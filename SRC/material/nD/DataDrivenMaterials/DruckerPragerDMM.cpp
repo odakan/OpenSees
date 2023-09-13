@@ -20,10 +20,43 @@
 
 #include "DruckerPragerDMM.h"
 
-//	-- TO DO LIST --
-// 3) CODE sendSelf and recvSelf
-//	- pack and unpack all the variables
+namespace global {
+	class MaterialList {
+	public:
+		int size = 0;
+		std::vector<DruckerPragerDMM*> mptr;
 
+	public:
+		MaterialList() = default;
+		MaterialList& resize(int N) {
+			if (N != size) {
+				mptr.resize(N);
+			}
+			size = mptr.size();
+			return *this;
+		}
+
+		MaterialList& append(DruckerPragerDMM* matptr) {
+			auto it = mptr.end();
+			mptr.insert(it, matptr);
+			size = mptr.size();
+			return *this;
+		}
+
+		MaterialList& remove(DruckerPragerDMM* matptr) {
+			auto it = std::find(mptr.begin(), mptr.end(), matptr);
+			if (it != mptr.end()) {
+				mptr.erase(it);
+				delete matptr; // If you are responsible for memory management, delete the object
+			}
+			size = mptr.size();
+			return *this;
+		}
+	};
+}
+
+// global material list
+auto& matID = global::MaterialList();
 
 // Public methods
 	// full constructor
@@ -148,6 +181,7 @@ void DruckerPragerDMM::Print(OPS_Stream& s, int flag) {
 }
 
 int DruckerPragerDMM::setParameter(const char** argv, int argc, Parameter& param) {
+
 	if (argc < 2)
 		return -1;
 
@@ -156,12 +190,8 @@ int DruckerPragerDMM::setParameter(const char** argv, int argc, Parameter& param
 
 	// check for material tag
 	if (theMaterialTag == this->getTag()) {
-
-		if (strcmp(argv[0], "frictionAngle") == 0) {
-			return param.addObject(12, this);
-		}
-		else if (strcmp(argv[0], "cohesion") == 0) {
-			return param.addObject(13, this);
+		if (strcmp(argv[0], "updateMaterialStage") == 0) {
+			return param.addObject(1, this);
 		}
 	}
 
@@ -170,11 +200,31 @@ int DruckerPragerDMM::setParameter(const char** argv, int argc, Parameter& param
 }
 
 int DruckerPragerDMM::updateParameter(int responseID, Information& info) {
-	if (responseID == 12) {
-		//frictionAnglex[matN] = info.theDouble;
-	}
-	else if (responseID == 13) {
-		ys.setCohesion(info.theDouble);
+
+	if (responseID == 1) {
+		// update material stage and if nonlinear set up yield surfaces 
+		if (info.theInt > 0) {
+			// set-up yield surfaces
+			for each (auto ptr in matID.mptr) {
+				if (ptr->theData == nullptr) {
+					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
+						" could not access the yield surface library!";
+					exit(-1);
+				}
+				else {
+					if (ptr->theData->isAOK(ptr->getDataDriver())) {
+						ptr->updateModuli(ptr->sv.sig);
+						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getDataDriver(), ptr->theData, ptr->getGmod(),
+							ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
+						ptr->materialStage = info.theInt;
+					}
+					else {
+						opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
+							" could not update material stage! Keeping the current stage = " << ptr->materialStage << " ...\n";
+					}
+				}
+			}
+		}
 	}
 
 	// also go through the base-class method
@@ -184,10 +234,13 @@ int DruckerPragerDMM::updateParameter(int responseID, Information& info) {
 // Private methods
 	// the get methods
 Vector DruckerPragerDMM::getShiftedDeviator(const Vector& stress, const int num_ys) {
-
-	// Prevost DYNA1D 5.2.2 eqn. 3
-	double P_bar = getMeanStress(stress) - ys.getCohesion();
-	return  getStressDeviator(stress) - P_bar * ys.getAlpha(num_ys);
+	Vector zeta = Vector(nOrd);
+	Vector deviator = getStressDeviator(stress);
+	Vector backpressure = ys.getAlpha(num_ys);
+	for (int i = 0; i < nOrd; i++) {
+		zeta(i) = deviator(i) - backpressure(i);
+	}
+	return zeta;
 }
 
 	// yield surface operations
