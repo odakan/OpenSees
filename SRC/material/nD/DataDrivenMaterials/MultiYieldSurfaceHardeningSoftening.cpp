@@ -39,7 +39,7 @@
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
 	double r0, double K0, double G0, double P0, double m0,
-	DataDrivenNestedSurfaces* data, int ddtype, int itype, bool verbosity)
+	std::shared_ptr<DataDrivenNestedSurfaces> data, int ddtype, int itype, bool verbosity)
 	:NDMaterial(tag, classTag), rho(r0), Kref(K0), Gref(G0), 
 	Pref(P0), Modn(m0), theData(data), beVerbose(verbosity)
 {
@@ -69,7 +69,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		use_active_approach = false;
 		use_data_driven_surface = true;
 	}
-	else if (ddtype > 0 && ddtype < 1) {	// active
+	else if (ddtype > 1) {	// active
 		use_active_approach = true;
 		use_data_driven_surface = true;
 	}
@@ -91,7 +91,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 	// do some checks
 	if (theData == nullptr) {
 		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - yield surfaces are missing!\n";
-		opserr << "The pointer that points at the yield surface: ys = " << theData << "\n";
+		opserr << "The pointer that points at the yield surface: ys = nullptr\n";
 		exit(-1);
 	}
 	else {
@@ -141,6 +141,10 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(void)
 	// destructor
 MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening(void)
 {
+	// shared_ptr frees the memory allocated for DataDrivenNestedSurfaces object
+	// when the object is out of scope
+
+	/*
 	// free the memory allocated to the data-driven nested yield surface object
 	if (theData != nullptr) {
 		if (theData->canDelete()) {	// make sure that no other material is using the object.
@@ -151,7 +155,7 @@ MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening(void)
 			theData->checkout();	// leave and check this instance out
 			theData = nullptr;		// and reset pointer to nullptr.
 		}
-	}
+	}*/
 }
 
 	// iteration control

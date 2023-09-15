@@ -75,7 +75,7 @@ auto& matID = global::MaterialList();
 	// full constructor
 VonMisesDMM::VonMisesDMM(int tag, double r0,
 	double K0, double G0, double P0, double m0,
-	DataDrivenNestedSurfaces* ys,
+	std::shared_ptr<DataDrivenNestedSurfaces> ys,
 	int ddtype, int itype, bool verbosity)
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_VonMisesDMM, r0,
 		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
@@ -105,7 +105,7 @@ NDMaterial* VonMisesDMM::getCopy(void) {
 	 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
+		//theData->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -138,7 +138,7 @@ NDMaterial* VonMisesDMM::getCopy(const char* type) {
 
 	if (copy != nullptr) {
 		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
+		//theData->checkin(); // do check-in
 		matID.append(copy);
 		return copy;
 	}

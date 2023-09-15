@@ -45,7 +45,7 @@ public:
 	YieldSurfacePackage(void) = default;
 
 	// full constructors	
-	YieldSurfacePackage(const int matID, const int driver, DataDrivenNestedSurfaces* ptr, 
+	YieldSurfacePackage(const int matID, const int driver, std::shared_ptr<DataDrivenNestedSurfaces> ptr, 
 		const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity);
 
 	// destructor
@@ -96,7 +96,13 @@ private:
 	bool do_active = false;						// activate on-the-fly update of the data-driven surfaces
 	bool beVerbose = false;						// be verbose about internal processes (use for debugging) (no by default)
 	bool nonassociated = false;					// associated or nonassociated flow
-	DataDrivenNestedSurfaces* lib = nullptr;	// pointer to the yield surface library
+
+	// Pointer to the yield surface library
+	// <memory> library, shared pointer class smart pointer
+	// shared pointer allows and handles multiple copies of the pointer
+	// the object that the pointer holds is deleted when out of scope
+	// finally, shared pointer allows concurrent read acess in a parallel setting 
+	std::shared_ptr<DataDrivenNestedSurfaces> lib = nullptr;
 
 	// yield surface state variables
 	/*	Note: nYs != ys

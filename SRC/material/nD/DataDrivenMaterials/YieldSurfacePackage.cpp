@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/YieldSurfacePackage.cpp$
 // $Revision: 1.0 $
-// $Date: 2022-XX-XX XX:XX:XX $
+// $Date: 2023-XX-XX XX:XX:XX $
 
 // Written by:	Onur Deniz Akan		(onur.akan@iusspavia.it)
 //				Guido Camata      
@@ -35,7 +35,7 @@
 
 // Public methods
 	// constructors
-YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, DataDrivenNestedSurfaces* ptr, 
+YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, std::shared_ptr<DataDrivenNestedSurfaces> ptr, 
 	const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity):
 	matID(mat), datadriver(driver), lib(ptr), beVerbose(verbosity)
 {
@@ -78,7 +78,7 @@ YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, DataDr
 
 		// setup active yield surfaces
 		lib->setUpActiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
-
+		
 		// initialize remaining variables
 		tau_commit = Vector(tau.Size());
 		gamma_commit = Vector(gamma.Size());
@@ -106,7 +106,7 @@ YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, DataDr
 	}
 
 	// print some detalied statistics
-	if (beVerbose) { printStats(true); }
+	if (beVerbose) { opserr << "YieldSurfacePackage() -> printStats() ->\n"; printStats(true); }
 }
 
 	// destructor

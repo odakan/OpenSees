@@ -101,7 +101,15 @@ OPS_Stream& operator<<(OPS_Stream& s, const DataPoint& obj) {
 int DataPoint::getDim(void) { return nDim; }
 double DataPoint::getVR(void) { return voidRatio; }
 Vector DataPoint::getStress(void) { return stress; }
-Vector DataPoint::getStrain(void) { return strain; }
+
+Vector DataPoint::getStrain(void) {
+
+	opserr << "DataPoint::getStrain() - works until here!\n"; 
+	opserr << this;
+	return strain;
+
+}
+
 Vector DataPoint::getFabric(void) { return fabric; }
 Vector DataPoint::getTestInfo(void) { Vector info(2); info(0) = testPref; info(1) = testAngle;  return info; }
 

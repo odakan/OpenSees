@@ -35,80 +35,136 @@
 
 Database::Database(const int tag, const char* dir, const char* fname)
 {
-	// recieve associated material ID and path
-	matID = tag;
-	std::string directory(dir);
-	std::string mainfile(fname);
-	fullpath = directory + mainfile;
+	// if database path is present
+	if (dir != nullptr && fname != nullptr) {		
+		// recieve associated material ID and path
+		matID = tag;
+		std::string directory(dir);
+		std::string mainfile(fname);
+		fullpath = directory + mainfile;
 
-	// initialize
-	std::string filename;
-	std::string line;
-	Repository* main = nullptr;
-	Repository* file = nullptr;
-	Vector Info;
-	Vector Data;
+		// initialize
+		std::string filename;
+		std::string line;
+		Repository* main = nullptr;
+		Repository* file = nullptr;
+		Vector Info;
+		Vector Data;
 
-	//make sure the datapts vector is empty
-	datapts.clear();
-	length = 0;
-	
-	// load the database into the RAM
-		// inform user about process
-	opserr << "WARNING: Database() - please wait while the database is being loaded...\n";
-	opserr << "          -> material ID: " << tag << "\n";
-	opserr << "          -> database at: " << fullpath.c_str() << "\n";
+		//make sure the datapts vector is empty
+		datapts.clear();
+		length = 0;
+
+		// load the database into the RAM
+			// inform user about process
+		opserr << "WARNING: Database() - please wait while the database is being loaded...\n";
+		opserr << "          -> material ID: " << tag << "\n";
+		opserr << "          -> database at: " << fullpath.c_str() << "\n";
 		// open main file
-	main = new Repository(directory + mainfile);
+		main = new Repository(directory + mainfile);
 		// read file names
-	while (main->readLine(filename)) {
-		// open file with read name
-		file = new Repository(directory + filename);
-		Info = main->splitString(filename, '_');
-		while (file->readLine(line)) {
-			// split line and extract the data
-			Data = file->splitString(line, ' ');
-			// create a data container
-			DataPoint* point = new DataPoint(Data, Info);
-			// check dimension
-			if (nDim == 0) nDim = point->getDim();  // assume databse has the dimension of the first point
-			if (nDim != point->getDim()) {
-				opserr << "WARNING: Database() - encountered with an incompatible data point! Skipping the point...";
-				continue;
+		while (main->readLine(filename)) {
+			// open file with read name
+			file = new Repository(directory + filename);
+			Info = main->splitString(filename, '_');
+			while (file->readLine(line)) {
+				// split line and extract the data
+				Data = file->splitString(line, ' ');
+				// create a data container
+				std::unique_ptr<DataPoint> point = std::make_unique<DataPoint>(Data, Info);
+				//DataPoint* point = new DataPoint(Data, Info);
+				// check dimension
+				if (nDim == 0) nDim = point->getDim();  // assume databse has the dimension of the first point
+				if (nDim != point->getDim()) {
+					opserr << "WARNING: Database() - encountered with an incompatible data point! Skipping the point...";
+					continue;
+				}
+				// compute some statistics
+				if (point->Toct > Toct_max) Toct_max = point->Toct;
+				if (point->Toct < Toct_min) Toct_min = point->Toct;
+				if (point->Goct > Goct_max) Goct_max = point->Goct;
+				if (point->Goct < Goct_min) Goct_min = point->Goct;
+				if (point->Pavg > Pavg_max) Pavg_max = point->Pavg;
+				if (point->Pavg < Pavg_min) Pavg_min = point->Pavg;
+				if (point->Evol > Evol_max) Evol_max = point->Evol;
+				if (point->Evol < Evol_min) Evol_min = point->Evol;
+				length++;
+				// store the pointer to the container
+				datapts.push_back(std::move(point));
+				//datapts.push_back(point);
 			}
-			// compute some statistics
-			if (point->Toct > Toct_max) Toct_max = point->Toct;
-			if (point->Toct < Toct_min) Toct_min = point->Toct;
-			if (point->Goct > Goct_max) Goct_max = point->Goct;
-			if (point->Goct < Goct_min) Goct_min = point->Goct;
-			if (point->Pavg > Pavg_max) Pavg_max = point->Pavg;
-			if (point->Pavg < Pavg_min) Pavg_min = point->Pavg;
-			if (point->Evol > Evol_max) Evol_max = point->Evol;
-			if (point->Evol < Evol_min) Evol_min = point->Evol;
-			length++;
-			// store the pointer to the container
-			datapts.push_back(point);
+			nTests++;
 		}
-		nTests++;
+
+		// Inform user about the sucessful outcome
+		opserr << "WARNING: Database() - database successfully loaded! -> number of points: " << length << "\n\n";
+
+		// free memory before continue
+		delete main;
+		delete file;
+	}
+	else {
+		// if the path is not present, do nothing. i.e. use the default values...
+	}
+}
+
+Database::Database(const Database& other):
+	nDim(other.nDim), matID(other.matID), length(other.length),
+	nTests(other.nTests), fullpath(other.fullpath),
+	Goct_max(other.Goct_max), Goct_min(other.Goct_min), Toct_max(other.Toct_max),
+	Toct_min(other.Toct_min), Pavg_max(other.Pavg_max), Pavg_min(other.Pavg_min),
+	Evol_max(other.Evol_max), Evol_min(other.Evol_min)
+{
+	// Copy the data points
+	datapts.reserve(other.datapts.size());
+	for (const auto& ptr : other.datapts) {
+		datapts.push_back(std::make_unique<DataPoint>(*ptr));
 	}
 
-	// Inform user about the sucessful outcome
-	opserr << "WARNING: Database() - database successfully loaded! -> number of points: " << length << "\n\n";
-
-	// free memory before continue
-	delete main;
-	delete file;
+	opserr << "WARNING: Database() - copy constructer was called!\n";
 }
 
 Database::~Database()
 {
-	if (!datapts.empty()) {
-		for each (DataPoint* ptr in datapts)
-		{
-			delete ptr;
-		}
+	// smart pointer "unique_ptr" deletes datapts objects when out of scope
+	
+	//if (!datapts.empty()) {
+	//	for each (auto ptr in datapts)
+	//	{
+	//		delete ptr;
+	//	}
+	//	datapts.clear();
+	//}
+}
+
+Database& Database::operator=(const Database& other) {
+	if (this != &other) {
+		// Copy non-pointer members
+		nDim = other.nDim;
+		matID = other.matID;
+		length = other.length;
+		nTests = other.nTests;
+		fullpath = other.fullpath;
+		Goct_max = other.Goct_max;
+		Goct_min = other.Goct_min;
+		Toct_max = other.Toct_max;
+		Toct_min = other.Toct_min;
+		Pavg_max = other.Pavg_max;
+		Pavg_min = other.Pavg_min;
+		Evol_max = other.Evol_max;
+		Evol_min = other.Evol_min;
+
+		// Clear the current data in datapts
 		datapts.clear();
+
+		// Copy or move the data from the other object
+		datapts.reserve(other.datapts.size());
+		for (const auto& ptr : other.datapts) {
+			datapts.push_back(std::make_unique<DataPoint>(*ptr));
+		}
 	}
+	opserr << "WARNING: Database::operator=() - copy assignment operator was called!\n";
+	return *this;
 }
 
 OPS_Stream& operator<<(OPS_Stream& s, const Database& obj) {
@@ -132,12 +188,12 @@ OPS_Stream& operator<<(OPS_Stream& s, const Database& obj) {
 }
 
 // operational functions
-int Database::size(void) { return length; }
-int Database::getTag(void) { return matID; }
-int Database::getDim(void) { return nDim; }
+int Database::size(void) const { return length; }
+int Database::getTag(void) const { return matID; }
+int Database::getDim(void) const { return nDim; }
 
 // get methods
-double Database::getVoidRatio(const int index) {
+double Database::getVoidRatio(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->getVR();
@@ -149,7 +205,7 @@ double Database::getVoidRatio(const int index) {
 	return value;
 }
 
-double Database::getDilatancy(const int index) {
+double Database::getDilatancy(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->Bsec;
@@ -161,7 +217,7 @@ double Database::getDilatancy(const int index) {
 	return value;
 }
 
-double Database::getShearModulus(const int index) {
+double Database::getShearModulus(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->Gsec;
@@ -173,7 +229,7 @@ double Database::getShearModulus(const int index) {
 	return value;
 }
 
-double Database::getVolumetricStrain(const int index) {
+double Database::getVolumetricStrain(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->Evol;
@@ -185,7 +241,7 @@ double Database::getVolumetricStrain(const int index) {
 	return value;
 }
 
-double Database::getOctahedralStress(const int index) {
+double Database::getOctahedralStress(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->Toct;
@@ -197,7 +253,7 @@ double Database::getOctahedralStress(const int index) {
 	return value;
 }
 
-double Database::getOctahedralStrain(const int index) {
+double Database::getOctahedralStrain(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
 		value = datapts[index]->Goct;
@@ -210,7 +266,7 @@ double Database::getOctahedralStrain(const int index) {
 }
 
 // permitted queries
-int Database::seek(const char* token, const Vector& tensor) {
+int Database::seek(const char* token, const Vector& tensor) const {
 	// searh for the point with the closest desired tensor
 	
 	// initialize
@@ -222,7 +278,7 @@ int Database::seek(const char* token, const Vector& tensor) {
 
 	// check compatibility
 	if (size != 3 * (nDim - 1)) { 
-		opserr << "FATAL - Database::seek() - input material dimension does not match the database!\n";
+		opserr << "FATAL - Database::seek() - material dimension does not match the database!\n";
 		exit(-1);
 	}
 
@@ -230,17 +286,17 @@ int Database::seek(const char* token, const Vector& tensor) {
 	for (int i = 0; i < length; i++) {
 		double distance = 0.0;
 		// fetch data tensor
-		if (strcmp(token, "stress")) {
+		if (strcmp(token, "stress") == 0) {
 			TOL = 1;
 			closest_distance = 1e4;
 			data = datapts[i]->getStress();
 		}
-		else if (strcmp(token, "strain")) {
+		else if (strcmp(token, "strain") == 0) {
 			TOL = 1e-4;
 			closest_distance = 1;
 			data = datapts[i]->getStrain();
 		}
-		else if (strcmp(token, "fabric")) {
+		else if (strcmp(token, "fabric") == 0) {
 			TOL = 1e-4;
 			closest_distance = 1;
 			data = datapts[i]->getFabric();
@@ -279,7 +335,7 @@ int Database::seek(const char* token, const Vector& tensor) {
 	return index;
 }
 
-int Database::seek(const double I1, const double J2, const double J3) {
+int Database::seek(const double I1, const double J2, const double J3) const {
 	// search for the point with the closest strain tensor invariants
 
 	// initialize
@@ -313,7 +369,7 @@ int Database::seek(const double I1, const double J2, const double J3) {
 	return index;
 }
 
-int Database::seek(const double pavg, const char* token, const Vector& tensor) {
+int Database::seek(const double pavg, const char* token, const Vector& tensor) const {
 	// search for the point with the closest first stress invariant and the strain deviator tensor
 	
 	// initialize
@@ -328,7 +384,7 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) {
 
 	// check compatibility
 	if (size != 3 * (nDim - 1)) {
-		opserr << "FATAL - Database::seek() - input material dimension does not match the database!\n";
+		opserr << "FATAL - Database::seek() - material dimension does not match the database!\n";
 		exit(-1);
 	}
 
@@ -341,24 +397,25 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) {
 		Evol = tensor(0) + tensor(1) + tensor(2);
 		tensor_dev = tensor; tensor_dev(0) -= Evol * 1.0 / 3.0; tensor_dev(1) -= Evol * 1.0 / 3.0; tensor_dev(2) -= Evol * 1.0 / 3.0;
 	}
-
+	
 	// compute norms
 	for (int i = 0; i < length; i++) {
 		// only check points with similar average pressure
 		if (abs(datapts[i]->Pavg - pavg) <= TOL) {
 			double distance = 0.0;
 			// fetch data tensor
-			if (strcmp(token, "stress")) {
+			if (strcmp(token, "stress") == 0) {
 				TOL = 1;
 				closest_distance = 1e4;
 				data = datapts[i]->getStress();
 			}
-			else if (strcmp(token, "strain")) {
+			else if (strcmp(token, "strain") == 0) {
 				TOL = 1e-4;
 				closest_distance = 1;
 				data = datapts[i]->getStrain();
+				opserr << "Database::seek() - works until here!\n";
 			}
-			else if (strcmp(token, "fabric")) {
+			else if (strcmp(token, "fabric") == 0) {
 				TOL = 1e-4;
 				closest_distance = 1;
 				data = datapts[i]->getFabric();

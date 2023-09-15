@@ -41,34 +41,35 @@
 class Database {
 public:
 	// constructors
-	Database(void) = default;							// null constructor
-	Database(const Database&) = default;				// copy constructor
-	Database(const int tag, const char* dir, const char* main);		// full constructor
+	Database(void) = default;					// null constructor
+	Database(const Database& other);			// copy constructor
+	Database(const int tag, const char* dir,	// full constructor 
+		const char* main);	
 
 	// destructor
 	~Database();
 
 	// operator overloading
-	Database& operator= (const Database&) = default;
+	Database& operator= (const Database& other);
 	friend OPS_Stream& operator<<(OPS_Stream& s, const Database& obj);
 
 	// operational functions
-	int size(void);
-	int getTag(void);
-	int getDim(void);
+	int size(void) const;
+	int getTag(void) const;
+	int getDim(void) const;
 
 	// get methods
-	double getVoidRatio(const int index);
-	double getDilatancy(const int index);
-	double getShearModulus(const int index);
-	double getVolumetricStrain(const int index);
-	double getOctahedralStress(const int index);
-	double getOctahedralStrain(const int index);
+	double getVoidRatio(const int index) const;
+	double getDilatancy(const int index) const;
+	double getShearModulus(const int index) const;
+	double getVolumetricStrain(const int index) const;
+	double getOctahedralStress(const int index) const;
+	double getOctahedralStrain(const int index) const;
 
 	// permitted queries
-	int seek(const char* token, const Vector& tensor);
-	int seek(const double I1, const double J2, const double J3);
-	int seek(const double pavg, const char* token, const Vector& tensor);
+	int seek(const char* token, const Vector& tensor) const;
+	int seek(const double I1, const double J2, const double J3) const;
+	int seek(const double pavg, const char* token, const Vector& tensor) const;
 
 private:
 	// variables
@@ -91,6 +92,6 @@ private:
 	double Evol_min = 0.0;
 
 	// data points
-	std::vector<DataPoint*> datapts;
+	std::vector<std::unique_ptr<DataPoint>> datapts;
 };
 #endif

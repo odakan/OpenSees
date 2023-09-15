@@ -129,8 +129,8 @@ OPS_VonMisesDMM(void)
 		opserr << "von Mises Data-Driven Multi-scale nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, IUSS Pavia \n";
 
 	// initialize pointers
-	NDMaterial* theMaterial = nullptr;				// Pointer to an nD material to be returned
-	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to a nested yield surface object
+	NDMaterial* theMaterial = nullptr;								// Pointer to an nD material to be returned
+	std::shared_ptr<DataDrivenNestedSurfaces> theData = nullptr;	// Pointer to a nested yield surface object
 
 	// initialize material parameters
 	bool beVerbose = false;
@@ -374,7 +374,7 @@ OPS_VonMisesDMM(void)
 			}
 
 			// Calculate the length of the concatenated string
-			size_t totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1; // +1 for the null terminator
+			int totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1; // +1 for the null terminator
 
 			if (totalLength > 1) {
 				// Allocate memory for the full path
@@ -460,7 +460,7 @@ OPS_VonMisesDMM(void)
 		opserr << "dilatancyAngle   : " << dilatancyAngle << "\n";
 		opserr << "peakShearStrain  : " << peakShearStrain << "\n";
 		opserr << "driverType       : " << dataDriverType << "\n";
-		opserr << "integrationType  : " << integrationType << "\n";
+		opserr << "impl-ex          : " << integrationType << "\n";
 		if (HModuli != nullptr) {
 			opserr << "HModuli          : " << hmod;
 		}
@@ -484,8 +484,8 @@ OPS_VonMisesDMM(void)
 	}
 		
 	// create a nested yield surface object
-	theData = new DataDrivenNestedSurfaces(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, dataDriverType, hmod, hps, dps, dbPathDir, dbMainFile, beVerbose);
-	
+	theData = std::make_shared<DataDrivenNestedSurfaces>(tag, cohesion, frictionAngle, dilatancyAngle, peakShearStrain, TNYS, dataDriverType, hmod, hps, dps, dbPathDir, dbMainFile, beVerbose);
+
 	if (theData == nullptr) {
 		opserr << "FATAL: OPS_VonMisesDMM() - cannot create VonMisesDMM material with tag: " << tag << "\n";
 		opserr << "FATAL: OPS_VonMisesDMM() - yield surface data yielded bad result...";

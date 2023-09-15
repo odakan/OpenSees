@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.cpp$
 // $Revision: 1.0 $
-// $Date: 2022-XX-XX XX:XX:XX $
+// $Date: 2023-XX-XX XX:XX:XX $
 
 // Written by:	Onur Deniz Akan		(onur.akan@iusspavia.it)
 //				Guido Camata      
@@ -36,13 +36,12 @@
 
 #define LARGE_NUMBER 1.0e30
 
-
 // Public methods
 	// full constructors
 DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double phi0,			// full constructor
 	double psi0, double s0, int nys, double deps, Vector hmoduli, Vector hparams, 
 	Vector dparams, const char* dbPathDir, const char* dbMainFile, bool verbosity):
-	matID(tag), beVerbose(verbosity), strain_discretize(deps),
+	db(matID, dbPathDir, dbMainFile), matID(tag), beVerbose(verbosity), strain_discretize(deps),
 	cohesion(c0), frictionAngle(phi0), dilatancyAngle(psi0), peakShearStrain(s0), tnys(nys)
 {
 	// check data-driven yield surface generation 
@@ -54,8 +53,8 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 	else {
 		// if database is not present
 		if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - no material response database is provided. Data-driven yield surfaces are NOT allowed...\n"; }
-		isPassiveOK = true;
-		isActiveOK = true;
+		isPassiveOK = false;
+		isActiveOK = false;
 	}
 
 		// check automatic, user-custom and offline surface generation
@@ -95,7 +94,7 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 			if (beVerbose) { opserr << "WARNING: DataDrivenNestedSurfaces() - no custom yield surface data is provided. User custom yield surfaces are NOT allowed...\n"; }
 			isUserCustomOK = false;
 		}
-
+		
 		// check automatic surfaces
 		if (peakShearStrain <= 0) {
 			// if peak shear strain is zero or less than zero, prohibit automatic surfaces
@@ -115,9 +114,8 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 			}
 		}
 	}
-
+	
 	if (isPassiveOK || isActiveOK) {
-		db = Database(matID, dbPathDir, dbMainFile);
 		if (beVerbose) opserr << db;
 	}
 }
@@ -185,7 +183,7 @@ void DataDrivenNestedSurfaces::setPref(const double val) { referencePressure = v
 void DataDrivenNestedSurfaces::setUpActiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta,
 	Vector& gamma, const Vector& stress, const Vector& strain) {
 	// set-up plastic modulus, hardening parameter and dilatancy parameter based on the database, on-the-fly
-
+	
 	// initialize vectors
 	nys = 2;
 	tau = Vector(nys);
@@ -211,37 +209,28 @@ void DataDrivenNestedSurfaces::setUpActiveSurfaces(int& nys, Vector& tau, Vector
 		e_vol = strain(0) + strain(1) + strain(2);
 		e_dev = strain; e_dev(0) -= e_vol * 1.0 / 3.0; e_dev(1) -= e_vol * 1.0 / 3.0; e_dev(2) -= e_vol * 1.0 / 3.0;
 	}
-
+	
+	// initial yield surface (elasticity limit)
+	tau(0) = sqrt(1.0 / 3.0 * TensorM::dotdot(s_dev, s_dev));
+	gamma(0) = 2 * sqrt(1.0 / 3.0 * TensorM::dotdot(e_dev, e_dev));
+	
 	// scan the database
 	int index = db.seek(p_avg, "strain", strain);
-
-	// initial yield surface (elasticity limit)
-	gamma(0) = 2 * sqrt(1.0 / 3.0 * TensorM::dotdot(e_dev, e_dev));
-	tau(0) = sqrt(1.0 / 3.0 * TensorM::dotdot(e_dev, e_dev));
-
+	opserr << "DataDrivenNestedSurfaces::setUpActiveSurfaces() - works until here!\n";
 	// next yield surface
-	gamma(1) = db.getOctahedralStrain(index);
 	tau(1) = db.getOctahedralStress(index);
+	gamma(1) = db.getOctahedralStrain(index);
 
-	// do a zero hardening parameter check
-	if (tau(0) < 0) {
-
-	}
-	if (tau(1) < 0) {
-
-	}
-
-	// do a zero yield radius check
-	if (tau(0) < 0) {
-
-	}
-	if (tau(1) < 0) {
-
-	}
+	// do zero value checks
+	if (tau(1) < ZERO_VALUE) { tau(1) = 1; }			// next yield radius
+	if (tau(0) < ZERO_VALUE) { tau(0) = 0.1 * tau(1); }	// current yield radius
+	if (gamma(1) < ZERO_VALUE) { gamma(1) = 1; }		// next hardening parameter
 
 	// compute moduli [index 0: old (elastic), 1: current]
-	eta(1) = 0;
-	beta(1) = 0;
+	eta(1) = (tau(1) - tau(0)) / (gamma(1) - gamma(0));		// kinematic modulus
+	// convert octahedral shear strain to the magnitude of the strain deviator tensor
+	double sqEE = sqrt(3.0 / 4.0 * gamma(1) * gamma(1));
+	beta(1) = (db.getVolumetricStrain(index) - e_vol) / (sqEE - sqrt(TensorM::dotdot(e_dev, e_dev)));	// dilatancy parameter
 }
 
 void DataDrivenNestedSurfaces::setUpPassiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta,

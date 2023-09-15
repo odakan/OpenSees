@@ -115,7 +115,7 @@ public:
 	// Full Constructor
 	MultiYieldSurfaceHardeningSoftening(int tag, int classTag, double r0,
 		double K0, double G0, double P0, double m0,
-		DataDrivenNestedSurfaces* ys, int dtype, int itype, bool verbosity);
+		std::shared_ptr<DataDrivenNestedSurfaces> ys, int dtype, int itype, bool verbosity);
 
 
 	// Null Constructor
@@ -179,8 +179,14 @@ protected:
 	double Pref = 0.0;								// Reference pressure
 	double Modn = 0.0;								// Modulus update power n
 	MaterialStateVariables sv;						// Material state variables
-	YieldSurfacePackage ys;							// Nested yield surface package (free memory before exit)
-	DataDrivenNestedSurfaces* theData = nullptr;	// Pointer to the material response database (the glorious lookup table) (free memory before exit)
+	YieldSurfacePackage ys;							// Nested yield surface package
+	
+	// Pointer to the yield surface library
+	// <memory> library, shared pointer class smart pointer
+	// shared pointer allows and handles multiple copies of the pointer
+	// the object that the pointer holds is deleted when out of scope
+	// finally, shared pointer allows concurrent read acess in a parallel setting 
+	std::shared_ptr<DataDrivenNestedSurfaces> theData = nullptr;
 
 	// operational paramaters
 	bool beVerbose = false;							// be verbose about internal processes (use for debugging) (no by default)

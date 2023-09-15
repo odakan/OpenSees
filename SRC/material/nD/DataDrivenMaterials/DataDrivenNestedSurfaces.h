@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/DataDrivenMaterials/DataDrivenNestedSurfaces.h$
 // $Revision: 1.0 $
-// $Date: 2022-XX-XX XX:XX:XX $
+// $Date: 2023-XX-XX XX:XX:XX $
 
 #ifndef DataDrivenNestedSurfaces_h
 #define DataDrivenNestedSurfaces_h
@@ -38,6 +38,8 @@
 #include <Vector.h>
 #include <Matrix.h>
 #include "MaterialResponseDatabase.h"
+
+constexpr double ZERO_VALUE = 1.0e-4;
 
 class DataDrivenNestedSurfaces {
 public:
@@ -114,8 +116,8 @@ private:
 	Vector HModuli = Vector(1); Vector HParams = Vector(1); Vector DParams = Vector(1);
 
 	// database
-	Database db;
-
+	const Database db;
+	
 private:
 
 };
