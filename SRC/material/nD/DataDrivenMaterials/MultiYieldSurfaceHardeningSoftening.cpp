@@ -94,10 +94,6 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 		opserr << "The pointer that points at the yield surface: ys = nullptr\n";
 		exit(-1);
 	}
-	else {
-		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
-	}
 	if (nOrd != 3 && nOrd != 6) {
 		opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - dimension error\n";
 		opserr << "Material order has to be 3 or 6, but it is nOrd = " << nOrd << "\n";

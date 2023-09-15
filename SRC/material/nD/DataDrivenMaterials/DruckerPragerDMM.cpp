@@ -95,8 +95,6 @@ NDMaterial* DruckerPragerDMM::getCopy(void) {
 	// done
 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -126,8 +124,6 @@ NDMaterial* DruckerPragerDMM::getCopy(const char* type) {
 	// done
 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {

@@ -59,9 +59,6 @@ public:
 	DataDrivenNestedSurfaces& operator=(const DataDrivenNestedSurfaces&) = default;		// one-to-one assignment
 
 	// operational methods
-	bool canDelete(void);						// return true if no material is using the object
-	void checkin(void);							// increase how_many counter
-	void checkout(void);						// decrease how_many counter
 	bool isAOK(int dataDriver);					// whether the desired yield surface package is allowed or not 
 	DataDrivenNestedSurfaces* getCopy(void);	// retun a copy of the object
 

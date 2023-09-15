@@ -104,8 +104,6 @@ NDMaterial* MatsuokaNakaiDMM::getCopy(void) {
 	// done
 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {
@@ -135,8 +133,6 @@ NDMaterial* MatsuokaNakaiDMM::getCopy(const char* type) {
 	// done
 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		theData->checkin(); // do check-in
 		return copy;
 	}
 	else {

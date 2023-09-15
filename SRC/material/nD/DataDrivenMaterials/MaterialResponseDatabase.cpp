@@ -127,14 +127,6 @@ Database::Database(const Database& other):
 Database::~Database()
 {
 	// smart pointer "unique_ptr" deletes datapts objects when out of scope
-	
-	//if (!datapts.empty()) {
-	//	for each (auto ptr in datapts)
-	//	{
-	//		delete ptr;
-	//	}
-	//	datapts.clear();
-	//}
 }
 
 Database& Database::operator=(const Database& other) {

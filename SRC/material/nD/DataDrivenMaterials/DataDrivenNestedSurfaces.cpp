@@ -128,10 +128,6 @@ DataDrivenNestedSurfaces::~DataDrivenNestedSurfaces(void)
 
 
 	// operational methods
-bool DataDrivenNestedSurfaces::canDelete(void) { return (how_many < 2); }
-void DataDrivenNestedSurfaces::checkin(void) { how_many++;}
-void DataDrivenNestedSurfaces::checkout(void) { how_many--;}
-
 bool DataDrivenNestedSurfaces::isAOK(int dataDriver) {
 	
 	bool aok = false;
