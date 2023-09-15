@@ -37,7 +37,7 @@
 	// constructors
 YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, std::shared_ptr<DataDrivenNestedSurfaces> ptr, 
 	const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity):
-	matID(mat), datadriver(driver), lib(ptr), beVerbose(verbosity)
+	matID(mat), datadriver(driver), library(ptr), beVerbose(verbosity)
 {
 	// set material order
 	if (OPS_GetNDM() == 2) {		// PlaneStrain
@@ -47,61 +47,68 @@ YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, std::s
 		nOrd = 6;
 	}
 
-	// generate yield surfaces
-	if (datadriver == 0) {							// automatic backbone genration
-		// auto-backbone constructor
-		do_active = false;
+	// lock the weak_ptr to create a shared_ptr
+	if (auto lib = library.lock()) {
+		// generate yield surfaces
+		if (datadriver == 0) {							// automatic backbone genration
+			// auto-backbone constructor
+			do_active = false;
 
-		// setup automatic yield surfaces
-		lib->setUpAutomaticSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
+			// setup automatic yield surfaces
+			lib->setUpAutomaticSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
 
-		// initialize remaining variables
-		alpha = Matrix(nOrd, tnys + 1);
-		alpha_commit = Matrix(nOrd, tnys + 1);
-	}
-	else if (datadriver == 1) {						// passive: do not update once a set once generated
-		//passive constructor
-		do_active = false;
-		nonassociated = true;
-
-		// setup passive yield surfaces
-		lib->setUpPassiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
-
-		// initialize remaining variables
-		alpha = Matrix(nOrd, tnys + 1);
-		alpha_commit = Matrix(nOrd, tnys + 1);
-	}
-	else if (datadriver < -1 || datadriver > 1) {	// active: generate surfaces on-the-fly
-		// active constructor
-		do_active = true;
-		nonassociated = true;
-
-		// setup active yield surfaces
-		lib->setUpActiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
-		
-		// initialize remaining variables
-		tau_commit = Vector(tau.Size());
-		gamma_commit = Vector(gamma.Size());
-		eta_commit = Vector(eta.Size());
-		if (nonassociated) {
-			beta_commit = Vector(beta.Size());
+			// initialize remaining variables
+			alpha = Matrix(nOrd, tnys + 1);
+			alpha_commit = Matrix(nOrd, tnys + 1);
 		}
-		alpha = Matrix(nOrd, tnys);
-		alpha_commit = Matrix(nOrd, tnys);
+		else if (datadriver == 1) {						// passive: do not update once a set once generated
+			//passive constructor
+			do_active = false;
+			nonassociated = true;
+
+			// setup passive yield surfaces
+			lib->setUpPassiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
+
+			// initialize remaining variables
+			alpha = Matrix(nOrd, tnys + 1);
+			alpha_commit = Matrix(nOrd, tnys + 1);
+		}
+		else if (datadriver < -1 || datadriver > 1) {	// active: generate surfaces on-the-fly
+			// active constructor
+			do_active = true;
+			nonassociated = true;
+
+			// setup active yield surfaces
+			lib->setUpActiveSurfaces(tnys, tau, eta, beta, gamma, stress, strain);
+		
+			// initialize remaining variables
+			tau_commit = Vector(tau.Size());
+			gamma_commit = Vector(gamma.Size());
+			eta_commit = Vector(eta.Size());
+			if (nonassociated) {
+				beta_commit = Vector(beta.Size());
+			}
+			alpha = Matrix(nOrd, tnys);
+			alpha_commit = Matrix(nOrd, tnys);
+		}
+		else if (datadriver == -1) {					// user custom surface generation
+			//custom-backbone constructor
+			do_active = false;
+
+			// setup custom yield surfaces
+			lib->setUpUserCustomSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
+
+			// initialize remaining variables
+			alpha = Matrix(nOrd, tnys + 1);
+			alpha_commit = Matrix(nOrd, tnys + 1);
+		} 
+		else {
+			opserr << "FATAL: YieldSurfacePackage() - unknown yield surface update method!\n";
+			exit(-1);
+		}
 	}
-	else if (datadriver == -1) {					// user custom surface generation
-		//custom-backbone constructor
-		do_active = false;
-
-		// setup custom yield surfaces
-		lib->setUpUserCustomSurfaces(tnys, nonassociated, tau, eta, beta, Gref, Pref);
-
-		// initialize remaining variables
-		alpha = Matrix(nOrd, tnys + 1);
-		alpha_commit = Matrix(nOrd, tnys + 1);
-	} 
 	else {
-		opserr << "FATAL: YieldSurfacePackage() - unknown yield surface update method!\n";
+		opserr << "FATAL: YieldSurfacePackage() - cannot access the database! Database is no longer valid...\n";
 		exit(-1);
 	}
 

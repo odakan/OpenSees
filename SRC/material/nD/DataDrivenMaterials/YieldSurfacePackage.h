@@ -97,12 +97,13 @@ private:
 	bool beVerbose = false;						// be verbose about internal processes (use for debugging) (no by default)
 	bool nonassociated = false;					// associated or nonassociated flow
 
-	// Pointer to the yield surface library
+	// Pointer (weak) to the yield surface library
 	// <memory> library, shared pointer class smart pointer
 	// shared pointer allows and handles multiple copies of the pointer
 	// the object that the pointer holds is deleted when out of scope
-	// finally, shared pointer allows concurrent read acess in a parallel setting 
-	std::shared_ptr<DataDrivenNestedSurfaces> lib = nullptr;
+	// weak since yield surface is a member object of the material
+	// use lock() method inisde the scope to use the pointer e.g. auto lib = library.lock()
+	std::weak_ptr<DataDrivenNestedSurfaces> library;
 
 	// yield surface state variables
 	/*	Note: nYs != ys

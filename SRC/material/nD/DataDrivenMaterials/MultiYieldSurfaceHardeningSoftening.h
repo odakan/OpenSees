@@ -185,7 +185,6 @@ protected:
 	// <memory> library, shared pointer class smart pointer
 	// shared pointer allows and handles multiple copies of the pointer
 	// the object that the pointer holds is deleted when out of scope
-	// finally, shared pointer allows concurrent read acess in a parallel setting 
 	std::shared_ptr<DataDrivenNestedSurfaces> theData = nullptr;
 
 	// operational paramaters
