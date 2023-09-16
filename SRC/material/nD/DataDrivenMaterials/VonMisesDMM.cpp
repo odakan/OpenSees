@@ -37,39 +37,39 @@ namespace global {
 	class MaterialList {
 	public:
 		int size = 0;
+		int next_tag = 0;
 		std::vector<VonMisesDMM*> mptr;
 
 	public:
-		MaterialList() = default;
-		MaterialList& resize(int N) {
-			if (N != size) {
-				mptr.resize(N);
-			}
+		MaterialList(void) = default;
+		~MaterialList(void) = default;
+
+		void append(VonMisesDMM* matptr) {
+			matptr->setSubTag(next_tag);
+			next_tag++;
+			mptr.push_back(matptr);
 			size = mptr.size();
-			return *this;
 		}
 
-		MaterialList& append(VonMisesDMM* matptr) {
-			auto it = mptr.end();
-			mptr.insert(it, matptr);
-			size = mptr.size();
-			return *this;
-		}
-
-		MaterialList& remove(VonMisesDMM* matptr) {
+		void remove(VonMisesDMM* matptr) {
 			auto it = std::find(mptr.begin(), mptr.end(), matptr);
 			if (it != mptr.end()) {
 				mptr.erase(it);
-				delete matptr; // If you are responsible for memory management, delete the object
 			}
-			size = mptr.size();
-			return *this;
+			// clean up if the list is empty or if not update the size
+			if (mptr.empty()) { cleanup(); } else { size = mptr.size(); }
+		}
+
+		void cleanup(void) {
+			size = 0;
+			next_tag = 0;
+			mptr.clear();
 		}
 	};
 }
 
-// global material list
-auto& matID = global::MaterialList();
+// global material list that tracks all object instances
+auto VonMiseslist = global::MaterialList();
 
 // Public methods
 	// full constructor
@@ -81,7 +81,7 @@ VonMisesDMM::VonMisesDMM(int tag, double r0,
 		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
 	// append material to the list
-	matID.append(this);
+	VonMiseslist.append(this);
 }
 
 // null constructor
@@ -93,8 +93,7 @@ VonMisesDMM::VonMisesDMM(void)
 // destructor
 VonMisesDMM::~VonMisesDMM(void)
 {
-	MultiYieldSurfaceHardeningSoftening::~MultiYieldSurfaceHardeningSoftening();
-	matID.remove(this);
+	VonMiseslist.remove(this);
 }
 
 // return object info
@@ -104,16 +103,13 @@ NDMaterial* VonMisesDMM::getCopy(void) {
 	copy = new VonMisesDMM(*this);
 	 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		//theData->checkin(); // do check-in
+		// inform the list about the new instance
+		VonMiseslist.append(copy);
 		return copy;
 	}
 	else {
-		opserr << "WARNING: VonMisesDMM: getCopy: returned NULLPTR! couldn't copy the material...\n";
-		opserr << "Moving on...\n";
-		opserr << "..\n";
-		opserr << ".\n\n";
-		return 0;
+		opserr << "FATAL: VonMisesDMM::getCopy() - returned NULLPTR! couldn't copy the material\n";
+		exit(-1);
 	}
 	// done
 }
@@ -130,24 +126,20 @@ NDMaterial* VonMisesDMM::getCopy(const char* type) {
 		copy = new VonMisesDMM(*this);
 	}
 	else {
-		opserr << "FATAL: VonMisesDMM getCopy: unsupported material type = " << type << "\n";
+		opserr << "FATAL: VonMisesDMM::getCopy() - unsupported material type = " << type << "\n";
 		opserr << "VonMisesDMM materialType can be --> ThreeDimensional (1), PlaneStrain (0)\n";
 		exit(-1);
 	}
 	// done
 
 	if (copy != nullptr) {
-		// inform the yield surface object about the new instance
-		//theData->checkin(); // do check-in
-		matID.append(copy);
+		// inform the list about the new instance
+		VonMiseslist.append(copy);
 		return copy;
 	}
 	else {
-		opserr << "WARNING: VonMisesDMM: getCopy: returned NULLPTR! couldn't copy the material.\n";
-		opserr << "Moving on...\n";
-		opserr << "..\n";
-		opserr << ".\n\n";
-		return 0;
+		opserr << "FATAL: VonMisesDMM::getCopy() - returned NULLPTR! couldn't copy the material\n";
+		exit(-1);
 	}
 }
 
@@ -191,7 +183,7 @@ int VonMisesDMM::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& 
 
 // miscellaneous
 void VonMisesDMM::Print(OPS_Stream& s, int flag) {
-	s << "von Mises Multi-Yield Surface Hardening-Softening nD Material\n";
+	s << "von Mises Multi-Yield Surface Hardening-Softening nD Material " << getTag() << "::" << getSubTag() << "\n";
 }
 
 int VonMisesDMM::setParameter(const char** argv, int argc, Parameter& param) {
@@ -219,22 +211,26 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 		// update material stage and if nonlinear set up yield surfaces 
 		if (info.theInt > 0) {
 			// set-up yield surfaces
-			for each (auto ptr in matID.mptr) {
+			for each (auto ptr in VonMiseslist.mptr) {
+				if (ptr->getSubTag() == 0) { continue; }	// Skip the first material since its not used (the master copy)
 				if (ptr->theData == nullptr) {
-					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
-						" could not access the yield surface library!";
+					opserr << "FATAL: VonMisesDMM::updateParameter() - nD Material " << ptr->getTag() << "."
+						<< ptr->getSubTag() << " cannot access the yield surface library!";
 					exit(-1);
 				}
 				else {
-					if (ptr->theData->isAOK(ptr->getDataDriver())) {
+					// if the desired type of surface is available and the material stage has not been already updated
+					if ((ptr->theData->isAOK(ptr->getDataDriver())) && (ptr->materialStage != info.theInt)) {
+						if (beVerbose) { opserr << "WARNING: VonMisesDMM::updateParameter() - nD Material " << ptr->getTag() << 
+							"." << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n"; }
 						ptr->updateModuli(ptr->sv.sig);
-						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getDataDriver(), ptr->theData, ptr->getGmod(), 
-							ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
+						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getSubTag(), ptr->getOrder(), ptr->getDataDriver(), 
+							ptr->theData, ptr->getGmod(), ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
 						ptr->materialStage = info.theInt;
 					}
 					else {
-						opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
-							" could not update material stage! Keeping the current stage = " << ptr->materialStage << " ...\n";
+						opserr << "WARNING: VonMisesDMM::updateParameter() - nD Material " << ptr->getTag() << "." << ptr->getSubTag() <<
+							" cannot update material stage! Keeping the current stage: " << ptr->materialStage << " ...\n";
 					}
 				}
 			}

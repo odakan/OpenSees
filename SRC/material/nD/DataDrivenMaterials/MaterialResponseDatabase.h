@@ -60,13 +60,13 @@ public:
 
 	// get methods
 	double getVoidRatio(const int index) const;
-	double getDilatancy(const int index) const;
-	double getShearModulus(const int index) const;
+	double getMeanPressure(const int index) const;
 	double getVolumetricStrain(const int index) const;
 	double getOctahedralStress(const int index) const;
 	double getOctahedralStrain(const int index) const;
 
 	// permitted queries
+	int seek(const double pavg, const double gamma) const;
 	int seek(const char* token, const Vector& tensor) const;
 	int seek(const double I1, const double J2, const double J3) const;
 	int seek(const double pavg, const char* token, const Vector& tensor) const;
@@ -82,14 +82,14 @@ private:
 	std::string fullpath;
 
 	// min-max data
-	double Goct_max = 0.0;
-	double Goct_min = 0.0;
-	double Toct_max = 0.0;
-	double Toct_min = 0.0;
-	double Pavg_max = 0.0;
-	double Pavg_min = 0.0;
-	double Evol_max = 0.0;
-	double Evol_min = 0.0;
+	double Goct_max = SMALL_VALUE;
+	double Goct_min = LARGE_VALUE;
+	double Toct_max = SMALL_VALUE;
+	double Toct_min = LARGE_VALUE;
+	double Pavg_max = -LARGE_VALUE;
+	double Pavg_min = LARGE_VALUE;
+	double Evol_max = SMALL_VALUE;
+	double Evol_min = LARGE_VALUE;
 
 	// data points
 	std::vector<std::unique_ptr<DataPoint>> datapts;

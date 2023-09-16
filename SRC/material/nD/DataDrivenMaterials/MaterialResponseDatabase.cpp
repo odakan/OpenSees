@@ -72,26 +72,24 @@ Database::Database(const int tag, const char* dir, const char* fname)
 				Data = file->splitString(line, ' ');
 				// create a data container
 				std::unique_ptr<DataPoint> point = std::make_unique<DataPoint>(Data, Info);
-				//DataPoint* point = new DataPoint(Data, Info);
 				// check dimension
 				if (nDim == 0) nDim = point->getDim();  // assume databse has the dimension of the first point
 				if (nDim != point->getDim()) {
 					opserr << "WARNING: Database() - encountered with an incompatible data point! Skipping the point...";
 					continue;
 				}
-				// compute some statistics
-				if (point->Toct > Toct_max) Toct_max = point->Toct;
-				if (point->Toct < Toct_min) Toct_min = point->Toct;
-				if (point->Goct > Goct_max) Goct_max = point->Goct;
-				if (point->Goct < Goct_min) Goct_min = point->Goct;
-				if (point->Pavg > Pavg_max) Pavg_max = point->Pavg;
-				if (point->Pavg < Pavg_min) Pavg_min = point->Pavg;
-				if (point->Evol > Evol_max) Evol_max = point->Evol;
-				if (point->Evol < Evol_min) Evol_min = point->Evol;
+				// compute some useful statistics
+				if (point->Toct > Toct_max && abs(point->Toct) < LARGE_VALUE) Toct_max = point->Toct;
+				if (point->Toct < Toct_min && abs(point->Toct) > SMALL_VALUE) Toct_min = point->Toct;
+				if (point->Goct > Goct_max && abs(point->Goct) < LARGE_VALUE) Goct_max = point->Goct;
+				if (point->Goct < Goct_min && abs(point->Goct) > SMALL_VALUE) Goct_min = point->Goct;
+				if (point->Pavg > Pavg_max && abs(point->Pavg) > SMALL_VALUE) Pavg_max = point->Pavg;
+				if (point->Pavg < Pavg_min && abs(point->Pavg) < LARGE_VALUE) Pavg_min = point->Pavg;
+				if (point->Evol > Evol_max && abs(point->Evol) < LARGE_VALUE) Evol_max = point->Evol;
+				if (point->Evol < Evol_min && abs(point->Evol) > SMALL_VALUE) Evol_min = point->Evol;
 				length++;
 				// store the pointer to the container
 				datapts.push_back(std::move(point));
-				//datapts.push_back(point);
 			}
 			nTests++;
 		}
@@ -191,31 +189,19 @@ double Database::getVoidRatio(const int index) const {
 		value = datapts[index]->getVR();
 	}
 	else {
-		opserr << "FATAL - Database::getVoidRatio() - requested index exceeds the length of the database!\n";
+		opserr << "FATAL: Database::getVoidRatio() - requested index exceeds the length of the database!\n";
 		exit(-1);
 	}
 	return value;
 }
 
-double Database::getDilatancy(const int index) const {
+double Database::getMeanPressure(const int index) const {
 	double value = 0.0;
 	if (index >= 0 && index < length) {
-		value = datapts[index]->Bsec;
+		value = datapts[index]->Pavg;
 	}
 	else {
-		opserr << "FATAL - Database::getDilatancy() - requested index exceeds the length of the database!\n";
-		exit(-1);
-	}
-	return value;
-}
-
-double Database::getShearModulus(const int index) const {
-	double value = 0.0;
-	if (index >= 0 && index < length) {
-		value = datapts[index]->Gsec;
-	}
-	else {
-		opserr << "FATAL - Database::getShearModulus() - requested index exceeds the length of the database!\n";
+		opserr << "FATAL: Database::getMeanPressure() - requested index exceeds the length of the database!\n";
 		exit(-1);
 	}
 	return value;
@@ -227,7 +213,7 @@ double Database::getVolumetricStrain(const int index) const {
 		value = datapts[index]->Evol;
 	}
 	else {
-		opserr << "FATAL - Database::getVolumetricStrain() - requested index exceeds the length of the database!\n";
+		opserr << "FATAL: Database::getVolumetricStrain() - requested index exceeds the length of the database!\n";
 		exit(-1);
 	}
 	return value;
@@ -239,7 +225,7 @@ double Database::getOctahedralStress(const int index) const {
 		value = datapts[index]->Toct;
 	}
 	else {
-		opserr << "FATAL - Database::getOctahedralStress() - requested index exceeds the length of the database!\n";
+		opserr << "FATAL: Database::getOctahedralStress() - requested index exceeds the length of the database!\n";
 		exit(-1);
 	}
 	return value;
@@ -251,26 +237,61 @@ double Database::getOctahedralStrain(const int index) const {
 		value = datapts[index]->Goct;
 	}
 	else {
-		opserr << "FATAL - Database::getOctahedralStrain() - requested index exceeds the length of the database!\n";
+		opserr << "FATAL: Database::getOctahedralStrain() - requested index exceeds the length of the database!\n";
 		exit(-1);
 	}
 	return value;
 }
 
 // permitted queries
+int Database::seek(const double pavg, const double gamma) const {
+	// search for the point with the closest mean stress and octahedral shear strain
+
+	// initialize
+	int index = -1;
+	double goct = gamma;
+	double distance = 0.0;
+	double closest_distance = 1e4;
+
+	// if gamma is 0, force the smallest gamma
+	if (gamma == 0.0) {
+		goct = Goct_min;
+	}
+
+	// compute norms
+	for (int i = 0; i < length; i++) {
+		distance = sqrt(((datapts[index]->Pavg - pavg) * (datapts[index]->Pavg - pavg)) +
+					    ((datapts[index]->Goct - goct) * (datapts[index]->Goct - goct)));
+		// find the minimum distance
+		if (distance < closest_distance) {
+			closest_distance = distance;
+			// save index
+			index = i;
+		}
+	}
+
+	// return index
+	if (index < 0 || index >= length) {
+		opserr << "FATAL: Database::seek() - search algorithm failed!\n";
+		exit(-1);
+	}
+
+	return index;
+}
+
 int Database::seek(const char* token, const Vector& tensor) const {
 	// searh for the point with the closest desired tensor
 	
 	// initialize
 	int index = -1;
 	int size = tensor.Size();
-	double TOL = 1-4;
-	double closest_distance = 1;
-	Vector& data = Vector(size);
+	double TOL = 1e4;
+	double closest_distance = 1e4;
+	Vector data = Vector(size);
 
 	// check compatibility
 	if (size != 3 * (nDim - 1)) { 
-		opserr << "FATAL - Database::seek() - material dimension does not match the database!\n";
+		opserr << "FATAL: Database::seek() - material dimension does not match the database!\n";
 		exit(-1);
 	}
 
@@ -280,30 +301,27 @@ int Database::seek(const char* token, const Vector& tensor) const {
 		// fetch data tensor
 		if (strcmp(token, "stress") == 0) {
 			TOL = 1;
-			closest_distance = 1e4;
 			data = datapts[i]->getStress();
 		}
 		else if (strcmp(token, "strain") == 0) {
-			TOL = 1e-4;
-			closest_distance = 1;
+			TOL = 1e-2;
 			data = datapts[i]->getStrain();
 		}
 		else if (strcmp(token, "fabric") == 0) {
-			TOL = 1e-4;
-			closest_distance = 1;
+			TOL = 1e-2;
 			data = datapts[i]->getFabric();
 		}
 		else {
-			opserr << "FATAL - Database::seek() - the desired tensor is not available in the database!\n";
+			opserr << "FATAL: Database::seek() - the desired tensor is not available in the database!\n";
 			exit(-1);
 		}
 		// compute the tensor-to-tensor distance (in Voigt notation)
 		for (int j = 0; j < size; j++) {
 			if (j < nDim) {
-				distance += ((data(j) * data(j)) - (tensor(j) * tensor(j)));
+				distance += ((data(j) - tensor(j)) * (data(j) - tensor(j)));
 			}
 			else {
-				distance += 2 * ((data(j) * data(j)) - (tensor(j) * tensor(j)));
+				distance += 2 * ((data(j) - tensor(j)) * (data(j) - tensor(j)));
 			}
 		}
 		distance = sqrt(distance);
@@ -315,13 +333,17 @@ int Database::seek(const char* token, const Vector& tensor) const {
 		}
 	}
 
+	opserr << "min distance  = " << closest_distance << "\n";
+	opserr << "minimum index = " << index << "\n";
+
 	// return index
 	if (index < 0 || index >= length) {
-		opserr << "FATAL - Database::seek() - search algorithm failed!\n";
+		opserr << "FATAL: Database::seek() - search algorithm failed!\n";
 		exit(-1);
 	}
 	else if (closest_distance > TOL) {
-		opserr << "WARNING - Database::seek() - failed to find a sufficiently close data point!\n";
+		opserr << "FATAL: Database::seek() - failed to find a sufficiently close data point!\n";
+		exit(-1);
 	}
 
 	return index;
@@ -332,15 +354,15 @@ int Database::seek(const double I1, const double J2, const double J3) const {
 
 	// initialize
 	int index = -1;
-	double TOL = 1 - 4;
+	double TOL = 1e-4;
 	double distance = 0.0;
 	double closest_distance = 1.0;
 
 	// compute norms
 	for (int i = 0; i < length; i++) {
-		distance = sqrt(((datapts[index]->I1 * datapts[index]->I1) - (I1 * I1)) +
-						((datapts[index]->J2 * datapts[index]->J2) - (J2 * J2)) +
-						((datapts[index]->J3 * datapts[index]->J3) - (J3 * J3)));
+		distance = sqrt(((datapts[index]->I1 - I1) * (datapts[index]->I1 - I1)) +
+						((datapts[index]->J2 - J2) * (datapts[index]->J2 - J2)) +
+						((datapts[index]->J3 - J3) * (datapts[index]->J3 - J3)));
 		// find the minimum distance
 		if (distance < closest_distance) {
 			closest_distance = distance;
@@ -351,11 +373,12 @@ int Database::seek(const double I1, const double J2, const double J3) const {
 
 	// return index
 	if (index < 0 || index >= length) {
-		opserr << "FATAL - Database::seek() - search algorithm failed!\n";
+		opserr << "FATAL: Database::seek() - search algorithm failed!\n";
 		exit(-1);
 	}
 	else if (closest_distance > TOL) {
-		opserr << "WARNING - Database::seek() - failed to find a sufficiently close data point!\n";
+		opserr << "FATAL: Database::seek() - failed to find a sufficiently close data point!\n";
+		exit(-1);
 	}
 
 	return index;
@@ -368,15 +391,15 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) c
 	int index = -1;
 	int size = tensor.Size();
 	double Evol = 0.0;
-	double TOL = 0.1;
-	double closest_distance = 1;
+	double TOL = 1e4;
+	double closest_distance = 1e4;
 	Vector data_dev(size);
 	Vector tensor_dev(size);
-	Vector& data = Vector(size);
+	Vector data = Vector(size);
 
 	// check compatibility
 	if (size != 3 * (nDim - 1)) {
-		opserr << "FATAL - Database::seek() - material dimension does not match the database!\n";
+		opserr << "FATAL: Database::seek() - material dimension does not match the database!\n";
 		exit(-1);
 	}
 
@@ -393,27 +416,26 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) c
 	// compute norms
 	for (int i = 0; i < length; i++) {
 		// only check points with similar average pressure
+		opserr << "material Pavg = " << pavg << "\n";
+		opserr << "data Pavg     = " << datapts[i]->Pavg << "\n";
+		opserr << "pavg distance = " << abs(datapts[i]->Pavg - pavg) << "\n";
 		if (abs(datapts[i]->Pavg - pavg) <= TOL) {
 			double distance = 0.0;
 			// fetch data tensor
 			if (strcmp(token, "stress") == 0) {
-				TOL = 1;
-				closest_distance = 1e4;
+				TOL = 5;
 				data = datapts[i]->getStress();
 			}
 			else if (strcmp(token, "strain") == 0) {
 				TOL = 1e-4;
-				closest_distance = 1;
 				data = datapts[i]->getStrain();
-				opserr << "Database::seek() - works until here!\n";
 			}
 			else if (strcmp(token, "fabric") == 0) {
 				TOL = 1e-4;
-				closest_distance = 1;
 				data = datapts[i]->getFabric();
 			}
 			else {
-				opserr << "FATAL - Database::seek() - the desired tensor is not available in the database!\n";
+				opserr << "FATAL: Database::seek() - the desired tensor is not available in the database!\n";
 				exit(-1);
 			}
 			// compute the strain deviator tensor
@@ -427,11 +449,14 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) c
 			}
 			// compute the tensor-to-tensor distance (in Voigt notation)
 			for (int j = 0; j < size; j++) {
+				opserr << "distance   = " << distance << "\n";
+				opserr << "data_dev   = " << data_dev;
+				opserr << "tensor_dev = " << data_dev;
 				if (j < nDim) {
-					distance += ((data_dev(j) * data_dev(j)) - (tensor_dev(j) * tensor_dev(j)));
+					distance += ((data_dev(j) - tensor_dev(j)) * (data_dev(j) - tensor_dev(j)));
 				}
 				else {
-					distance += 2 * ((data_dev(j) * data_dev(j)) - (tensor_dev(j) * tensor_dev(j)));
+					distance += 2 * ((data_dev(j) - tensor_dev(j)) * (data_dev(j) - tensor_dev(j)));
 				}
 			}
 			distance = sqrt(distance);
@@ -441,17 +466,21 @@ int Database::seek(const double pavg, const char* token, const Vector& tensor) c
 				// save index
 				index = i;
 			}
+			opserr << "distance      = " << distance << "\n";
+			opserr << "current index = " << i << "\n";
+			opserr << "minimum index = " << index << "\n";
+			exit(-1);
 		}
-
 	}
-
+	
 	// return index
 	if (index < 0 || index >= length) {
-		opserr << "FATAL - Database::seek() - search algorithm failed!\n";
+		opserr << "FATAL: Database::seek() - search algorithm failed!\n";
 		exit(-1);
 	}
 	else if (closest_distance > TOL) {
-		opserr << "WARNING - Database::seek() - failed to find a sufficiently close data point!\n";
+		opserr << "FATAL: Database::seek() - failed to find a sufficiently close data point!\n";
+		exit(-1);
 	}
 
 	return index;

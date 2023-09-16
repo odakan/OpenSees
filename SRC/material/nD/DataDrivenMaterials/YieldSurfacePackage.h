@@ -44,9 +44,11 @@ public:
 	// null constructor
 	YieldSurfacePackage(void) = default;
 
-	// full constructors	
-	YieldSurfacePackage(const int matID, const int driver, std::shared_ptr<DataDrivenNestedSurfaces> ptr, 
-		const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity);
+	// full constructor
+	YieldSurfacePackage(const int matID, const int sub);
+	YieldSurfacePackage(const int matID, const int sub, const int ord, const int driver, 
+		std::shared_ptr<DataDrivenNestedSurfaces> ptr, const double Gref, const double Pref, 
+		const Vector& stress, const Vector& strain, const bool verbosity);
 
 	// destructor
 	~YieldSurfacePackage(void);
@@ -91,6 +93,7 @@ private:
 	// operational parameters
 	int nOrd = 6;								// material order
 	int matID = 0;								// tag of the attached material
+	int subID = 0;								// tag of the material instance
 	int tnys = 0;								// total number of yield surfaces
 	int datadriver = 0;							// yield surface update method
 	bool do_active = false;						// activate on-the-fly update of the data-driven surfaces

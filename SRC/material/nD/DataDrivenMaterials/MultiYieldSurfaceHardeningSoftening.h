@@ -103,9 +103,7 @@ constexpr double CPLANE_STRAIN_STEP = 1e-5;
 constexpr double ABSOLUTE_TOLERANCE = 1e-4;
 constexpr double RELATIVE_TOLERANCE = 1e-6;
 constexpr double MACHINE_EPSILON = DBL_EPSILON;
-constexpr double SMALL_PERTURBATION = 1.0e-9;
-constexpr double SMALL_VALUE = 1.0e-8;
-constexpr double LARGE_VALUE = 1.0e8;
+constexpr double SMALL_PERTURBATION = 1e-9;
 constexpr int BRENT_MAXITER = 20;
 constexpr double BRENT_TOLERANCE = 1e-6;
 
@@ -134,8 +132,7 @@ public:
 	int setTrialStrain(const Vector& strain, const Vector& rate);
 	int setTrialStrainIncr(const Vector& strain);
 	int setTrialStrainIncr(const Vector& strain, const Vector& rate);
-		// used by the surface generator
-	void setTheSurfaces(YieldSurfacePackage* theSurfaces);
+	void setSubTag(int);
 
 	// return object info
 	virtual NDMaterial* getCopy(void) = 0;
@@ -143,6 +140,7 @@ public:
 	const char* getType(void) const;
 	int getDataDriver(void);		// return yield surface data driver preference
 	int getOrder(void) const;
+	int getSubTag(void);
 	Vector getState(void);
 		// used by the yield surface objects
 	double getGref(void);			// return reference shear modulus
@@ -171,8 +169,9 @@ public:
 	virtual int updateParameter(int responseID, Information& eleInformation);
 
 protected:
-	// material parameters & constants
+	// material parameters & constants				
 	int nOrd = 6;									// Material order (dimension) [3 or 6]
+	int subTag = 0;									// Material sub-number amongst the class Tag
 	double rho = 0.0;								// Mass density
 	double Kref = 0.0;								// Reference bulk modulus
 	double Gref = 0.0;								// Reference shear modulus

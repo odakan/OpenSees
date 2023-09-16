@@ -37,6 +37,10 @@
 #include <Vector.h>
 #include "MaterialTensorOperations.h"
 
+constexpr double SMALL_VALUE = 1e-18;
+constexpr double ZERO_VALUE = 1e-6;
+constexpr double LARGE_VALUE = 1e18;
+
 class DataPoint {
 public:
 	// variables

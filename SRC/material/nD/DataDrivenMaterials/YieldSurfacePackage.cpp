@@ -35,18 +35,16 @@
 
 // Public methods
 	// constructors
-YieldSurfacePackage::YieldSurfacePackage(const int mat, const int driver, std::shared_ptr<DataDrivenNestedSurfaces> ptr, 
-	const double Gref, const double Pref, const Vector& stress, const Vector& strain, const bool verbosity):
-	matID(mat), datadriver(driver), library(ptr), beVerbose(verbosity)
+YieldSurfacePackage::YieldSurfacePackage(const int mat, const int sub):
+	matID(mat), subID(sub)
 {
-	// set material order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
-	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
+}
 
+YieldSurfacePackage::YieldSurfacePackage(const int mat, const int sub, const int ord, const int driver,
+	std::shared_ptr<DataDrivenNestedSurfaces> ptr, const double Gref, const double Pref, const Vector& stress, 
+	const Vector& strain, const bool verbosity):
+	matID(mat), subID(sub), nOrd(ord), datadriver(driver), library(ptr), beVerbose(verbosity)
+{
 	// lock the weak_ptr to create a shared_ptr
 	if (auto lib = library.lock()) {
 		// generate yield surfaces
@@ -155,7 +153,7 @@ void YieldSurfacePackage::printStats(bool detail) {
 	if (detail) {
 		opserr << "YieldSurfacePackage::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "Attached material ID            =  " << matID << "\n";
+		opserr << "Attached material ID            =  " << matID << "::" << subID << "\n";
 		opserr << "Limit Stresses                  =  " << tau;
 		opserr << "Commited limit stresses         =  " << tau_commit;
 		opserr << "Plastic Moduli                  =  " << eta;
@@ -172,7 +170,6 @@ void YieldSurfacePackage::printStats(bool detail) {
 	else {
 		opserr << "YieldSurfacePackage::printStats() ->\n";
 		opserr << "-------------------------------------------------------------------\n";
-		opserr << "Attached material ID   =  " << matID << "\n";
 		opserr << "Current yield surface  =  " << num << "\n";
 		opserr << "Active no. of surfaces =  " << nYs_commit << "\n";
 		opserr << "Back-stress            =  " << alpha_commit;

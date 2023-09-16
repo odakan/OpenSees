@@ -34,8 +34,6 @@
 
 #include "DataDrivenNestedSurfaces.h"
 
-#define LARGE_NUMBER 1.0e30
-
 // Public methods
 	// full constructors
 DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double phi0,			// full constructor
@@ -120,12 +118,10 @@ DataDrivenNestedSurfaces::DataDrivenNestedSurfaces(int tag, double c0, double ph
 	}
 }
 
-
 	// destructor
 DataDrivenNestedSurfaces::~DataDrivenNestedSurfaces(void) 
 {
 }
-
 
 	// operational methods
 bool DataDrivenNestedSurfaces::isAOK(int dataDriver) {
@@ -157,7 +153,6 @@ DataDrivenNestedSurfaces* DataDrivenNestedSurfaces::getCopy(void)  {
 	return copy;
 }
 
-
 // get methods
 int DataDrivenNestedSurfaces::getTNYS(void) { return tnys; }
 double DataDrivenNestedSurfaces::getCohesion(void) { return cohesion; }
@@ -166,7 +161,6 @@ double DataDrivenNestedSurfaces::getDilatancyAngle(void) { return dilatancyAngle
 double DataDrivenNestedSurfaces::getPeakStrain(void) { return peakShearStrain; }
 double DataDrivenNestedSurfaces::getPref(void) { return referencePressure; }
 
-
 // set methods
 void DataDrivenNestedSurfaces::setTNYS(const int val) { tnys = val; }
 void DataDrivenNestedSurfaces::setCohesion(const double val) { cohesion = val; }
@@ -174,6 +168,47 @@ void DataDrivenNestedSurfaces::setFrictionAngle(const double val) { frictionAngl
 void DataDrivenNestedSurfaces::setDilatancyAngle(const double val) { dilatancyAngle = val; }
 void DataDrivenNestedSurfaces::setPeakStrain(const double val) { peakShearStrain = val; }
 void DataDrivenNestedSurfaces::setPref(const double val) { referencePressure = val; }
+
+// elastic parameters
+void DataDrivenNestedSurfaces::getElasticParameters(const double pref, double& Gref, double& Kref) {
+	// given reference pressure, seek elastic initial parameters for material stage 0
+
+	// initialize local variables
+	int dim = db.getDim();
+	double tau = 0.0;
+	double pavg = 0.0;
+	double gamma = 0.0; // force smallest strain
+	double epsvol = 0.0;
+	Vector zeros(int(3 * (dim - 1)));
+
+	// scan the database
+	int index = db.seek(pref, gamma);
+
+	// elastic limits
+	pavg = db.getMeanPressure(index);
+	tau = db.getOctahedralStress(index);
+	gamma = db.getOctahedralStrain(index);
+	epsvol = db.getVolumetricStrain(index);
+
+	opserr << "Pavg = " << pavg << "\n";
+	opserr << "Evol = " << epsvol << "\n";
+	opserr << "Toct = " << tau << "\n";
+	opserr << "Goct = " << gamma << "\n";
+
+	if (abs(gamma) == 0.0 || abs(epsvol) == 0.0) {
+		opserr << "FATAL: DataDrivenNestedSurfaces::setElasticParameters() - division by zero!\n";
+		exit(-1);
+	}
+
+	// compute elastic parameters
+	Gref = abs(tau / gamma);
+	Kref = abs(pavg / epsvol);
+
+	if (Gref > LARGE_VALUE || Kref > LARGE_VALUE) {
+		opserr << "FATAL: DataDrivenNestedSurfaces::setElasticParameters() - division by effectively zero value! Elastic moduli >" << LARGE_VALUE << "\n";
+		exit(-1);
+	}
+}
 
 // set-up yield surfaces
 void DataDrivenNestedSurfaces::setUpActiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta,
@@ -211,8 +246,7 @@ void DataDrivenNestedSurfaces::setUpActiveSurfaces(int& nys, Vector& tau, Vector
 	gamma(0) = 2 * sqrt(1.0 / 3.0 * TensorM::dotdot(e_dev, e_dev));
 	
 	// scan the database
-	int index = db.seek(p_avg, "strain", strain);
-	opserr << "DataDrivenNestedSurfaces::setUpActiveSurfaces() - works until here!\n";
+	int index = db.seek("strain", strain);
 	// next yield surface
 	tau(1) = db.getOctahedralStress(index);
 	gamma(1) = db.getOctahedralStrain(index);
@@ -307,7 +341,7 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(int& nys, bool& nonassoci
 		size =  Gref * HModuli(0) * HParams(0);
 	}
 	Href = Gref * HModuli(0) * HParams(0) / HParams(0);
-	if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
+	if (Href > LARGE_VALUE) Href = LARGE_VALUE;
 	tau(0) = size * 0.01;
 	eta(0) = Href;
 	if (nonassociated) {
@@ -341,7 +375,7 @@ void DataDrivenNestedSurfaces::setUpUserCustomSurfaces(int& nys, bool& nonassoci
 			size = stress1;
 		}
 		Href = (stress2 - stress1) / (strain2 - strain1);
-		if (Href > LARGE_NUMBER) Href = LARGE_NUMBER;
+		if (Href > LARGE_VALUE) Href = LARGE_VALUE;
 		tau(i) = size;
 		eta(i) = Href;
 		if (nonassociated) {
@@ -421,7 +455,7 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(int& nys, bool& nonassocia
 
 		Href = (stress2 - stress1) / (strain2 - strain1);
 
-		if (Href > LARGE_NUMBER) { Href = LARGE_NUMBER; }
+		if (Href > LARGE_VALUE) { Href = LARGE_VALUE; }
 		if (i == tnys) { Href = 0; }
 
 		tau(i) = size;

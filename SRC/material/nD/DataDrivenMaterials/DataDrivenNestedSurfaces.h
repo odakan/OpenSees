@@ -39,8 +39,6 @@
 #include <Matrix.h>
 #include "MaterialResponseDatabase.h"
 
-constexpr double ZERO_VALUE = 1.0e-4;
-
 class DataDrivenNestedSurfaces {
 public:
 	// null constructor
@@ -77,6 +75,9 @@ public:
 	void setDilatancyAngle(const double val);
 	void setPeakStrain(const double val);
 	void setPref(const double val);
+
+	// elastic parameters
+	void getElasticParameters(const double pref, double& Gref, double& Kref);
 
 	// set-up yield surfaces
 	void setUpActiveSurfaces(int& nys, Vector& tau, Vector& eta, Vector& beta, 

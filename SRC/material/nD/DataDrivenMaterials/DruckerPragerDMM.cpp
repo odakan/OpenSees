@@ -24,39 +24,40 @@ namespace global {
 	class MaterialList {
 	public:
 		int size = 0;
+		int next_tag = 0;
 		std::vector<DruckerPragerDMM*> mptr;
 
 	public:
-		MaterialList() = default;
-		MaterialList& resize(int N) {
-			if (N != size) {
-				mptr.resize(N);
-			}
+		MaterialList(void) = default;
+		~MaterialList(void) = default;
+
+		void append(DruckerPragerDMM* matptr) {
+			matptr->setSubTag(next_tag);
+			next_tag++;
+			mptr.push_back(matptr);
 			size = mptr.size();
-			return *this;
 		}
 
-		MaterialList& append(DruckerPragerDMM* matptr) {
-			auto it = mptr.end();
-			mptr.insert(it, matptr);
-			size = mptr.size();
-			return *this;
-		}
-
-		MaterialList& remove(DruckerPragerDMM* matptr) {
+		void remove(DruckerPragerDMM* matptr) {
 			auto it = std::find(mptr.begin(), mptr.end(), matptr);
 			if (it != mptr.end()) {
 				mptr.erase(it);
-				delete matptr; // If you are responsible for memory management, delete the object
 			}
-			size = mptr.size();
-			return *this;
+			// clean up if the list is empty or if not update the size
+			if (mptr.empty()) { cleanup(); }
+			else { size = mptr.size(); }
+		}
+
+		void cleanup(void) {
+			size = 0;
+			next_tag = 0;
+			mptr.clear();
 		}
 	};
 }
 
-// global material list
-auto& matID = global::MaterialList();
+// global material list that tracks all object instances
+auto DruckerPragerlist = global::MaterialList();
 
 // Public methods
 	// full constructor
@@ -67,7 +68,8 @@ DruckerPragerDMM::DruckerPragerDMM(int tag, double r0,
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_DruckerPragerDMM, r0,
 		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
-
+	// append material to the list
+	DruckerPragerlist.append(this);
 }
 
 	// null constructor
@@ -79,34 +81,29 @@ DruckerPragerDMM::DruckerPragerDMM()
 	// destructor
 DruckerPragerDMM :: ~DruckerPragerDMM()
 {
+	DruckerPragerlist.remove(this);
 }
 
 	// return object info
 NDMaterial* DruckerPragerDMM::getCopy(void) {
+
 	DruckerPragerDMM* copy = nullptr;
-	// set material type and order
-	if (OPS_GetNDM() == 2) {		// PlaneStrain
-		nOrd = 3;
-	}
-	else if (OPS_GetNDM() == 3) {	// ThreeDimensional
-		nOrd = 6;
-	}
 	copy = new DruckerPragerDMM(*this);
-	// done
 
 	if (copy != nullptr) {
+		// inform the list about the new instance
+		DruckerPragerlist.append(copy);
 		return copy;
 	}
 	else {
-		opserr << "WARNING: DruckerPragerDMM: getCopy: returned NULLPTR! couldn't copy the material...\n";
-		opserr << "Moving on...\n";
-		opserr << "..\n";
-		opserr << ".\n\n";
-		return 0;
+		opserr << "FATAL: DruckerPragerDMM::getCopy() - returned NULLPTR! couldn't copy the material\n";
+		exit(-1);
 	}
+	// done
 }
 
 NDMaterial* DruckerPragerDMM::getCopy(const char* type) {
+
 	DruckerPragerDMM* copy = nullptr;
 	if (strcmp(type, "DruckerPragerDMM") == 0 || strcmp(type, "ThreeDimensional") == 0) {
 		nOrd = 6; // ThreeDimensional
@@ -117,21 +114,20 @@ NDMaterial* DruckerPragerDMM::getCopy(const char* type) {
 		copy = new DruckerPragerDMM(*this);
 	}
 	else {
-		opserr << "FATAL: DruckerPragerDMM getCopy: unsupported material type = " << type << "\n";
+		opserr << "FATAL: DruckerPragerDMM::getCopy() - unsupported material type = " << type << "\n";
 		opserr << "DruckerPragerDMM materialType can be --> ThreeDimensional (1), PlaneStrain (0)\n";
 		exit(-1);
 	}
 	// done
 
 	if (copy != nullptr) {
+		// inform the list about the new instance
+		DruckerPragerlist.append(copy);
 		return copy;
 	}
 	else {
-		opserr << "WARNING: DruckerPragerDMM: getCopy: returned NULLPTR! couldn't copy the material.\n";
-		opserr << "Moving on...\n";
-		opserr << "..\n";
-		opserr << ".\n\n";
-		return 0;
+		opserr << "FATAL: DruckerPragerDMM::getCopy() - returned NULLPTR! couldn't copy the material\n";
+		exit(-1);
 	}
 }
 
@@ -173,7 +169,7 @@ int DruckerPragerDMM::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBro
 
 	// miscellaneous
 void DruckerPragerDMM::Print(OPS_Stream& s, int flag) {
-	s << "Drucker-Prager Multi-Yield Surface Hardening-Softening nD Material\n";
+	s << "Drucker-Prager Multi-Yield Surface Hardening-Softening nD Material " << getTag() << "::" << getSubTag() << "\n";
 }
 
 int DruckerPragerDMM::setParameter(const char** argv, int argc, Parameter& param) {
@@ -201,22 +197,28 @@ int DruckerPragerDMM::updateParameter(int responseID, Information& info) {
 		// update material stage and if nonlinear set up yield surfaces 
 		if (info.theInt > 0) {
 			// set-up yield surfaces
-			for each (auto ptr in matID.mptr) {
+			for each (auto ptr in DruckerPragerlist.mptr) {
+				if (ptr->getSubTag() == 0) { continue; }	// Skip the first material since its not used (the master copy)
 				if (ptr->theData == nullptr) {
-					opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
-						" could not access the yield surface library!";
+					opserr << "FATAL: DruckerPragerDMM::updateParameter() - nD Material " << ptr->getTag() << "."
+						<< ptr->getSubTag() << " cannot access the yield surface library!";
 					exit(-1);
 				}
 				else {
-					if (ptr->theData->isAOK(ptr->getDataDriver())) {
+					// if the desired type of surface is available and the material stage has not been already updated
+					if ((ptr->theData->isAOK(ptr->getDataDriver())) && (ptr->materialStage != info.theInt)) {
+						if (beVerbose) {
+							opserr << "WARNING: DruckerPragerDMM::updateParameter() - nD Material " << ptr->getTag() <<
+								"." << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n";
+						}
 						ptr->updateModuli(ptr->sv.sig);
-						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getDataDriver(), ptr->theData, ptr->getGmod(),
-							ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
+						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getSubTag(), ptr->getOrder(), ptr->getDataDriver(),
+							ptr->theData, ptr->getGmod(), ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
 						ptr->materialStage = info.theInt;
 					}
 					else {
-						opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::updateParameter() - nDMaterial " << ptr->getTag() <<
-							" could not update material stage! Keeping the current stage = " << ptr->materialStage << " ...\n";
+						opserr << "WARNING: DruckerPragerDMM::updateParameter() - nD Material " << ptr->getTag() << "." << ptr->getSubTag() <<
+							" cannot update material stage! Keeping the current stage: " << ptr->materialStage << " ...\n";
 					}
 				}
 			}
