@@ -824,7 +824,6 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 
 	// initialize rate tensors
 	Vector nn(nOrd);      Vector mm(nOrd);      Vector xi(nOrd);      Vector rr(nOrd);
-	Vector next_nn(nOrd); Vector next_mm(nOrd); Vector next_xi(nOrd); Vector next_rr(nOrd);
 
 	// Algorithm 7.2 Prevost (1985)
 	// Step 1 - initialize
@@ -834,10 +833,32 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 	double curr_yf_value = 0;
 	double old_yf_value = ABSOLUTE_TOLERANCE;
 	double dlambda = 0.0; double dlambda1 = 0.0; double dlambda2 = 0.0;
-	sv.sig = sigma_trial; // trial stress
+	// trial stress
+	sv.sig = sigma_trial;
+	// trial tangent operator
+	if (do_tangent) {
+
+
+
+	}
+	/* Return Mapping */
+	// compute the derivatives 	
+	nn = get_dF_dS(sv.sig, ys.now());
+	mm = get_dP_dS(sv.sig, ys.now());
+	xi = get_dF_dA(sv.sig, ys.now());
+	rr = get_dH_dA(sv.sig, ys.now());
+	// Do stress relaxation on to the current yield surface
 	while (iteration_counter < maxIter) {
-		// Do stress relaxation on to the current yield surface
-			// (move the derivates below here to increase efficiency in the expense of non/linear update of of surfaces)
+		// compute the denominator of the plastic loading function
+		double denominator = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) - TensorM::dotdot(xi, rr);
+		// do a check
+		if (abs(denominator) < ABSOLUTE_TOLERANCE) {
+			opserr << "\nWARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - division by 0 while computing the plastic loading function!\n";
+			opserr << "Denominator [nn * Ce * mm - xi * rr] = " << denominator;
+			opserr << "nn * Ce * mm = " << TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) << "\n";
+			opserr << "xi * rr      = " << TensorM::dotdot(xi, rr) << "\n\n";
+			return 0;
+		}
 		while (true) {
 			if (iteration_counter >= maxIter) {
 				opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - return-mapping on to the current surface has failed!\n";
@@ -849,22 +870,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 				old_yf_value = curr_yf_value;
 				break; // end the while loop and GO TO STEP 6
 			}
-				// compute the derivatives 	
-			nn = get_dF_dS(sv.sig, ys.now());		// (move these outside the while loop)
-			mm = get_dP_dS(sv.sig, ys.now());		// (they are constant for a surface anyway)
-			xi = get_dF_dA(sv.sig, ys.now());
-			rr = get_dH_dA(sv.sig, ys.now());
-			// Step 3 - compute new plastic loading functions
-			dlambda = 0.0;
-			double denominator = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) - TensorM::dotdot(xi, rr);
-				// do a check
-			if (abs(denominator) < ABSOLUTE_TOLERANCE) {
-				opserr << "\nWARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - division by 0 while computing the plastic loading function!\n";
-				opserr << "Denominator [nn * Ce * mm - xi * rr] = " << denominator;
-				opserr << "nn * Ce * mm = " << TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm) << "\n";
-				opserr << "xi * rr      = " << TensorM::dotdot(xi, rr) << "\n\n";
-				return 0;
-			}
+			// Step 3 - compute new plastic loading function
 			dlambda = curr_yf_value / denominator;
 			sv.lambda = sv.lambda + dlambda;
 			// Step 4 - update palstic strains and state variables
@@ -892,6 +898,12 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 				opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - division by 0 while updating the internal surfaces!\n";
 				return 0;
 			}
+				// update the tangent operator
+			if (do_tangent) {
+
+
+
+			}
 			// Step 5 - iteration_counter++ and go to step 2
 			old_yf_value = curr_yf_value;
 			iteration_counter++;
@@ -904,12 +916,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 			convergence = 1;
 			break; // end while loop: algorithm is done...
 		}
-		// Do stress relaxation on to the next yield surface
-			// compute the derivatives
-		next_nn = get_dF_dS(sv.sig, ys.next());
-		next_mm = get_dP_dS(sv.sig, ys.next());
-		next_xi = get_dF_dA(sv.sig, ys.next());
-		next_rr = get_dH_dA(sv.sig, ys.next());
+		// Do stress relaxation on to the next yield surface after surface correction
 		// Step 7 - correct the plastic loading function
 		dlambda1 = dlambda2 = 0.0;
 			// compute lambda1
@@ -920,9 +927,25 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 			exit(-1);
 		}
 		dlambda1 = next_yf_value / curr_H_prime;
+		// Step 8 - correct plastic strains and state variables
+	// correct plastic strain
+		sv.xs = sv.xs - dlambda1 * mm;
+		// correct stress
+		sv.sig = sv.sig + dlambda1 * TensorM::inner(sv.Ce, mm);
+		// correct the tangent operator
+		if (do_tangent) {
+
+
+
+		}
+		// update the derivatives
+		nn = get_dF_dS(sv.sig, ys.next());
+		mm = get_dP_dS(sv.sig, ys.next());
+		xi = get_dF_dA(sv.sig, ys.next());
+		rr = get_dH_dA(sv.sig, ys.next());
 			// compute lambda2
-		double next_H0 = TensorM::dotdot(TensorM::inner(next_nn, sv.Ce), next_mm);	// next H0
-		double next_H_prime = TensorM::dotdot((-1 * next_xi), next_rr);				// next H'
+		double next_H0 = TensorM::dotdot(TensorM::inner(nn, sv.Ce), mm);	// next H0
+		double next_H_prime = TensorM::dotdot((-1 * xi), rr);				// next H'
 				// do a check
 		if ((next_H0 + next_H_prime) == 0) {
 			opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm() - division by 0 while correcting the plastic multiplier (lambda 2)!\n";
@@ -930,11 +953,17 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 		}
 		dlambda2 = (next_yf_value / (next_H0 + next_H_prime)) * (1 + (curr_H0 / curr_H_prime));
 		sv.lambda = sv.lambda + (dlambda2 - dlambda1);
-		// Step 8 - correct plastic strains and state variables
+		// Step 8 continued - correct plastic strains and state variables
 			// correct plastic strain
-		sv.xs = sv.xs - dlambda1 * mm + dlambda2 * next_mm;
+		sv.xs = sv.xs + dlambda2 * mm;
 			// correct stress
-		sv.sig = sv.sig + dlambda1 * TensorM::inner(sv.Ce, mm) - dlambda2 * TensorM::inner(sv.Ce, next_mm);
+		sv.sig = sv.sig - dlambda2 * TensorM::inner(sv.Ce, mm);
+			// correct the tangent operator
+		if (do_tangent) {
+
+
+
+		}
 		// Step 9 - increment number of active tield surface, iteration_counter++ and go to step 2
 		old_yf_value = curr_yf_value;
 		curr_yf_value = next_yf_value;
