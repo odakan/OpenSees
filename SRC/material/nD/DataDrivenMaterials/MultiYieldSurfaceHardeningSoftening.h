@@ -113,7 +113,7 @@ public:
 	// Full Constructor
 	MultiYieldSurfaceHardeningSoftening(int tag, int classTag, double r0,
 		double K0, double G0, double P0, double m0,
-		std::shared_ptr<DataDrivenNestedSurfaces> ys, int dtype, int itype, bool verbosity);
+		std::shared_ptr<DataDrivenNestedSurfaces> ys, double dtype, int itype, bool verbosity);
 
 
 	// Null Constructor

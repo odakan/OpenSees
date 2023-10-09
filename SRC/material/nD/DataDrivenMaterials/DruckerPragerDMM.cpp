@@ -23,7 +23,7 @@
 namespace global {
 	class MaterialList {
 	public:
-		int size = 0;
+		size_t size = 0;
 		int next_tag = 0;
 		std::vector<DruckerPragerDMM*> mptr;
 
@@ -64,7 +64,7 @@ auto DruckerPragerlist = global::MaterialList();
 DruckerPragerDMM::DruckerPragerDMM(int tag, double r0,
 	double K0, double G0, double P0, double m0,
 	std::shared_ptr<DataDrivenNestedSurfaces> ys,
-	int ddtype, int itype, bool verbosity)
+	double ddtype, int itype, bool verbosity)
 	:MultiYieldSurfaceHardeningSoftening(tag, ND_TAG_DruckerPragerDMM, r0,
 		K0, G0, P0, m0, ys, ddtype, itype, verbosity)
 {
@@ -242,34 +242,128 @@ Vector DruckerPragerDMM::getShiftedDeviator(const Vector& stress, const int num_
 }
 
 	// yield surface operations
-double DruckerPragerDMM::yieldFunction(const Vector& stress, const int num_yield_surface,	bool yield_stress) {
-	// Evaluate and return the yield surface value
-	double yield_function = 0;
-	return  yield_function;
+double DruckerPragerDMM::yieldFunction(const Vector& stress, const int num_ys, bool yield_stress) {
+	// if yield_stress is false, return the yield function value. Otherwise, return the yield strength.
+
+	// get the current limit stress
+	double strength = ys.getTau(num_ys);
+
+	// evaluate and return the yield surface value
+	if (!yield_stress) {
+		Vector zeta = getShiftedDeviator(stress, num_ys);
+		strength = sqrt(1.0 / 3.0 * TensorM::dotdot(zeta, zeta)) - strength;
+	}
+
+	// done
+	return strength;
 }
 
-Vector DruckerPragerDMM::get_dF_dS(const Vector& stress, const int num_yield_surface) {
+Vector DruckerPragerDMM::get_dF_dS(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t stress
-	Vector dfds(6);
+
+	// initialize the tensors
+	Vector dfds = Vector(nOrd);							// normal tensor
+	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+
+	// compute the normal tensor
+	dfds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+
+	// done
 	return dfds;
 }
 
-Vector DruckerPragerDMM::get_dF_dA(const Vector& stress, const int num_yield_surface) {
+Vector DruckerPragerDMM::get_dF_dA(const Vector& stress, const int num_ys) {
 	// Return the normal to the yield surface w.r.t alpha(backstress)
-	Vector dfda(6);
+
+	// initialize the tensors
+	Vector dfda = Vector(nOrd);							// normal tensor
+	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+
+	// compute the normal tensor
+	dfda = -1 * 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+
+	// done
 	return dfda;
 }
 
-Vector DruckerPragerDMM::get_dH_dA(const Vector& stress, const int num_yield_surface) {
+Vector DruckerPragerDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 	// Return the rate of alpha(backstress)
-	Vector direction(6);
-	return direction;
+
+	// initialize the tensors
+	Vector dhda(nOrd);												// normal tensor
+
+	// compute the normal
+	if (num_ys >= ys.getTNYS()) {
+		// get material constants
+		double H_prime = ys.getEta(ys.getTNYS());
+
+		// initialize tensors
+		Vector current_zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor (current)
+
+		// compute normal
+		Vector Q_prime = 2.0 / 3.0 * current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		dhda = H_prime * Q_prime;
+	}
+	else {
+		// get material constants
+		double current_strength = getSizeYS(num_ys);
+		double next_strength = getSizeYS(num_ys + 1);
+		double H_prime = ys.getEta(num_ys);
+
+		// do check
+		if (current_strength < ABSOLUTE_TOLERANCE) {
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
+			exit(-1);
+		}
+		else if (next_strength < ABSOLUTE_TOLERANCE) {
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
+			exit(-1);
+		}
+
+		// initialize tensors
+		Vector current_zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor (current)
+		Vector next_zeta = getShiftedDeviator(stress, num_ys + 1);	// shifted stress deviator tensor (next)
+
+		// compute normal
+		Vector Q_prime = 2.0 / 3.0 * current_zeta / sqrt(TensorM::dotdot(current_zeta, current_zeta));
+		//Vector direction = (next_strength / current_strength) * current_zeta - next_zeta; // Prevost
+		Vector direction = current_zeta - (current_strength / next_strength) * next_zeta; // Gu et al.
+		double denominator = TensorM::dotdot(Q_prime, direction);
+		if (denominator == 0.0) {
+			opserr << "\nFATAL: VonMisesDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
+			opserr << "Denominator [Q':mu] = " << denominator << "\n";
+			opserr << "Q' = " << Q_prime;
+			opserr << "mu = " << direction;
+			exit(-1);
+		}
+		dhda = (H_prime / denominator) * direction;
+	}
+
+	// done
+	return dhda;
 }
 
-Vector DruckerPragerDMM::get_dP_dS(const Vector& stress, const int num_yield_surface) {
-	// Return the plastic flow direction
-	Vector mm(6);
-	return mm;
+Vector DruckerPragerDMM::get_dP_dS(const Vector& stress, const int num_ys) {
+	// Return the plastic flow direction (normal to the plastic potential w.r.t stress)
+
+	// initialize the tensors
+	Vector dpds = Vector(nOrd);	// normal tensor
+
+	// compute the normal to the plastic potential
+	if (ys.isNonAssociated()) {
+		// Non-associated flow
+		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+		double dilatancy = ys.getBeta(num_ys);				// dilatancy parameter
+		// evaluate the derivative dPdS = Q' + P" * kronecker
+		dpds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
+		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);		// compute P"
+	}
+	else {
+		// Associated flow
+		dpds = get_dF_dS(stress, num_ys);
+	}
+
+	return dpds;
 }
 
 double DruckerPragerDMM::linearizedFlow(const double dlambda) {

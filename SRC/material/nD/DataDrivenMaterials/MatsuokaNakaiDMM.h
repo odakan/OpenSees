@@ -33,7 +33,7 @@ public:
 	MatsuokaNakaiDMM(int tag, double rho,
 		double Kref, double Gref, double Pref, double modn,
 		std::shared_ptr<DataDrivenNestedSurfaces> theData,
-		int dataDriverType, int integrationType, bool verbosity);
+		double dataDriverType, int integrationType, bool verbosity);
 
 
 	//null constructor

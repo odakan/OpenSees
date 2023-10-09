@@ -39,7 +39,7 @@
 	// full constructor
 MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag, int classTag,
 	double r0, double K0, double G0, double P0, double m0,
-	std::shared_ptr<DataDrivenNestedSurfaces> data, int ddtype, int itype, bool verbosity)
+	std::shared_ptr<DataDrivenNestedSurfaces> data, double ddtype, int itype, bool verbosity)
 	:NDMaterial(tag, classTag), rho(r0), Kref(K0), Gref(G0), 
 	Pref(P0), Modn(m0), theData(data), beVerbose(verbosity)
 {
@@ -72,6 +72,7 @@ MultiYieldSurfaceHardeningSoftening::MultiYieldSurfaceHardeningSoftening(int tag
 	else if (ddtype > 1) {	// active
 		use_active_approach = true;
 		use_data_driven_surface = true;
+		// recieve strain energy discretization from ddtype!!! 
 	}
 	else if (ddtype == 0) {					// automatic surface
 		use_active_approach = false;

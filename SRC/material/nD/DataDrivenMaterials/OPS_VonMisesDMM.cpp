@@ -63,7 +63,7 @@
 #include "VonMisesDMM.h"
 
 
-void Help(void) {
+void HelpVM(void) {
 	opserr << "\n";
 	opserr << "vonMisesDMM Help: \n";
 	opserr << "----------------------------------------------------------------------------------------------------------------------------------------------------------------\n";
@@ -164,7 +164,7 @@ OPS_VonMisesDMM(void)
 			const char* inputstring = OPS_GetString();
 			// recive print help flag, print material command use and quit
 			if (strcmp(inputstring, "-help") == 0) {
-				Help();
+				HelpVM();
 				opserr << "FATAL: OPS_VonMisesDMM() - Program terminated since '-help' is the first option in the VonMisesDMM nDmaterial declaration.\n";
 				opserr << "                           Remove or move the '-help' option further along the declaration to continue...\n";
 				exit(-1);
@@ -175,14 +175,14 @@ OPS_VonMisesDMM(void)
 	// check mandatory inputs
 	if (numArgs < 7) {
 		opserr << "FATAL: OPS_VonMisesDMM() - please define at least -> nDMaterial VonMisesDMM tag? -K Kref? -G Gref? -P Pref? for linear elastic analysis...\n";
-		Help();
+		HelpVM();
 		return theMaterial;
 	}
 
 	// input #1 - recieve unique material tag
 	if (OPS_GetInt(&numData, &tag) != 0) {
 		opserr << "FATAL: OPS_VonMisesDMM() - invalid tag? (must be an integer)\n\n";
-		Help();
+		HelpVM();
 		return theMaterial;
 	}
 
@@ -374,7 +374,7 @@ OPS_VonMisesDMM(void)
 			}
 
 			// Calculate the length of the concatenated string
-			int totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1; // +1 for the null terminator
+			size_t totalLength = strlen(dbPathDir) + strlen(dbMainFile) + 1; // +1 for the null terminator
 
 			if (totalLength > 1) {
 				// Allocate memory for the full path
@@ -417,7 +417,7 @@ OPS_VonMisesDMM(void)
 		// operational flags
 			// recive print help flag, print material command use, make verbose and continue
 		if (strcmp(inputstring, "-help") == 0) {
-			Help();
+			HelpVM();
 		}
 
 			// recive verbosity flag
@@ -430,13 +430,13 @@ OPS_VonMisesDMM(void)
 	// check mandatory parameters
 	if (Kref == 0) {
 		opserr << "FATAL: OPS_VonMisesDMM() - please enter a valid Kref value! Current Kref = " << Kref << ". Kref cannot be 0!\n";
-		Help();
+		HelpVM();
 		return theMaterial;
 	}
 
 	if (Gref == 0) {
 		opserr << "FATAL: OPS_VonMisesDMM() - please enter a valid Gref value! Current Gref = " << Gref << ". Gref cannot be 0!\n";
-		Help();
+		HelpVM();
 		return theMaterial;
 	}
 
