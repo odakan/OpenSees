@@ -76,6 +76,7 @@ public:
 	double getTau(const int index);
 	double getEta(const int index);
 	double getBeta(const int index);
+	double getAttraction(const int index);
 	Vector getAlpha(const int index);
 	Vector getAlpha_commit(const int index);
 
@@ -99,6 +100,7 @@ private:
 	bool do_active = false;						// activate on-the-fly update of the data-driven surfaces
 	bool beVerbose = false;						// be verbose about internal processes (use for debugging) (no by default)
 	bool nonassociated = false;					// associated or nonassociated flow
+	double cohesion = 0;						// local copy of the cohesion for computational efficiency (getAttraction)
 
 	// Pointer (weak) to the yield surface library
 	// <memory> library, shared pointer class smart pointer

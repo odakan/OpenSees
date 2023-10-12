@@ -288,6 +288,41 @@ double YieldSurfacePackage::getBeta(const int index) {
 	}
 }
 
+double YieldSurfacePackage::getAttraction(const int index) {
+	
+	double attraction = 0;
+
+	if (index < 0) {
+		opserr << "FATAL: YieldSurfacePackage::getAttraction() - a yield surface with negative number was requested!";
+		exit(-1);
+	}
+
+	if (do_active) {
+		if (index == (nYs_commit + 1)) {
+			return attraction;	// the next yield surface
+		}
+		else if (index == nYs_commit) {
+			return attraction;	// the current yield surface
+		}
+		else if (index == (nYs_commit - 1)) {
+			return attraction;	// the previous yield surface
+		}
+		else {
+			opserr << "FATAL: YieldSurfacePackage::getBeta() - a yield surface that is older than two steps was requested!";
+			exit(-1);
+		}
+	}
+	else {
+		if (index < tnys) {
+			attraction = cohesion;
+			return attraction;
+		}
+		else {
+			return attraction;
+		}
+	}
+}
+
 Vector YieldSurfacePackage::getAlpha(const int index) {
 
 	Vector Vect = Vector(nOrd);

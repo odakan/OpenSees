@@ -235,8 +235,10 @@ Vector DruckerPragerDMM::getShiftedDeviator(const Vector& stress, const int num_
 	Vector zeta = Vector(nOrd);
 	Vector deviator = getStressDeviator(stress);
 	Vector backpressure = ys.getAlpha(num_ys);
+	double attraction = ys.getAttraction(num_ys);
+	double p_bar = getMeanStress(stress) - attraction;
 	for (int i = 0; i < nOrd; i++) {
-		zeta(i) = deviator(i) - backpressure(i);
+		zeta(i) = deviator(i) - p_bar * backpressure(i);
 	}
 	return zeta;
 }
@@ -246,12 +248,15 @@ double DruckerPragerDMM::yieldFunction(const Vector& stress, const int num_ys, b
 	// if yield_stress is false, return the yield function value. Otherwise, return the yield strength.
 
 	// get the current limit stress
-	double strength = ys.getTau(num_ys);
+	double friction = ys.getTau(num_ys);
+	double attraction = ys.getAttraction(num_ys);
+	double p_bar = getMeanStress(stress) - attraction;
+	double strength = sqrt(2.0 / 3.0) * p_bar * friction;
 
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
 		Vector zeta = getShiftedDeviator(stress, num_ys);
-		strength = sqrt(1.0 / 3.0 * TensorM::dotdot(zeta, zeta)) - strength;
+		strength = sqrt(TensorM::dotdot(zeta, zeta)) + strength;
 	}
 
 	// done
@@ -264,9 +269,11 @@ Vector DruckerPragerDMM::get_dF_dS(const Vector& stress, const int num_ys) {
 	// initialize the tensors
 	Vector dfds = Vector(nOrd);							// normal tensor
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
+	double friction = ys.getTau(num_ys);
+	double norm = sqrt(TensorM::dotdot(zeta, zeta));
 
 	// compute the normal tensor
-	dfds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+	dfds = zeta / norm + (1.0 / 3.0) * (sqrt(2.0 / 3.0) * friction - (TensorM::dotdot(zeta, ys.getAlpha(num_ys))) / (norm)) * TensorM::I(nOrd);
 
 	// done
 	return dfds;
@@ -280,7 +287,7 @@ Vector DruckerPragerDMM::get_dF_dA(const Vector& stress, const int num_ys) {
 	Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 
 	// compute the normal tensor
-	dfda = -1 * 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
+	dfda = -1 * zeta / sqrt(TensorM::dotdot(zeta, zeta));
 
 	// done
 	return dfda;
@@ -354,9 +361,11 @@ Vector DruckerPragerDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 		// Non-associated flow
 		Vector zeta = getShiftedDeviator(stress, num_ys);	// shifted stress deviator tensor
 		double dilatancy = ys.getBeta(num_ys);				// dilatancy parameter
+		double norm = sqrt(TensorM::dotdot(zeta, zeta));
+
 		// evaluate the derivative dPdS = Q' + P" * kronecker
-		dpds = 2.0 / 3.0 * zeta / sqrt(TensorM::dotdot(zeta, zeta));	// compute Q'
-		dpds += 1.0 / 3.0 * dilatancy * TensorM::I(nOrd);		// compute P"
+		dpds = zeta / norm;	// compute Q'
+		dpds += (1.0 / 3.0) * (sqrt(2.0 / 3.0) * dilatancy - (TensorM::dotdot(zeta, ys.getAlpha(num_ys))) / (norm)) * TensorM::I(nOrd);   // compute P"
 	}
 	else {
 		// Associated flow
