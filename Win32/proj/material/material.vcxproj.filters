@@ -110,6 +110,9 @@
     <Filter Include="nD\UWmaterials">
       <UniqueIdentifier>{e764b8c8-af42-4b82-8709-56ac255f2b0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nD\SRSMYSand">
+      <UniqueIdentifier>{8a855a5d-d44b-4597-b5e0-c2a0af9b7a14}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\SRC\material\uniaxial\AxialSp.cpp">
@@ -1373,6 +1376,21 @@
     <ClCompile Include="..\..\..\SRC\material\section\FiberSectionWarping3d.cpp">
       <Filter>section</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\OPS_SRSMYSand.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\AxialSp.h">
@@ -2578,6 +2596,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\section\FiberSectionWarping3d.h">
       <Filter>section</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.h">
+      <Filter>nD\SRSMYSand</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

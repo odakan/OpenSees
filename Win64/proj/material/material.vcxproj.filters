@@ -110,6 +110,9 @@
     <Filter Include="nD\UWmaterials">
       <UniqueIdentifier>{be456511-844e-4f02-b923-14685753222d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nD\SRSMYSand">
+      <UniqueIdentifier>{3b8f4fa4-a447-49b7-ab36-cf21c076cf54}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\SRC\material\uniaxial\AxialSp.cpp">
@@ -1496,6 +1499,21 @@
     <ClCompile Include="..\..\..\SRC\material\uniaxial\Ratchet.cpp">
       <Filter>uniaxial</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\OPS_SRSMYSand.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.cpp">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\AxialSp.h">
@@ -2740,6 +2758,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\TDConcreteNL.h">
       <Filter>uniaxial</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.h">
+      <Filter>nD\SRSMYSand</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.h">
+      <Filter>nD\SRSMYSand</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

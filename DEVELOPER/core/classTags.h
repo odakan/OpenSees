@@ -435,6 +435,9 @@
 // J2CyclicBoundingSurface material - D.Turello
 #define ND_TAG_J2CyclicBoundingSurface        14023
 
+// Stress-ratio-softening multi-yield (SRSMY) sand material - Onur Deniz Akan (IUSS Pavia)
+#define ND_TAG_SRSMYSand  11116
+
 // MultiaxialCyclicPlasticity, add by Gang Wang
 #define ND_TAG_MultiaxialCyclicPlasticity             10031
 #define ND_TAG_MultiaxialCyclicPlasticity3D           10032

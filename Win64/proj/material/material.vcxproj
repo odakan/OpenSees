@@ -222,6 +222,11 @@
     <ClCompile Include="..\..\..\SRC\material\nD\PlateRebarMaterial.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\OPS_SRSMYSand.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\UANDESmaterials\SAniSandMS.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\UANDESmaterials\SAniSandMS3D.cpp" />
@@ -685,6 +690,10 @@
     <ClInclude Include="..\..\..\SRC\material\nD\PlateRebarMaterial.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\CTensor.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\MaterialStateVariables.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\NestedSurface.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\SRSMYSand\SRSMYSand.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\UVCmultiaxial.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\UVCplanestress.h" />
