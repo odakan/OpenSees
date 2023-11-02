@@ -23,7 +23,7 @@
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/SRSMYSand/SRSMYSand.cpp $
 
 // Written by:	Onur Deniz Akan		(onur.akan@iusspavia.it)
-//				Guido Camata      
+//				Guido Camata
 //				Enrico Spacone
 //				Carlo G. Lai
 //              Claudio Tamagnini
@@ -35,6 +35,52 @@
 #include "SRSMYSand.h"
 #include <MaterialResponse.h>
 
+using tc = CTensor::Constants;
+
+namespace tools {
+	// keep track of all material instances local to the current process
+	class MaterialList {
+	public:
+		size_t size = 0;
+		int next_tag = 0;
+		std::vector<std::unique_ptr<SRSMYSand>> mptr;
+
+	public:
+		MaterialList(void) = default;
+		~MaterialList(void) = default;
+
+		void append(std::unique_ptr<SRSMYSand> matptr) {
+			matptr->setSubTag(next_tag);
+			next_tag++;
+			mptr.push_back(std::move(matptr));
+			size = mptr.size();
+		}
+
+		void remove(std::unique_ptr<SRSMYSand> matptr) {
+			auto it = std::find(mptr.begin(), mptr.end(), matptr);
+			if (it != mptr.end()) {
+				mptr.erase(it);
+			}
+			// clean up, if the list is empty or, if not, update size
+			if (mptr.empty()) { cleanup(); }
+			else { size = mptr.size(); }
+		}
+
+		void cleanup(void) {
+			size = 0;
+			next_tag = 0;
+			mptr.clear();
+		}
+	};
+
+	// allocate static global storage for all instances
+	class GlobalStorage {
+	public:
+
+	public:
+
+	};
+}
 
 // Public methods
 	// full constructor

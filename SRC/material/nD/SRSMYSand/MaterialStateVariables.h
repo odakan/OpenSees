@@ -30,13 +30,6 @@
 #include "CTensor.h"
 
 
-namespace tools {
-	class GlobalStorage {
-
-	};
-}
-
-
 class MaterialStateVariables {
 public:
 

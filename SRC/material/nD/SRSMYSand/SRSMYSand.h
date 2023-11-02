@@ -22,7 +22,9 @@
 // $Date: 2023-11-01 00:00:00 $
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/SRSMYSand/SRSMYSand.cpp $
 
-// Onur Deniz Akan, Guido Camata, Carlo G. Lai, Enrico Spacone and Claudio Tamagnini - IUSS Pavia 
+// Written: Onur Deniz Akan, Guido Camata, Carlo G. Lai, Enrico Spacone and Claudio Tamagnini
+// Created: 11/23
+// Based on: PDMY02 and PM4Sand materials
 //
 // A highly stable stress-ratio formulated, strain softening capable, multi-yield-surface model for sand
 //
@@ -87,7 +89,6 @@
  */
 
 #include <ID.h>
-#include <math.h> 
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h> 
@@ -111,7 +112,6 @@ public:
 		double K0, double G0, double P0, double m0, 
 		double dtype, int itype, bool verbosity);
 
-
 	// Null Constructor
 	SRSMYSand(void);
 
@@ -130,14 +130,10 @@ public:
 	int setTrialStrainIncr(const Vector& strain, const Vector& rate);
 
 	// return object info
-	virtual NDMaterial* getCopy(void);
-	virtual NDMaterial* getCopy(const char* type);
+	NDMaterial* getCopy(void);
+	NDMaterial* getCopy(const char* type);
 	const char* getType(void) const;
 	int getOrder(void) const;
-	// used by the yield surface objects
-	double getGref(void);			// return reference shear modulus
-	double getPref(void);			// return reference pressure
-	double getGmod(void);			// return updated shear modulus
 
 	// return stress & strain
 	const Vector& getStress(void);
@@ -148,19 +144,21 @@ public:
 	const Matrix& getInitialTangent(void);
 
 	// return material response
-	virtual Response* setResponse(const char** argv, int argc, OPS_Stream& output);
-	virtual int getResponse(int responseID, Information& matInformation);
+	Response* setResponse(const char** argv, int argc, OPS_Stream& output);
+	int getResponse(int responseID, Information& matInformation);
 
 	// parallel message passing
-	virtual int sendSelf(int commitTag, Channel& theChannel);
-	virtual int recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker);
+	int sendSelf(int commitTag, Channel& theChannel);
+	int recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker);
 
 	// miscellaneous
-	virtual void Print(OPS_Stream& s, int flag = 0);
-	virtual int setParameter(const char** argv, int argc, Parameter& param);
-	virtual int updateParameter(int responseID, Information& eleInformation);
+	void Print(OPS_Stream& s, int flag = 0);
+	int setSubTag(const int tag);
+	int setParameter(const char** argv, int argc, Parameter& param);
+	int updateParameter(int responseID, Information& eleInformation);
 
 private:
+	int subTag = 0;
 
 
 };
