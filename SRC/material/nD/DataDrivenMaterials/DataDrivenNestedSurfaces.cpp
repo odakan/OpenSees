@@ -469,5 +469,86 @@ void DataDrivenNestedSurfaces::setUpAutomaticSurfaces(int& nys, bool& nonassocia
 	}
 }
 
+void DataDrivenNestedSurfaces::setUpAutomaticSurfacesRatio(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta,
+	const double Gref, const double Pref) {
+	// set-up plastic modulus, hardening parameter and dilatancy parameter sets based on the hyperbolic backbone model
+
+	// initialize vectors
+	nys = tnys;
+	tau = Vector(tnys + 1);
+	eta = Vector(tnys + 1);
+	if (dilatancyAngle != 0.0) {
+		nonassociated = true;
+		beta = Vector(tnys + 1);
+	}
+
+	// initialize local variables
+	double  stress1(0.0), stress2(0.0), strain1(0.0), strain2(0.0), size(0.0),
+		Hep_ref(0.0), Href(0.0), refStrain(0.0), peakShear(0.0), coneHeight(0.0),
+		psi_bar(0.0), dilatancy(0.0), Presid(0.0);
+
+	if (frictionAngle > 0) {
+		double sinPhi = sin(frictionAngle * M_PI / 180.);
+		double MnyieldSurface = 6. * sinPhi / (3. - sinPhi);
+		Presid = 3. * cohesion / (sqrt(2.) * MnyieldSurface);
+		coneHeight = -(Pref - Presid);
+		peakShear = sqrt(2.) * coneHeight * MnyieldSurface / 3.;
+		refStrain = (peakShearStrain * peakShear) / (Gref * peakShearStrain - peakShear);
+	}
+	else if (frictionAngle == 0.0) {			// cohesion = 2 * sqrt(2.) / 3.0 * peakShear
+		peakShear = 2.0 * sqrt(2.) * cohesion / 3.0;
+		refStrain = (peakShearStrain * peakShear) / (Gref * peakShearStrain - peakShear);
+		Presid = 0.0;
+	}
+
+	double stressInc = peakShear / tnys;
+
+	// first yield surface
+	stress1 = stressInc * 0.01;
+	strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+	stress2 = stressInc;
+	strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
+	if (frictionAngle > 0.) {
+		size = 3. * stress1 / sqrt(2.) / coneHeight;
+	}
+	else if (frictionAngle == 0.) {
+		size = 3. * stress1 / sqrt(2.);
+	}
+	Href = (stress2 - stress1) / (strain2 - strain1);
+	tau(0) = size;
+	eta(0) = Href;
+
+	if (nonassociated) {
+		psi_bar = tan(dilatancyAngle * M_PI / 180);	// compute the coefficient of dilation
+		beta(0) = psi_bar;
+	}
+
+	for (int i = 1; i <= tnys; i++) {
+		stress1 = stressInc * i;
+		strain1 = stress1 * refStrain / (Gref * refStrain - stress1);
+		stress2 = stress1 + stressInc;
+		strain2 = stress2 * refStrain / (Gref * refStrain - stress2);
+		if (frictionAngle > 0.) {
+			size = 3. * stress1 / sqrt(2.) / coneHeight;
+		}
+		else if (frictionAngle == 0.) {
+			size = 3. * stress1 / sqrt(2.);
+		}
+
+		Href = (stress2 - stress1) / (strain2 - strain1);
+
+		if (Href > LARGE_VALUE) { Href = LARGE_VALUE; }
+		if (i == tnys) { Href = 0; }
+
+		tau(i) = size;
+		eta(i) = Href;
+
+		if (nonassociated) {
+			// do contracting volumetric flow with hyperbolic decay [from psi_bar to 0]
+			dilatancy = fabs(psi_bar) * 2 * (i - tnys) / (i - 2 * tnys);
+			beta(i) = dilatancy;
+		}
+	}
+}
 
 // Private methods

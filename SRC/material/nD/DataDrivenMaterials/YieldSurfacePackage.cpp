@@ -186,11 +186,6 @@ int YieldSurfacePackage::getTag(void) { return matID; }
 int YieldSurfacePackage::getNYS(void) { return nYs; }
 int YieldSurfacePackage::getTNYS(void) { return tnys; }
 int YieldSurfacePackage::getNYS_commit(void) { return nYs_commit; }
-/*double YieldSurfacePackage::getPhi(void) { return frictionAngle; }
-double YieldSurfacePackage::getPsi(void) { return dilatancyAngle; }
-double YieldSurfacePackage::getPresid(void) { return residualPressure; }
-double YieldSurfacePackage::getCohesion(void) { return cohesion; }
-double YieldSurfacePackage::getPeakStrain(void) { return peakShearStrain; }*/
 
 double YieldSurfacePackage::getTau(const int index) {
 
@@ -288,40 +283,7 @@ double YieldSurfacePackage::getBeta(const int index) {
 	}
 }
 
-double YieldSurfacePackage::getAttraction(const int index) {
-	
-	double attraction = 0;
-
-	if (index < 0) {
-		opserr << "FATAL: YieldSurfacePackage::getAttraction() - a yield surface with negative number was requested!";
-		exit(-1);
-	}
-
-	if (do_active) {
-		if (index == (nYs_commit + 1)) {
-			return attraction;	// the next yield surface
-		}
-		else if (index == nYs_commit) {
-			return attraction;	// the current yield surface
-		}
-		else if (index == (nYs_commit - 1)) {
-			return attraction;	// the previous yield surface
-		}
-		else {
-			opserr << "FATAL: YieldSurfacePackage::getBeta() - a yield surface that is older than two steps was requested!";
-			exit(-1);
-		}
-	}
-	else {
-		if (index < tnys) {
-			attraction = cohesion;
-			return attraction;
-		}
-		else {
-			return attraction;
-		}
-	}
-}
+double YieldSurfacePackage::getAttraction(const int index) { return cohesion / getTau(index); }
 
 Vector YieldSurfacePackage::getAlpha(const int index) {
 

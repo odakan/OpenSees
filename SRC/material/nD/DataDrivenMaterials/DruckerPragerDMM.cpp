@@ -142,7 +142,7 @@ int DruckerPragerDMM::sendSelf(int commitTag, Channel& theChannel) {
 
 	res = theChannel.sendVector(this->getDbTag(), commitTag, data);
 	if (res < 0) {
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::sendSelf - failed to send vector to channel" << endln;
+		opserr << "WARNING: DruckerPragerDMM::sendSelf - failed to send vector to channel" << endln;
 		return -1;
 	}
 
@@ -156,7 +156,7 @@ int DruckerPragerDMM::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBro
 	static Vector data(45);
 	res = theChannel.recvVector(this->getDbTag(), commitTag, data);
 	if (res < 0) {
-		opserr << "WARNING: MultiYieldSurfaceHardeningSoftening::recvSelf - failed to receive vector from channel" << endln;
+		opserr << "WARNING: DruckerPragerDMM::recvSelf - failed to receive vector from channel" << endln;
 		return -1;
 	}
 
@@ -209,7 +209,7 @@ int DruckerPragerDMM::updateParameter(int responseID, Information& info) {
 					if ((ptr->theData->isAOK(ptr->getDataDriver())) && (ptr->materialStage != info.theInt)) {
 						if (beVerbose) {
 							opserr << "WARNING: DruckerPragerDMM::updateParameter() - nD Material " << ptr->getTag() <<
-								"." << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n";
+								":" << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n";
 						}
 						ptr->updateModuli(ptr->sv.sig);
 						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getSubTag(), ptr->getOrder(), ptr->getDataDriver(),
@@ -251,12 +251,14 @@ double DruckerPragerDMM::yieldFunction(const Vector& stress, const int num_ys, b
 	double friction = ys.getTau(num_ys);
 	double attraction = ys.getAttraction(num_ys);
 	double p_bar = getMeanStress(stress) - attraction;
-	double strength = sqrt(2.0 / 3.0) * p_bar * friction;
+	// change sign since yield radius is positive 
+	// but subtract the radius instead (addition in the formulation) in the yield function computaiton below
+	double strength = -1 * sqrt(2.0 / 3.0) * p_bar * friction;
 
 	// evaluate and return the yield surface value
 	if (!yield_stress) {
 		Vector zeta = getShiftedDeviator(stress, num_ys);
-		strength = sqrt(TensorM::dotdot(zeta, zeta)) + strength;
+		strength = sqrt(TensorM::dotdot(zeta, zeta)) - strength;
 	}
 
 	// done
@@ -319,11 +321,11 @@ Vector DruckerPragerDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 
 		// do check
 		if (current_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
+			opserr << "FATAL: DruckerPragerDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
 			exit(-1);
 		}
 		else if (next_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
+			opserr << "FATAL: DruckerPragerDMM::get_dH_dA() - next yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
 			exit(-1);
 		}
 
@@ -337,7 +339,7 @@ Vector DruckerPragerDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 		Vector direction = current_zeta - (current_strength / next_strength) * next_zeta; // Gu et al.
 		double denominator = TensorM::dotdot(Q_prime, direction);
 		if (denominator == 0.0) {
-			opserr << "\nFATAL: VonMisesDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
+			opserr << "\nFATAL: DruckerPragerDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
 			opserr << "Denominator [Q':mu] = " << denominator << "\n";
 			opserr << "Q' = " << Q_prime;
 			opserr << "mu = " << direction;
@@ -376,25 +378,25 @@ Vector DruckerPragerDMM::get_dP_dS(const Vector& stress, const int num_ys) {
 }
 
 double DruckerPragerDMM::linearizedFlow(const double dlambda) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::linearizedFlow() -> subclass responsibility\n";
+	opserr << "FATAL: DruckerPragerDMM::linearizedFlow() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 double DruckerPragerDMM::yieldf(const Vector& stress, const int num_ys, bool yield_stress) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::yieldf() -> subclass responsibility\n";
+	opserr << "FATAL: DruckerPragerDMM::yieldf() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 Vector DruckerPragerDMM::Qi(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Qi() -> subclass responsibility\n";
+	opserr << "FATAL: DruckerPragerDMM::Qi() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }
 
 Vector DruckerPragerDMM::Di(const Vector& stress, const int num_ys) {
-	opserr << "FATAL: MultiYieldSurfaceHardeningSoftening::Di() -> subclass responsibility\n";
+	opserr << "FATAL: DruckerPragerDMM::Di() -> subclass responsibility\n";
 	exit(-1);
 	return 0;
 }

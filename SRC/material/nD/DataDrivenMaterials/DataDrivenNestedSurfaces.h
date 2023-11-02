@@ -86,6 +86,8 @@ public:
 		Vector& gamma, const Vector& stress, const Vector& strain);
 	void setUpAutomaticSurfaces(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta, 
 		const double Gref, const double Pref);
+	void setUpAutomaticSurfacesRatio(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta,
+		const double Gref, const double Pref);
 	void setUpUserCustomSurfaces(int& nys, bool& nonassociated, Vector& tau, Vector& eta, Vector& beta,
 		const double Gref, const double Pref);
 

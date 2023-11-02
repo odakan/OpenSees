@@ -591,7 +591,7 @@ double MultiYieldSurfaceHardeningSoftening::getK(void) { return sv.Kmod; }
 
 double MultiYieldSurfaceHardeningSoftening::getG(void) { return sv.Gmod; }
 
-double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_ys) { return yieldFunction(Vector(nOrd), num_ys, true); }
+double MultiYieldSurfaceHardeningSoftening::getSizeYS(const int num_ys) { return yieldFunction(sv.sig, num_ys, true); }
 
 const Vector MultiYieldSurfaceHardeningSoftening::getStressVector(void) { return sv.sig_commit; }
 
@@ -899,6 +899,7 @@ int MultiYieldSurfaceHardeningSoftening::cuttingPlaneAlgorithm(const Vector& sig
 			ys.setAlpha(alpha, ys.now());
 				// update inner yield surfaces
 			double yield_stress = getSizeYS(ys.now());
+			opserr << "yield radius = " << yield_stress << "\n";
 			if (yield_stress > ABSOLUTE_TOLERANCE) {
 				Vector zeta = getShiftedDeviator(sv.sig, ys.now());
 				for (int i = 0; i < ys.getNYS(); ++i) {

@@ -100,8 +100,8 @@ void HelpDP(void) {
 	opserr << "	| -implex                | string           |                                                                                        |\n";
 	opserr << "	|                        |                  |                                                                                        |\n";
 	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
-	opserr << "	| -ddType $flag          | string + double  | $flag is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras |\n";
-	opserr << "	|                        |                  | a value is between 0 and 1 is the strain dicretization step for the online method      |\n";
+	opserr << "	| -ddType $type $step    | string + string  | $flag is a double in the domain : [0, 1] . 0 : hyperbolic backbone, 1 : offline wheras |\n";
+	opserr << "	|                        | + double         | a value is between 0 and 1 is the strain dicretization step for the online method      |\n";
 	opserr << "	|------------------------------------------------------------------------------------------------------------------------------------|\n";
 	opserr << "	| -hRatio $HModuli1      | string + list    |                                                                                        |\n";
 	opserr << "	|         $HModuli2 ...  | of doubles       |                                                                                        |\n";

@@ -100,7 +100,7 @@ private:
 	bool do_active = false;						// activate on-the-fly update of the data-driven surfaces
 	bool beVerbose = false;						// be verbose about internal processes (use for debugging) (no by default)
 	bool nonassociated = false;					// associated or nonassociated flow
-	double cohesion = 0;						// local copy of the cohesion for computational efficiency (getAttraction)
+	double cohesion = 0;						// local copy of the cohesion for computational efficiency
 
 	// Pointer (weak) to the yield surface library
 	// <memory> library, shared pointer class smart pointer

@@ -222,7 +222,7 @@ int VonMisesDMM::updateParameter(int responseID, Information& info) {
 					// if the desired type of surface is available and the material stage has not been already updated
 					if ((ptr->theData->isAOK(ptr->getDataDriver())) && (ptr->materialStage != info.theInt)) {
 						if (beVerbose) { opserr << "WARNING: VonMisesDMM::updateParameter() - nD Material " << ptr->getTag() << 
-							"." << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n"; }
+							":" << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n"; }
 						ptr->updateModuli(ptr->sv.sig);
 						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getSubTag(), ptr->getOrder(), ptr->getDataDriver(), 
 							ptr->theData, ptr->getGmod(), ptr->getPref(), ptr->sv.sig, ptr->sv.eps, ptr->beVerbose);
@@ -328,7 +328,7 @@ Vector VonMisesDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 			exit(-1);
 		}
 		else if (next_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
+			opserr << "FATAL: VonMisesDMM::get_dH_dA() - next yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
 			exit(-1);
 		}
 

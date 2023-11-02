@@ -218,7 +218,7 @@ int MatsuokaNakaiDMM::updateParameter(int responseID, Information& info) {
 					if ((ptr->theData->isAOK(ptr->getDataDriver())) && (ptr->materialStage != info.theInt)) {
 						if (beVerbose) {
 							opserr << "WARNING: MatsuokaNakaiDMM::updateParameter() - nD Material " << ptr->getTag() <<
-								"." << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n";
+								":" << ptr->getSubTag() << " -> material stage has updated to: " << info.theInt << "\n";
 						}
 						ptr->updateModuli(ptr->sv.sig);
 						ptr->ys = YieldSurfacePackage(ptr->getTag(), ptr->getSubTag(), ptr->getOrder(), ptr->getDataDriver(),
@@ -321,11 +321,11 @@ Vector MatsuokaNakaiDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 
 		// do check
 		if (current_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
+			opserr << "FATAL: MatsuokaNakaiDMM::get_dH_dA() - current yield surface (no. " << num_ys << ") returned a yield strength of " << current_strength << "!\n";
 			exit(-1);
 		}
 		else if (next_strength < ABSOLUTE_TOLERANCE) {
-			opserr << "FATAL: VonMisesDMM::get_dH_dA() - current yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
+			opserr << "FATAL: MatsuokaNakaiDMM::get_dH_dA() - next yield surface (no. " << num_ys + 1 << ") returned a yield strength of " << next_strength << "!\n";
 			exit(-1);
 		}
 
@@ -339,7 +339,7 @@ Vector MatsuokaNakaiDMM::get_dH_dA(const Vector& stress, const int num_ys) {
 		Vector direction = current_zeta - (current_strength / next_strength) * next_zeta; // Gu et al.
 		double denominator = TensorM::dotdot(Q_prime, direction);
 		if (denominator == 0.0) {
-			opserr << "\nFATAL: VonMisesDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
+			opserr << "\nFATAL: MatsuokaNakaiDMM::get_dH_dA() - division by 0 while computing the rate of backstress!\n";
 			opserr << "Denominator [Q':mu] = " << denominator << "\n";
 			opserr << "Q' = " << Q_prime;
 			opserr << "mu = " << direction;
