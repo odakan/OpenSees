@@ -76,10 +76,31 @@ namespace tools {
 	// allocate static global storage for all instances
 	class GlobalStorage {
 	public:
+		int size = 0;
+		Matrix K;	//stiffness
+		Matrix K0;	//initial stiffness
+		Vector p;	//stress
+		Vector u;	//strain
+
 
 	public:
-
+		GlobalStorage() = default;
+		GlobalStorage& resize(int N) {
+			if (N != size) {
+				K.resize(N, N);
+				K0.resize(N, N);
+				p.resize(N);
+				u.resize(N);
+			}
+			return *this;
+		}
 	};
+
+
+	static GlobalStorage& getGlobalStorage(int N) {
+		static std::map<int, GlobalStorage> gsmap;
+		return gsmap[N].resize(N);
+	}
 }
 
 // Public methods
