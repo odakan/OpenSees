@@ -422,12 +422,15 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		opserr << "FATAL! CTensor::operator^() - ctensor dimensions do not match!\n";
 		exit(-1);
 	}
-	// compute the double dot operation
-	int rep = 0;
-	Matrix M;
+	// decide output properties
+	int rep = -1;
+	int r = (dim == 2) * 3 + (dim == 3) * 6;
+	int c = 1;
+	CTensor result;
 	if (order == 2 && other.order == 4) {		// double dot between 2nd and 4th order tensors
 		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
 			rep = 0;
+			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = Contr(2)
 			rep = 2;
@@ -441,10 +444,19 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		else if (repr == 2 && other.repr == 4) {	// Contr(2) x CovContr(4) = Contr(2)
 			rep = 2;
 		}
+		// compute the double dot operation
+		double* theData = new double[r];
+		for (int i = 0; i < r; i++)
+			theData[i] = this->ct(i, 0);
+		Vector temp(theData, r);
+		delete[] theData;
+		temp = other.ct ^ temp;
+		result = CTensor(temp, rep);
 	}
 	else if (order == 4 && other.order == 2) {	// double dot between 4th and 2nd order tensors
 		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
 			rep = 0;
+			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = Cov(1)
 			rep = 1;
@@ -458,35 +470,52 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		else if (repr == 3 && other.repr == 1) {	// CovContr(3) x Cov(1) = Cov(1)
 			rep = 1;
 		}
+		// compute the double dot operation
+		double* theData = new double[r];
+		for (int i = 0; i < r; i++)
+			theData[i] = other.ct(i, 0);
+		Vector temp(theData, r);
+		delete[] theData;
+		temp = this->ct * temp;
+		result = CTensor(temp, rep);
 	}
 	else if (order == 4 && other.order == 2) {	// double dot between two 4th order tensors
 		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
 			rep = 0;
+			r = (dim == 2) * 4 + (dim == 3) * 9;
+			c = r;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = CovContr(3)
 			rep = 3;
+			c = r;
 		}
 		else if (repr == 2 && other.repr == 1) {	// Contr(2) x Cov(1) = ContrCov(4)
 			rep = 4;
+			c = r;
 		}
 		else if (repr == 4 && other.repr == 2) {	// ContrCov(4) x Contr(2) = Contr(2)
 			rep = 2;
+			c = r;
 		}
 		else if (repr == 3 && other.repr == 1) {	// CovContr(3) x Cov(1) = Cov(1)
 			rep = 1;
+			c = r;
 		}
 		else if (repr == 4 && other.repr == 4) {	// ContrCov(4) x ContrCov(4) = ContrCov(4)
 			rep = 4;
+			c = r;
 		}
 		else if (repr == 3 && other.repr == 3) {	// CovContr(3) x CovContr(3) = CovContr(3)
 			rep = 3;
+			c = r;
 		}
+		// compute the double dot operation
+		result = CTensor(r, c, rep);
+		result.ct = this->ct * other.ct;
 	}
 	else {
 		// make trouble
 	}
-	// create ctensor object
-	CTensor result(M, rep);
 	return result;
 }
 

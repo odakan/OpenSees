@@ -149,9 +149,6 @@ private:
     inline void matrix_dim(int nRows);
 
     ///////////////////////////////////////////////////////
-    Vector DoubleDot4_2(const Matrix& m1, const Vector& v1);
-    Vector DoubleDot2_4(const Vector& v1, const Matrix& m1);
-    Matrix DoubleDot4_4(const Matrix& m1, const Matrix& m2);
     Vector ToContraviant(const Vector& v1);
     Vector ToCovariant(const Vector& v1);
     ///////////////////////////////////////////
