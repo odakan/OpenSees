@@ -108,12 +108,44 @@
 class SRSMYSand : public NDMaterial {
 public:
 	// Full Constructor
-	SRSMYSand(int tag, int classTag, double r0,
-		double K0, double G0, double P0, double m0, 
-		double dtype, int itype, bool verbosity);
+	SRSMYSand(int tag, 
+		int classTag, 
+		double rho,
+		double refShearModul,
+		double refBulkModul,
+		double frictionAng,
+		double peakShearStra,
+		double refPress,
+		double pressDependCoe,
+		double phaseTransformAngle,
+		double contractionParam1,
+		double contractionParam3,
+		double dilationParam1,
+		double dilationParam3,
+		int   numberOfYieldSurf = 20,
+		double* gredu = 0,
+		double contractionParam2 = 5.,
+		double dilationParam2 = 3.,
+		double liquefactionParam1 = 1.,
+		double liquefactionParam2 = 0.,
+		double e = 0.6,
+		double volLimit1 = 0.9,
+		double volLimit2 = 0.02,
+		double volLimit3 = 0.7,
+		double atm = 101.,
+		double cohesi = 0.1,
+		double hv = 0.,
+		double pv = 1.,
+		double dtype,
+		int itype, 
+		bool verbosity	
+	);
 
 	// Null Constructor
 	SRSMYSand(void);
+
+	// Copy constructor
+	SRSMYSand(const SRSMYSand&);
 
 	// Destructor
 	~SRSMYSand(void);
@@ -135,9 +167,15 @@ public:
 	const char* getType(void) const;
 	int getOrder(void) const;
 
+	double getRho(void) { return rhox[matN]; };
+	void getBackbone(Matrix&);
+
 	// return stress & strain
 	const Vector& getStress(void);
 	const Vector& getStrain(void);
+	const Vector& getCommittedStress(void);
+	const Vector& getStressToRecord(int numOutput); // Added by Alborz Ghofrani - UW
+	const Vector& getCommittedStrain(void);
 
 	// return tangent 
 	const Matrix& getTangent(void);
@@ -158,7 +196,154 @@ public:
 	int updateParameter(int responseID, Information& eleInformation);
 
 private:
+	// operational variables
+	int nD = 3;
+	int e2p;
+	int matN;
 	int subTag = 0;
+	bool use_implex = false;
+	bool beVerbose = false;							// be verbose about internal processes (use for debugging) (no by default)
+
+
+
+	// internal
+	static double* residualPressx;
+	static double* stressRatioPTx;
+	double* mGredu;
+
+	
+	NestedSurface* theSurfaces;			// NOTE: surfaces[0] is not used
+	NestedSurface* committedSurfaces;
+	MaterialStateVariables sv;			// Material state variables
+	int    activeSurfaceNum;
+	int    committedActiveSurf;
+
+
+	double modulusFactor;
+	double initPress;
+	double damage;
+	double check;
+
+
+
+	CTensor currentStress;
+	CTensor trialStress;
+	CTensor updatedTrialStress;
+	CTensor currentStrain;
+	CTensor strainRate;
+	static CTensor subStrainRate;
+
+
+
+	
+	double pressureD;
+	int onPPZ; //=-1 never reach PPZ before; =0 below PPZ; =1 on PPZ; =2 above PPZ
+	double strainPTOcta;
+	double PPZSize;
+	double cumuDilateStrainOcta;
+	double maxCumuDilateStrainOcta;
+	double cumuTranslateStrainOcta;
+	double prePPZStrainOcta;
+	double oppoPrePPZStrainOcta;
+	static CTensor trialStrain;
+	CTensor PPZPivot;
+	CTensor PPZCenter;
+	CTensor PivotStrainRate;
+
+	double pressureDCommitted;
+	int onPPZCommitted;
+	double PPZSizeCommitted;
+	double cumuDilateStrainOctaCommitted;
+	double maxCumuDilateStrainOctaCommitted;
+	double cumuTranslateStrainOctaCommitted;
+	double prePPZStrainOctaCommitted;
+	double oppoPrePPZStrainOctaCommitted;
+	CTensor PPZPivotCommitted;
+	CTensor PPZCenterCommitted;
+	CTensor PivotStrainRateCommitted;
+	static CTensor workV6;
+	static CTensor workT2V;
+	static CTensor theTangent;
+	double maxPress;
+
+
+
+
+	// Called by constructor
+	void setUpSurfaces(double*);
+
+
+
+	void elast2Plast(void);
+	double yieldFunc(CTensor& stress, const NestedSurface* surfaces, int surface_num);
+	void deviatorScaling(CTensor& stress, const NestedSurface* surfaces, int surfaceNum);
+	void initSurfaceUpdate(void);
+	void initStrainUpdate(void);
+
+
+
+	// Return num_strain_subincre
+	int setSubStrainRate(void);
+	int isLoadReversal(CTensor&);
+	int isCriticalState(CTensor& stress);
+	void getContactStress(CTensor& contactStress);
+	void getSurfaceNormal(CTensor& stress, CTensor& normal);
+	double getModulusFactor(CTensor& stress);
+	void updatePPZ(CTensor& stress);
+	void PPZTranslation(const CTensor& contactStress);
+	double getPPZLimits(int which, CTensor& contactStress);
+	double getPlasticPotential(CTensor& stress, const CTensor& surfaceNormal);
+	void setTrialStress(CTensor& stress);
+	double getLoadingFunc(CTensor& contact, CTensor& surfaceNormal, double* plasticPotential, int crossedSurface);
+	void updateActiveSurface(void);
+	void updateInnerSurface(void);
+	double sdevRatio(CTensor& stress, double residualPress);
+
+
+
+	//return 1 if stress locked; o/w return 0.
+	int stressCorrection(int crossedSurface);
+
+	// Return 1 if crossing the active surface; return 0 o/w
+	int  isCrossingNextSurface(void);
+	double secondOrderEqn(double A, double B, double C, int i);
+
+
+
+
+
+
+private:
+	// user supplied
+	static int matCount;
+	static int* ndmx;  //num of dimensions (2 or 3)
+	static int* loadStagex;  //=0 if elastic; =1 or 2 if plastic
+	static double* rhox;  //mass density
+	static double* refShearModulusx;
+	static double* refBulkModulusx;
+	static double* frictionAnglex;
+	static double* peakShearStrainx;
+	static double* refPressurex;
+	static double* cohesionx;
+	static double* pressDependCoeffx;
+	static int* numOfSurfacesx;
+	static double* phaseTransfAnglex;
+	static double* contractParam1x;
+	static double* contractParam2x;
+	static double* contractParam3x;
+	static double* dilateParam1x;
+	static double* dilateParam2x;
+	static double* liquefyParam1x;
+	static double* liquefyParam2x;
+	static double* dilateParam3x;
+	static double* einitx;    //initial void ratio
+	static double* volLimit1x;
+	static double* volLimit2x;
+	static double* volLimit3x;
+	static double pAtm;
+	static double* Hvx;
+	static double* Pvx;
+
 
 
 };

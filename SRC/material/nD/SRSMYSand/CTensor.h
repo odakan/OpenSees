@@ -32,9 +32,9 @@
 // Description: This file contains the class definition for CTensor (Compressed Tensor).
 // CTensor is a concrete class implementing the compressed tensor abstraction.
 // CTensor class is used to provide the abstraction for the 2nd and 4th order
-// material tensors and tensor operations. Depending on the symmetries,
-// CTensor object can store and manipulate a tensor in its corresponding 
-// compressed matrix represantation. 
+// symmetric tensors and tensor operations.
+// CTensor object can store and manipulate 2nd and 4th order tensors in their
+// corresponding (inital or resulting) compressed matrix representation.
 // Rule of thumb:
 //      Stress and Stiffness-like tensors -> contravariant
 //      Strain-like tensors -> covariant
@@ -72,8 +72,9 @@ public:
     // utility methods
         // general
     void Zero(void);
-    void setOrder(int ord);
-    void makeRepresentation(int rep);
+    int setOrder(int ord);
+    int makeRep(int rep);  // mind that makeRep may trigger switch-representation
+    int getRep(void);
     int getOrder(void);
     inline int length(void) const;
     inline int noRows(void) const;
@@ -83,24 +84,42 @@ public:
     Vector makeVector(void);
     Matrix makeMatrix(void);
 
-    // second-order tensor
+        // second-order tensor
     int setData(double* newData, int size, int rep);
     int resize(int nRows);
     int resize(const Vector& V);
 
-    // fourth-order tensor
+        // fourth-order tensor
     int setData(double* newData, int nRows, int nCols, int rep);
     int resize(int nRows, int nCols);
     int resize(const Matrix& M);
 
-    // Symmetric Tensor Operations
+    // symmetric tensor operations
     int Normalize(void);
-    double Norm(void) const;
+    double det(void) const;
+    double norm(void) const;
     double operator%(const CTensor& C) const;       // % : [2-to-2] order double dot
-    CTensor operator^(const CTensor& C) const;      // ^ : [2-to-4 or 4-to-4] order double dot
+    CTensor operator^(const CTensor& C) const;      // ^ : [2-to-4, 4-to-2 or 4-to-4] order double dot
     CTensor operator*(const CTensor& C) const;      // * : [2-to-2] order dyadic product
-    CTensor dot(const CTensor& C) const;            // single dot operation
-    
+    CTensor dot(const CTensor& C) const;            // single dot product
+    CTensor inv(void) const;
+
+    // special norms
+    double J2(void);
+    double octahedral(void);    // tangential component
+
+    // fast and efficient operations
+    //////////////////////////////////////////////////////////////////////////
+    int addVector(double factThis, const Vector& other, double factOther);
+    int addMatrixVector(double factThis, const Matrix& m, const Vector& v, double factOther);
+    int addMatrixTransposeVector(double factThis, const Matrix& m, const Vector& v, double factOther);
+    ////////////////////////////////////////////////////////////////////////////
+    int addTensor(double factThis, const CTensor& other, double factOther);
+    int addTensorTranspose(double factThis, const CTensor& other, double factOther);
+    int addTensorProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // AB
+    int addTensorTransposeProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // A'B
+    int addTensorTripleProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // A'BA
+    int addTensorTripleProduct(double factThis, const CTensor& A, const CTensor& B, const CTensor& C, double otherFact); //A'BC
 
     // overloaded operators
     inline double& operator()(int row);
@@ -138,20 +157,15 @@ private:
     Matrix ct;
 
 private:
-    // switch representation
-    void toCov(void);
-    void toFull(void);
-    void toContr(void);
-    void toCovContr(void);
-    void toContrCov(void);
+    // switch-representation
+    int toCov(void);
+    int toFull(void);
+    int toContr(void);
+    int toCovContr(void);
+    int toContrCov(void);
 
     // private utilities
     inline void matrix_dim(int nRows);
-
-    ///////////////////////////////////////////////////////
-    Vector ToContraviant(const Vector& v1);
-    Vector ToCovariant(const Vector& v1);
-    ///////////////////////////////////////////
 
 public:
     // tensor valued constants

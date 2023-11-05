@@ -147,7 +147,7 @@ CTensor::~CTensor()
 	// general
 void CTensor::Zero(void) { ct.Zero(); }
 
-void CTensor::setOrder(int ord) { 
+int CTensor::setOrder(int ord) { 
 	if (ord == 2 || ord == 4) {
 		order = ord;
 	}
@@ -155,18 +155,23 @@ void CTensor::setOrder(int ord) {
 		opserr << "FATAL! CTensor::setRepresentation() - unsupported matrix representation!\n";
 		exit(-1);
 	}
+	return 0;
 }
 
-void CTensor::makeRepresentation(int rep) {
+int CTensor::makeRep(int rep) {
 	if (order == 2 && rep > 2) {
-		opserr << "FATAL! CTensor::makeRepresentation() - second order tensor does not have a mixed representation!\n";
+		opserr << "FATAL! CTensor::makeRep() - second order tensor does not have a mixed representation!\n";
 		exit(-1);
 	}
 	if (rep < 0 || rep > 4) {
-		opserr << "FATAL! CTensor::makeRepresentation() - unsupported matrix representation!\n";
+		opserr << "FATAL! CTensor::makeRep() - unsupported matrix representation!\n";
 		exit(-1);
 	}
-	if (repr == -1) {
+	if (repr == rep) {
+		// check for a quick return
+		return 0;
+	}
+	else if (repr == -1) {
 		// if unset, simply set
 		repr = rep;
 	}
@@ -188,8 +193,10 @@ void CTensor::makeRepresentation(int rep) {
 			toContrCov();
 		}
 	}
+	return 0;
 }
 
+int CTensor::getRep(void) { return repr; }
 int CTensor::getOrder(void) { return order; }
 inline int CTensor::length(void) const { return (numRows * numCols); }
 inline int CTensor::noRows(void) const { return numRows; }
@@ -303,15 +310,25 @@ int CTensor::resize(const Matrix& M) {
 
 // Symmetric Tensor Operations
 int CTensor::Normalize(void) {
-	double norm = Norm();
-	if (norm > SMALL_VALUE) {
-		ct /= norm;
+	// normalize self
+	double self_norm = norm();
+	if (self_norm > SMALL_VALUE) {
+		ct /= self_norm;
 		return 0;
 	}
 	return -1;
 }
 
-double CTensor::Norm(void) const {
+double CTensor::det(void) const {
+	// compute the determinant of ctensor
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	double deteminant = 0;;
+
+	return deteminant;
+}
+
+double CTensor::norm(void) const {
+	// compute the norm of ctensor
 	double result = 0.0;
 	if (order == 2) {		// 2nd order tensor
 		if (repr == 0) {		// Full
@@ -419,7 +436,7 @@ double CTensor::operator%(const CTensor& other) const {
 
 CTensor CTensor::operator^(const CTensor& other) const {
 	// double dot operation between two [2-4] or [4-4] CTensors
-	if (dim != other.dim) {
+	if (dim != other.dim) { // dimensions must match [2D&2D or 3D&3D]
 		// make trouble
 		opserr << "FATAL! CTensor::operator^() - ctensor dimensions do not match!\n";
 		exit(-1);
@@ -448,7 +465,7 @@ CTensor CTensor::operator^(const CTensor& other) const {
 			rep = 2;
 		}
 		else {
-			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			opserr << "FATAL! CTensor::operator^() - matrices with unsupported combination of representations. cannot double dot!\n";
 			exit(-1);
 		}
 		// compute the double dot operation
@@ -484,7 +501,7 @@ CTensor CTensor::operator^(const CTensor& other) const {
 			rep = 1;
 		}
 		else {
-			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			opserr << "FATAL! CTensor::operator^() - matrices with unsupported combination of representations. cannot double dot!\n";
 			exit(-1);
 		}
 		// compute the double dot operation
@@ -532,7 +549,7 @@ CTensor CTensor::operator^(const CTensor& other) const {
 			c = r;
 		}
 		else {
-			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			opserr << "FATAL! CTensor::operator^() - matrices with unsupported combination of representations. cannot double dot!\n";
 			exit(-1);
 		}
 		// compute the double dot operation
@@ -541,6 +558,8 @@ CTensor CTensor::operator^(const CTensor& other) const {
 	}
 	else {
 		// make trouble
+		opserr << "FATAL! CTensor::operator^() - matrices with unsupported combination of orders. cannot double dot!\n";
+		exit(-1);
 	}
 	return result;
 }
@@ -554,7 +573,7 @@ CTensor CTensor::operator*(const CTensor& other) const {
 	}
 	if (order != 2 || other.order != 2) {
 		// make trouble
-		opserr << "FATAL! CTensor::operator*() - both ctensors must be 2nd order for dyadic product!\n";
+		opserr << "FATAL! CTensor::operator*() - both ctensors must be 2nd order. cannot commpute the dyadic product!\n";
 		exit(-1);
 	}
 	// decide output matrix size
@@ -597,17 +616,68 @@ CTensor CTensor::operator*(const CTensor& other) const {
 }
 
 CTensor CTensor::dot(const CTensor& C) const {
-	//single dot operation between two CTensors
+	// single dot operation between two CTensors
+	opserr << "Function not implemented yet!\n"; exit(-1);
 	CTensor result;
 
 	return result;
 }
 
+CTensor CTensor::inv(void) const {
+	// return the inverse of ctensor
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	CTensor result;
+
+	return result;
+}
+
+// special norms
+double CTensor::J2(void) {
+	return 0.5 * deviator().norm();
+}
+
+double CTensor::octahedral(void) {
+	return sqrt(1.0 / 3.0) * deviator().norm();
+}
+
 // overloaded operators
-inline double& CTensor::operator()(int row) { return ct(row, 0); }
-inline double CTensor::operator()(int row) const { return ct(row, 0); }
-inline double& CTensor::operator()(int row, int col) { return ct(row, col); }
-inline double CTensor::operator()(int row, int col) const { return ct(row, col); }
+inline double& CTensor::operator()(int row) { 
+	if (order == 2) { 
+		return ct(row, 0);
+	} 
+	else { 
+		opserr << "FATAL! CTensor::operator() - this is a 4th order tensor, but (row) data was requested!\n"; 
+		exit(-1); 
+	} 
+}
+inline double CTensor::operator()(int row) const { 
+	if (order == 2) { 
+		return ct(row, 0); 
+	} 
+	else { 
+		opserr << "FATAL! CTensor::operator() - this is a 4th order tensor, but (row) data was requested!\n"; 
+		exit(-1); 
+	} 
+}
+
+inline double& CTensor::operator()(int row, int col) { 
+	if (order == 4) { 
+		return ct(row, col); 
+	} else { 
+		opserr << "FATAL! CTensor::operator() - this is a 2nd order tensor, but (row, col) data was requested!\n"; 
+		exit(-1); 
+	} 
+}
+
+inline double CTensor::operator()(int row, int col) const { 
+	if (order == 4) { 
+		return ct(row, col); 
+	} 
+	else { 
+		opserr << "FATAL! CTensor::operator() - this is a 2nd order tensor, but (row, col) data was requested!\n"; 
+		exit(-1); 
+	} 
+}
 
 CTensor CTensor::operator()(const ID& rows, const ID& cols) const {
 	int nRows = rows.Size();
@@ -773,12 +843,152 @@ CTensor& CTensor::operator-=(const CTensor& other) {
 }
 
 OPS_Stream& operator<<(OPS_Stream& s, const CTensor& tensor) {
+	char* rep = "";
+	if (tensor.repr == 0) {
+		rep = " -> rep: full";
+	}
+	else if (tensor.repr == 1) {
+		rep = " rep: covariant";
+	}
+	else if (tensor.repr == 2) {
+		rep = " -> rep: contravariant";
+	}
+	else if (tensor.repr == 3) {
+		rep = " -> rep: mixed (covcontr)";
+	}
+	else if (tensor.repr == 4) {
+		rep = " -> rep: mixed (contrcov)";
+	}
 	if (tensor.order == 4) {
 		s << endln;
 	}
 	tensor.ct.Output(s);
+	s << rep;
 	s << endln;
 	return s;
+}
+
+int CTensor::toCov(void) {
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	if (repr == 0) {
+
+	}
+	else if (repr == 1) {
+		return 0;
+	}
+	else if (repr ==2) {
+
+	}
+	else if (repr == 3) {
+
+	}
+	else if (repr == 4) {
+
+	}
+	else {
+		opserr << "WARNING! CTensor::toCov() - cannot convert ctensor to Cov representation\n";
+		return -1;
+	}
+}
+
+int CTensor::toFull(void) {
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	if (repr == 0) {
+		return 0;
+	}
+	else if (repr == 1) {
+
+	}
+	else if (repr == 2) {
+
+	}
+	else if (repr == 3) {
+
+	}
+	else if (repr == 4) {
+
+	}
+	else {
+		opserr << "WARNING! CTensor::toFull() - cannot convert ctensor to Full representation\n";
+		return -1;
+	}
+}
+
+int CTensor::toContr(void) {
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	if (repr == 0) {
+
+	}
+	else if (repr == 1) {
+
+	}
+	else if (repr == 2) {
+		return 0;
+	}
+	else if (repr == 3) {
+
+	}
+	else if (repr == 4) {
+
+	}
+	else {
+		opserr << "WARNING! CTensor::toContr() - cannot convert ctensor to Contr representation\n";
+		return -1;
+	}
+}
+
+int CTensor::toCovContr(void) {
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	if (order != 4) {
+		opserr << "WARNING! CTensor::toCovContr() - cannot convert 2nd order ctensor to mixed representation\n";
+		return -1;
+	}
+	if (repr == 0) {
+
+	}
+	else if (repr == 1) {
+
+	}
+	else if (repr == 2) {
+
+	}
+	else if (repr == 3) {
+		return 0;
+	}
+	else if (repr == 4) {
+
+	}
+	else {
+		opserr << "WARNING! CTensor::toCovContr() - cannot convert ctensor to CovContr representation\n";
+		return -1;
+	}
+}
+
+int CTensor::toContrCov(void) {
+	opserr << "Function not implemented yet!\n"; exit(-1);
+	if (order != 4) {
+		opserr << "WARNING! CTensor::toContrCov() - cannot convert 2nd order ctensor to mixed representation\n";
+		return -1;
+	}
+	if (repr == 0) {
+
+	}
+	else if (repr == 1) {
+
+	}
+	else if (repr == 2) {
+
+	}
+	else if (repr == 3) {
+
+	}
+	else if (repr == 4) {
+		return 0;
+	}
+	else {
+		opserr << "WARNING! CTensor::toContrCov() - cannot convert ctensor to ContrCov representation\n";
+		return -1;
+	}
 }
 
 inline void CTensor::matrix_dim(int nRows) { dim = int((nRows < 6) * 2 + (nRows >= 6) * 3); }
@@ -801,8 +1011,14 @@ const CTensor CTensor::Constants::I(const int nD, int rep = 2) {
 }
 
 const CTensor CTensor::Constants::IIsymm(const int nD, int rep = 2) {
-	// return 4th order symmetric operator 
-	// e.g., (stress_deviator) = 2G[I4 - 1/3*p*IIvol](strain)
+	// return 4th order symmetric operator
+	// 
+	// e.g., (stress_deviator) = 2G[IIsymm - 1/3*p*IIvol](strain) 
+	//							-> [IIsymm - 1/3*p*IIvol] = IIdev -> Contr representation
+	// 
+	// e.g., (stress_deviator) = 2G[IIsymm - 1/3*p*IIvol](stress) 
+	//							-> [IIsymm - 1/3*p*IIvol] = IIdev -> Mixed representation
+
 	int m;
 	CTensor T;
 	if (rep == 0) {				// Full
@@ -822,11 +1038,7 @@ const CTensor CTensor::Constants::IIsymm(const int nD, int rep = 2) {
 			for (int i = 0; i < m; i++)
 				T(i, i) = 1.0 - (i >= nD) * 0.5;
 		}
-		else if (rep == 3) {	// CovContr (both mixed representations are the same)
-			for (int i = 0; i < m; i++)
-				T(i, i) = 1.0;
-		}
-		else if (rep == 4) {	// ContrCov (both mixed representations are the same)
+		else if (rep > 2 && rep < 5) {	// CovContr and ContrCov (both mixed representations are the same)
 			for (int i = 0; i < m; i++)
 				T(i, i) = 1.0;
 		}
@@ -872,6 +1084,13 @@ const CTensor CTensor::Constants::IIvol(const int nD, int rep = 2) {
 
 const CTensor CTensor::Constants::IIdev(const int nD, int rep = 2) {
 	//return 4th order deviatoric operator
+	// 
+	// e.g., (stress_deviator) = 2G[IIdev](strain) 
+	//							 -> IIdev -> Contr representation
+	// 
+	// e.g., (stress_deviator) = 2G[IIdev](stress) 
+	//							 -> IIdev -> Mixed representation
+
 	int m;
 	CTensor T;
 	if (rep == 0) {				// Full
@@ -952,30 +1171,7 @@ const CTensor CTensor::Constants::IIdev(const int nD, int rep = 2) {
 				T(2, 2) = 0.25;
 			}
 		}
-		else if (rep == 3) {	// CovContr (both mixed representations are the same)
-			if (nD == 3) {
-				T(0, 0) = 2.0 / 3.0;
-				T(0, 1) = -1.0 / 3.0;
-				T(0, 2) = -1.0 / 3.0;
-				T(1, 0) = -1.0 / 3.0;
-				T(1, 1) = 2.0 / 3.0;
-				T(1, 2) = -1.0 / 3.0;
-				T(2, 0) = -1.0 / 3.0;
-				T(2, 1) = -1.0 / 3.0;
-				T(2, 2) = 2.0 / 3.0;
-				T(3, 3) = 1.0;
-				T(4, 4) = 1.0;
-				T(5, 5) = 1.0;
-			}
-			else if (nD == 2) {
-				T(0, 0) = 1.0 / 3.0;
-				T(0, 1) = -0.5 / 3.0;
-				T(1, 0) = -0.5 / 3.0;
-				T(1, 1) = 1.0 / 3.0;
-				T(2, 2) = 0.5;
-			}
-		}
-		else if (rep == 4) {	// ContrCov (both mixed representations are the same)
+		else if (rep > 2 && rep < 5) {	// CovContr and ContrCov (both mixed representations are the same)
 			if (nD == 3) {
 				T(0, 0) = 2.0 / 3.0;
 				T(0, 1) = -1.0 / 3.0;
