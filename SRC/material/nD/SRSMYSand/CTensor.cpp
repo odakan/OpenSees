@@ -36,6 +36,8 @@
 #include "ID.h"
 #include "CTensor.h"
 
+using std::nothrow;
+
 constexpr double SMALL_VALUE = 1e-8;
 
 // constructors
@@ -93,7 +95,7 @@ CTensor::CTensor(const Vector& V, int rep)
 	setOrder(2);
 	matrix_dim(numRows);
 	for (int i = 0; i < numRows; i++)
-		ct(i, 1) = V(i);
+		ct(i, 0) = V(i);
 }
 
 // fourth-order tensor
@@ -224,7 +226,7 @@ Vector CTensor::makeVector(void) {
 	}
 	Vector result(numRows);
 	for (int i = 0; i < numRows; i++)
-		result(i) = this->ct(i, 1);
+		result(i) = this->ct(i, 0);
 	return result;
 }
 
@@ -377,7 +379,7 @@ double CTensor::operator%(const CTensor& other) const {
 	}
 	if (order != 2 || other.order !=2) {
 		// make trouble
-		opserr << "FATAL! CTensor::operator%() - both ctensors must be 2nd order! Use operator^() for double dot operations between 4th order tensors...\n";
+		opserr << "FATAL! CTensor::operator%() - both ctensors must be 2nd order! Use operator^() for double dot operations involving 4th order tensors...\n";
 		exit(-1);
 	}
 	// compute double dot
@@ -409,7 +411,7 @@ double CTensor::operator%(const CTensor& other) const {
 	}
 	else {
 		// make trouble
-		opserr << "FATAL! CTensor::operator%() - double dot operation between the requested combination of matrix representations is unsupported!\n";
+		opserr << "FATAL! CTensor::operator%() - double dot operation between the requested combination of matrix representations is not supported!\n";
 		exit(-1);
 	}
 	return result;
@@ -426,9 +428,10 @@ CTensor CTensor::operator^(const CTensor& other) const {
 	int rep = -1;
 	int r = (dim == 2) * 3 + (dim == 3) * 6;
 	int c = 1;
+	double* theData = nullptr;
 	CTensor result;
 	if (order == 2 && other.order == 4) {		// double dot between 2nd and 4th order tensors
-		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
+		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
 			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
@@ -444,17 +447,27 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		else if (repr == 2 && other.repr == 4) {	// Contr(2) x CovContr(4) = Contr(2)
 			rep = 2;
 		}
+		else {
+			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			exit(-1);
+		}
 		// compute the double dot operation
-		double* theData = new double[r];
+		theData = new (nothrow) double[r];
+		if (theData == nullptr) {
+			opserr << "FATAL! CTensor::operator^() - memory allocation failed!\n";
+			exit(-1);
+		}
 		for (int i = 0; i < r; i++)
 			theData[i] = this->ct(i, 0);
 		Vector temp(theData, r);
 		delete[] theData;
+		theData = nullptr;
 		temp = other.ct ^ temp;
 		result = CTensor(temp, rep);
+
 	}
 	else if (order == 4 && other.order == 2) {	// double dot between 4th and 2nd order tensors
-		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
+		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
 			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
@@ -470,17 +483,26 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		else if (repr == 3 && other.repr == 1) {	// CovContr(3) x Cov(1) = Cov(1)
 			rep = 1;
 		}
+		else {
+			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			exit(-1);
+		}
 		// compute the double dot operation
-		double* theData = new double[r];
+		theData = new (nothrow) double[r];
+		if (theData == nullptr) {
+			opserr << "FATAL! CTensor::operator^() - memory allocation failed!\n";
+			exit(-1);
+		}
 		for (int i = 0; i < r; i++)
 			theData[i] = other.ct(i, 0);
 		Vector temp(theData, r);
 		delete[] theData;
+		theData = nullptr;
 		temp = this->ct * temp;
 		result = CTensor(temp, rep);
 	}
 	else if (order == 4 && other.order == 2) {	// double dot between two 4th order tensors
-		if (repr == 0 && other.repr == 0) {		// Full(0) x Full(0) = Full(0)
+		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
 			r = (dim == 2) * 4 + (dim == 3) * 9;
 			c = r;
@@ -508,6 +530,10 @@ CTensor CTensor::operator^(const CTensor& other) const {
 		else if (repr == 3 && other.repr == 3) {	// CovContr(3) x CovContr(3) = CovContr(3)
 			rep = 3;
 			c = r;
+		}
+		else {
+			opserr << "FATAL! CTensor::operator^() - unsupported combination of matrix representations to double dot!\n";
+			exit(-1);
 		}
 		// compute the double dot operation
 		result = CTensor(r, c, rep);
@@ -558,7 +584,7 @@ CTensor CTensor::operator*(const CTensor& other) const {
 	}
 	else {
 		// make trouble
-		opserr << "FATAL! CTensor::operator*() - dyadic product between the requested combination of matrix representations is unsupported!\n";
+		opserr << "FATAL! CTensor::operator*() - dyadic product between the requested combination of matrix representations is not supported!\n";
 		exit(-1);
 	}
 	// compute dyadic product
@@ -578,8 +604,8 @@ CTensor CTensor::dot(const CTensor& C) const {
 }
 
 // overloaded operators
-inline double& CTensor::operator()(int row) { return ct(row, 1); }
-inline double CTensor::operator()(int row) const { return ct(row, 1); }
+inline double& CTensor::operator()(int row) { return ct(row, 0); }
+inline double CTensor::operator()(int row) const { return ct(row, 0); }
 inline double& CTensor::operator()(int row, int col) { return ct(row, col); }
 inline double CTensor::operator()(int row, int col) const { return ct(row, col); }
 
