@@ -1944,7 +1944,7 @@ void SRSMYSand::initStrainUpdate(void)
     workV6 = currentStress.deviator() * shearCoeff;
     currentStrain.setData(workV6, currentStress.trace() / nD * bulkCoeff);
 
-    double octalStrain = currentStrain.octahedral(1);
+    double octalStrain = currentStrain.octahedral();
     if (octalStrain <= LOW_LIMIT) octalStrain = LOW_LIMIT;
 
     // plastic strain state (scaled from elastic strain)
@@ -2097,8 +2097,8 @@ SRSMYSand::getSurfaceNormal(CTensor& stress, CTensor& normal)
     workV6 += center * -conHeig;
     workV6 *= 3.0;
     workT2V.setData(workV6, volume);
-
-    normal.setData(workT2V.unitCTensor());
+    workT2V.Normalize();
+    normal = workT2V;
 }
 
 

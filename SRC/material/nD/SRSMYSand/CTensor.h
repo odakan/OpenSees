@@ -94,6 +94,9 @@ public:
     int resize(int nRows, int nCols);
     int resize(const Matrix& M);
 
+        // from CTensor
+    int setData(const CTensor& deviatoric, const double volumetric);
+
     // symmetric tensor operations
     int Normalize(void);
     double det(void) const;
@@ -101,8 +104,10 @@ public:
     double operator%(const CTensor& C) const;       // % : [2-to-2] order double dot
     CTensor operator^(const CTensor& C) const;      // ^ : [2-to-4, 4-to-2 or 4-to-4] order double dot
     CTensor operator*(const CTensor& C) const;      // * : [2-to-2] order dyadic product
-    CTensor dot(const CTensor& C) const;            // single dot product
-    CTensor inv(void) const;
+    CTensor& operator^=(const CTensor& C);
+    CTensor& operator*=(const CTensor& C);
+    CTensor& dot(const CTensor& C);                 // single dot product
+    CTensor& invert(void);
 
     // special norms
     double J2(void);
@@ -154,7 +159,7 @@ private:
     int repr = -1;   // -1: Unset, Full: 0, Cov: 1, Contr: 2, CovContr: 3 and ContrCov: 4
     int numRows = 0;
     int numCols = 0;
-    Matrix ct;
+    Matrix ct = Matrix(1, 1);
 
 private:
     // switch-representation

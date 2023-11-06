@@ -308,6 +308,18 @@ int CTensor::resize(const Matrix& M) {
 	return 0;
 }
 
+int CTensor::setData(const CTensor& deviatoric, const double volumetric) {
+	// move the input deviatoric CTensor
+	*this = deviatoric;
+	// add the volumetric part
+	if (order == 2) {
+		addTensor(1.0, Constants::I(dim, repr) * volumetric, 1.0);
+	}
+	else {
+		addTensor(1.0, Constants::IIvol(dim, repr) * volumetric, 1.0);
+	}
+}
+
 // Symmetric Tensor Operations
 int CTensor::Normalize(void) {
 	// normalize self
@@ -615,7 +627,7 @@ CTensor CTensor::operator*(const CTensor& other) const {
 	return result;
 }
 
-CTensor CTensor::dot(const CTensor& C) const {
+CTensor& CTensor::dot(const CTensor& C) {
 	// single dot operation between two CTensors
 	opserr << "Function not implemented yet!\n"; exit(-1);
 	CTensor result;
@@ -623,7 +635,7 @@ CTensor CTensor::dot(const CTensor& C) const {
 	return result;
 }
 
-CTensor CTensor::inv(void) const {
+CTensor& CTensor::invert(void) {
 	// return the inverse of ctensor
 	opserr << "Function not implemented yet!\n"; exit(-1);
 	CTensor result;
