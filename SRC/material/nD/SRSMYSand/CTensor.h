@@ -76,9 +76,9 @@ public:
     int makeRep(int rep);  // mind that makeRep may trigger switch-representation
     int getRep(void);
     int getOrder(void);
-    inline int length(void) const;
-    inline int noRows(void) const;
-    inline int noCols(void) const;
+    int length(void) const;
+    int noRows(void) const;
+    int noCols(void) const;
     double trace(void);
     CTensor deviator(void);
     Vector makeVector(void);
@@ -114,23 +114,14 @@ public:
     double octahedral(void);    // tangential component
 
     // fast and efficient operations
-    //////////////////////////////////////////////////////////////////////////
-    int addVector(double factThis, const Vector& other, double factOther);
-    int addMatrixVector(double factThis, const Matrix& m, const Vector& v, double factOther);
-    int addMatrixTransposeVector(double factThis, const Matrix& m, const Vector& v, double factOther);
-    ////////////////////////////////////////////////////////////////////////////
     int addTensor(double factThis, const CTensor& other, double factOther);
     int addTensorTranspose(double factThis, const CTensor& other, double factOther);
-    int addTensorProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // AB
-    int addTensorTransposeProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // A'B
-    int addTensorTripleProduct(double factThis, const CTensor& A, const CTensor& B, double factOther); // A'BA
-    int addTensorTripleProduct(double factThis, const CTensor& A, const CTensor& B, const CTensor& C, double otherFact); //A'BC
 
     // overloaded operators
-    inline double& operator()(int row);
-    inline double operator()(int row) const;
-    inline double& operator()(int row, int col);
-    inline double operator()(int row, int col) const;
+    double& operator()(int row);
+    double operator()(int row) const;
+    double& operator()(int row, int col);
+    double operator()(int row, int col) const;
     CTensor operator()(const ID& rows, const ID& cols) const;
     CTensor& operator=(const CTensor& M);
 
@@ -170,7 +161,7 @@ private:
     int toContrCov(void);
 
     // private utilities
-    inline void matrix_dim(int nRows);
+    void matrix_dim(int nRows);
 
 public:
     // tensor valued constants

@@ -198,9 +198,9 @@ int CTensor::makeRep(int rep) {
 
 int CTensor::getRep(void) { return repr; }
 int CTensor::getOrder(void) { return order; }
-inline int CTensor::length(void) const { return (numRows * numCols); }
-inline int CTensor::noRows(void) const { return numRows; }
-inline int CTensor::noCols(void) const { return numCols; }
+int CTensor::length(void) const { return (numRows * numCols); }
+int CTensor::noRows(void) const { return numRows; }
+int CTensor::noCols(void) const { return numCols; }
 
 double CTensor::trace(void) {
 	double sum = 0;
@@ -318,6 +318,7 @@ int CTensor::setData(const CTensor& deviatoric, const double volumetric) {
 	else {
 		addTensor(1.0, Constants::IIvol(dim, repr) * volumetric, 1.0);
 	}
+	return 0;
 }
 
 // Symmetric Tensor Operations
@@ -652,8 +653,28 @@ double CTensor::octahedral(void) {
 	return sqrt(1.0 / 3.0) * deviator().norm();
 }
 
+int CTensor::addTensor(double factThis, const CTensor& other, double factOther) {
+	if (numRows != other.numRows && numCols != other.numCols) {
+		opserr << "WARNING! CTensor::addTensor() - ctensor dimension mismatch!\n";
+		return -1;;
+	}
+	return ct.addMatrix(factThis, other.ct, factOther);
+}
+
+int CTensor::addTensorTranspose(double factThis, const CTensor& other, double factOther) {
+	if (order != 4 && other.order != 4) {
+		opserr << "WARNING! CTensor::addTensorTranspose() - ctensor order must be 4!\n";
+		return -1;;
+	}
+	if (numRows != other.numRows && numCols != other.numCols) {
+		opserr << "WARNING! CTensor::addTensorTranspose() - ctensor dimension mismatch!\n";
+		return -1;;
+	}
+	return ct.addMatrixTranspose(factThis, other.ct, factOther);
+}
+
 // overloaded operators
-inline double& CTensor::operator()(int row) { 
+double& CTensor::operator()(int row) { 
 	if (order == 2) { 
 		return ct(row, 0);
 	} 
@@ -662,7 +683,7 @@ inline double& CTensor::operator()(int row) {
 		exit(-1); 
 	} 
 }
-inline double CTensor::operator()(int row) const { 
+double CTensor::operator()(int row) const { 
 	if (order == 2) { 
 		return ct(row, 0); 
 	} 
@@ -672,7 +693,7 @@ inline double CTensor::operator()(int row) const {
 	} 
 }
 
-inline double& CTensor::operator()(int row, int col) { 
+double& CTensor::operator()(int row, int col) { 
 	if (order == 4) { 
 		return ct(row, col); 
 	} else { 
@@ -681,7 +702,7 @@ inline double& CTensor::operator()(int row, int col) {
 	} 
 }
 
-inline double CTensor::operator()(int row, int col) const { 
+double CTensor::operator()(int row, int col) const { 
 	if (order == 4) { 
 		return ct(row, col); 
 	} 
@@ -703,11 +724,6 @@ CTensor& CTensor::operator=(const CTensor& other) {
 	// first check we are not trying other = other
 	if (this == &other)
 		return *this;
-
-	if ((numCols != other.numCols) || (numRows != other.numRows)) {
-		opserr << "WARNING! CTensor::operator=() - ctensor dimensions do not match!\n";
-		return *this;
-	}
 
 	// assignment operation
 	this->order = other.order;
@@ -801,11 +817,11 @@ CTensor& CTensor::operator/=(double fact) {
 CTensor CTensor::operator+(const CTensor& other) const {
 	if (other.repr != repr) {
 		opserr << "WARNING! CTensor::operator+() - ctensor matrix representations does not match!\n";
-		return *this;
+		exit(-1);
 	}
 	if ((numCols != other.numCols) || (numRows != other.numRows)) {
 		opserr << "WARNING! CTensor::operator+() - ctensor dimensions do not match!\n";
-		return *this;
+		exit(-1);
 	}
 	CTensor result(*this);
 	result += other;
@@ -815,11 +831,11 @@ CTensor CTensor::operator+(const CTensor& other) const {
 CTensor CTensor::operator-(const CTensor& other) const {
 	if (other.repr != repr) {
 		opserr << "WARNING! CTensor::operator-() - ctensor matrix representations does not match!\n";
-		return *this;
+		exit(-1);
 	}
 	if ((numCols != other.numCols) || (numRows != other.numRows)) {
 		opserr << "WARNING! CTensor::operator-() - ctensor dimensions do not match!\n";
-		return *this;
+		exit(-1);
 	}
 	CTensor result(*this);
 	result -= other;
@@ -829,11 +845,11 @@ CTensor CTensor::operator-(const CTensor& other) const {
 CTensor& CTensor::operator+=(const CTensor& other) {
 	if (other.repr != repr) {
 		opserr << "WARNING! CTensor::operator+=() - ctensor matrix representations does not match!\n";
-		return *this;
+		exit(-1);
 	}
 	if ((numCols != other.numCols) || (numRows != other.numRows)) {
 		opserr << "WARNING! CTensor::operator+=() - ctensor dimensions do not match!\n";
-		return *this;
+		exit(-1);
 	}
 
 	this->ct += other.ct;
@@ -843,11 +859,11 @@ CTensor& CTensor::operator+=(const CTensor& other) {
 CTensor& CTensor::operator-=(const CTensor& other) {
 	if (other.repr != repr) {
 		opserr << "WARNING! CTensor::operator-=() - ctensor matrix representations does not match!\n";
-		return *this;
+		exit(-1);
 	}
 	if ((numCols != other.numCols) || (numRows != other.numRows)) {
 		opserr << "WARNING! CTensor::operator-=() - ctensor dimensions do not match!\n";
-		return *this;
+		exit(-1);
 	}
 
 	this->ct -= other.ct;
@@ -857,23 +873,22 @@ CTensor& CTensor::operator-=(const CTensor& other) {
 OPS_Stream& operator<<(OPS_Stream& s, const CTensor& tensor) {
 	char* rep = "";
 	if (tensor.repr == 0) {
-		rep = " -> rep: full";
+		rep = "-> rep: full\n";
 	}
 	else if (tensor.repr == 1) {
-		rep = " rep: covariant";
+		rep = "-> rep: covariant\n";
 	}
 	else if (tensor.repr == 2) {
-		rep = " -> rep: contravariant";
+		rep = "-> rep: contravariant\n";
 	}
 	else if (tensor.repr == 3) {
-		rep = " -> rep: mixed (covcontr)";
+		rep = "-> rep: mixed (covcontr)\n";
 	}
 	else if (tensor.repr == 4) {
-		rep = " -> rep: mixed (contrcov)";
+		rep = "-> rep: mixed (contrcov)\n";
 	}
-	if (tensor.order == 4) {
-		s << endln;
-	}
+
+	s << endln;
 	tensor.ct.Output(s);
 	s << rep;
 	s << endln;
@@ -1003,7 +1018,7 @@ int CTensor::toContrCov(void) {
 	}
 }
 
-inline void CTensor::matrix_dim(int nRows) { dim = int((nRows < 6) * 2 + (nRows >= 6) * 3); }
+void CTensor::matrix_dim(int nRows) { dim = int((nRows < 6) * 2 + (nRows >= 6) * 3); }
 
 // tensor valued contants
 const CTensor CTensor::Constants::I(const int nD, int rep = 2) {

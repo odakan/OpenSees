@@ -108,8 +108,8 @@
 class SRSMYSand : public NDMaterial {
 public:
 	// Full Constructor
-	SRSMYSand(int tag, 
-		int classTag, 
+	SRSMYSand(int tag,
+		int nd,
 		double rho,
 		double refShearModul,
 		double refBulkModul,
@@ -135,10 +135,9 @@ public:
 		double atm = 101.,
 		double cohesi = 0.1,
 		double hv = 0.,
-		double pv = 1.,
-		double dtype,
-		int itype, 
-		bool verbosity	
+		double pv = 1.
+		//bool implex = false, 
+		//bool verbosity = false	
 	);
 
 	// Null Constructor
@@ -201,8 +200,8 @@ private:
 	int e2p;
 	int matN;
 	int subTag = 0;
-	bool use_implex = false;
-	bool beVerbose = false;							// be verbose about internal processes (use for debugging) (no by default)
+	bool useImplex = false;
+	bool beVerbose = true;							// be verbose about internal processes (use for debugging) (no by default)
 
 
 
