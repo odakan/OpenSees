@@ -39,17 +39,37 @@
 
 
 // YieldSurface class methods
-NestedSurface::NestedSurface() :
-    theSize(0.0), theCenter(6, 2), plastShearModulus(0.0)
+NestedSurface::NestedSurface()
 {
-
+    if (theCenter.length() != 6) {
+        opserr << "FATAL:NestedSurface::NestedSurface(): center size not equal 6" << endln;
+        exit(-1);
+    }
+    if (theCenter.getRep() != 2) {
+        opserr << "FATAL! NestedSurface::NestedSurface() - center with incompatible matrix reprentation recieved! center must be contravariant\n";
+        exit(-1);
+    }
+    if (theCenter.getOrder() != 2) {
+        opserr << "FATAL! NestedSurface::NestedSurface() - center with incompatible matrix order recieved! order is corrected to 2...\n";
+        theCenter.setOrder(2);
+    }
 }
 
-NestedSurface::NestedSurface(const CTensor& theCenter_init,
-    double theSize_init, double plas_modul) :
-    theSize(theSize_init), theCenter(theCenter_init), plastShearModulus(plas_modul)
+NestedSurface::NestedSurface(const CTensor& theCenter_init, double theSize_init, double plas_modul)
+    :theSize(theSize_init), theCenter(theCenter_init), plastShearModulus(plas_modul)
 {
-
+    if (theCenter.length() != 6) {
+        opserr << "FATAL:NestedSurface::NestedSurface(): center size not equal 6" << endln;
+        exit(-1);
+    }
+    if (theCenter.getRep() != 2) {
+        opserr << "FATAL! NestedSurface::NestedSurface() - center with incompatible matrix reprentation recieved! center must be contravariant\n";
+        exit(-1);
+    }
+    if (theCenter.getOrder() != 2) {
+        opserr << "FATAL! NestedSurface::NestedSurface() - center with incompatible matrix order recieved! order is corrected to 2...\n";
+        theCenter.setOrder(2);
+    }
 }
 
 NestedSurface::~NestedSurface()
@@ -57,12 +77,23 @@ NestedSurface::~NestedSurface()
 
 }
 
-void NestedSurface::setData(const CTensor& theCenter_init,
-    double theSize_init, double plas_modul)
+void NestedSurface::setData(const CTensor& theCenter_init, double theSize_init, double plas_modul)
 {
+    if (theCenter_init.length() != 6) {
+        opserr << "FATAL:NestedSurface::setData(): center size not equal 6" << endln;
+        exit(-1);
+    }
+    if (theCenter_init.getRep() != 2) {
+        opserr << "FATAL! NestedSurface::setData() - center with incompatible matrix reprentation recieved! center must be contravariant\n";
+        exit(-1);
+    }
     theSize = theSize_init;
     theCenter = theCenter_init;
     plastShearModulus = plas_modul;
+    if (theCenter.getOrder() != 2) {
+        opserr << "FATAL! NestedSurface::setData() - center with incompatible matrix order recieved! order is corrected to 2...\n";
+        theCenter.setOrder(2);
+    }
 }
 
 void NestedSurface::setCenter(const CTensor& newCenter)
@@ -71,8 +102,15 @@ void NestedSurface::setCenter(const CTensor& newCenter)
         opserr << "FATAL:NestedSurface::setCenter(Vector &): vector size not equal 6" << endln;
         exit(-1);
     }
-
+    if (newCenter.getRep() != 2) {
+        opserr << "FATAL! NestedSurface::setCenter() - center with incompatible matrix reprentation recieved! center must be contravariant\n";
+        exit(-1);
+    }
     theCenter = newCenter;
+    if (theCenter.getOrder() != 2) {
+        opserr << "FATAL! NestedSurface::setCenter() - center with incompatible matrix order recieved! order is corrected to 2...\n";
+        theCenter.setOrder(2);
+    }
 }
 
 OPS_Stream& operator<<(OPS_Stream& s, const NestedSurface& ns)

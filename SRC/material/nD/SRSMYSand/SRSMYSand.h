@@ -190,32 +190,24 @@ public:
 
 	// miscellaneous
 	void Print(OPS_Stream& s, int flag = 0);
-	int setSubTag(const int tag);
+	void setSubTag(const int tag);
+	int getSubTag(void) const;
 	int setParameter(const char** argv, int argc, Parameter& param);
 	int updateParameter(int responseID, Information& eleInformation);
 
 private:
 	// operational variables
 	int nD = 3;
+	int nDOF = 6;
 	int e2p;
 	int matN;
 	int subTag = 0;
 	bool useImplex = false;
 	bool beVerbose = true;							// be verbose about internal processes (use for debugging) (no by default)
 
-
-
-	// internal
-	static double* residualPressx;
-	static double* stressRatioPTx;
-	double* mGredu;
-
-	
-	NestedSurface* theSurfaces;			// NOTE: surfaces[0] is not used
-	NestedSurface* committedSurfaces;
-	MaterialStateVariables sv;			// Material state variables
-	int    activeSurfaceNum;
-	int    committedActiveSurf;
+	std::vector<NestedSurface> theSurfaces;			// NOTE: surfaces[0] is not used
+	std::vector<NestedSurface> committedSurfaces;
+	MaterialStateVariables sv;						// Material state variables
 
 
 	double modulusFactor;
@@ -225,57 +217,50 @@ private:
 
 
 
-	CTensor currentStress;
 	CTensor trialStress;
+	CTensor trialStrain;
 	CTensor updatedTrialStress;
-	CTensor currentStrain;
 	CTensor strainRate;
-	static CTensor subStrainRate;
+	CTensor subStrainRate;
 
 
 
-	
 	double pressureD;
-	int onPPZ; //=-1 never reach PPZ before; =0 below PPZ; =1 on PPZ; =2 above PPZ
 	double strainPTOcta;
-	double PPZSize;
 	double cumuDilateStrainOcta;
 	double maxCumuDilateStrainOcta;
 	double cumuTranslateStrainOcta;
-	double prePPZStrainOcta;
-	double oppoPrePPZStrainOcta;
-	static CTensor trialStrain;
-	CTensor PPZPivot;
-	CTensor PPZCenter;
-	CTensor PivotStrainRate;
-
 	double pressureDCommitted;
-	int onPPZCommitted;
-	double PPZSizeCommitted;
 	double cumuDilateStrainOctaCommitted;
 	double maxCumuDilateStrainOctaCommitted;
 	double cumuTranslateStrainOctaCommitted;
+	double maxPress;
+	double maxPressCommitted;
+
+	// PPZ
+	int onPPZ; //=-1 never reach PPZ before; =0 below PPZ; =1 on PPZ; =2 above PPZ
+	double PPZSize;
+	double prePPZStrainOcta;
+	double oppoPrePPZStrainOcta;
+	int onPPZCommitted;
+	double PPZSizeCommitted;
 	double prePPZStrainOctaCommitted;
 	double oppoPrePPZStrainOctaCommitted;
+	CTensor PPZPivot;
+	CTensor PPZCenter;
+	CTensor PivotStrainRate;
 	CTensor PPZPivotCommitted;
 	CTensor PPZCenterCommitted;
 	CTensor PivotStrainRateCommitted;
-	static CTensor workV6;
-	static CTensor workT2V;
-	static CTensor theTangent;
-	double maxPress;
-
-
-
 
 	// Called by constructor
 	void setUpSurfaces(double*);
 
-
+	void updateInternal(const bool do_implex, const bool do_tangent);
 
 	void elast2Plast(void);
-	double yieldFunc(CTensor& stress, const NestedSurface* surfaces, int surface_num);
-	void deviatorScaling(CTensor& stress, const NestedSurface* surfaces, int surfaceNum);
+	double yieldFunc(CTensor& stress, const std::vector<NestedSurface> surfaces, int surface_num);
+	void deviatorScaling(CTensor& stress, const std::vector<NestedSurface> surfaces, int surfaceNum);
 	void initSurfaceUpdate(void);
 	void initStrainUpdate(void);
 
@@ -342,6 +327,11 @@ private:
 	static double pAtm;
 	static double* Hvx;
 	static double* Pvx;
+
+	// internal
+	static double* residualPressx;
+	static double* stressRatioPTx;
+	double* mGredu;
 
 
 

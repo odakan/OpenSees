@@ -64,6 +64,8 @@ public:
 	double ksi_commit_old = 0.0;			// previously committed translation direction
 	double dtime_n = 0.0;					// time factor
 	double dtime_n_commit = 0.0;			// committed time factor
+	int nYs = 0;							// number of the active surface
+	int nYs_commit = 0;						// committed number of the active surface
 	bool dtime_is_user_defined = false;
 	bool dtime_first_set = false;
 	// moduli

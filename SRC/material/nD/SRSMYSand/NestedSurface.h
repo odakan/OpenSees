@@ -82,9 +82,9 @@ public:
 protected:
 
 private:
-    double theSize;
-    CTensor theCenter;
-    double plastShearModulus;
+    double theSize = 0.0;
+    CTensor theCenter = CTensor(6, 2); // 2: contravariant
+    double plastShearModulus = 0.0;
 
 };
 #endif

@@ -55,6 +55,35 @@ CTensor::CTensor(const CTensor& other)
 	numCols = other.numCols;
 	repr = other.repr;
 	ct = other.ct;
+	if (ct.noCols() > 1 && order == 2) {
+		opserr << "WARNING! CTensor::CTensor() - other had the wrong order specified! ctensor order is corrected to 4...\n";
+		order = 4;
+	}
+	if (ct.noCols() == 1 && order == 4) {
+		opserr << "WARNING! CTensor::CTensor() - other had the wrong order specified! ctensor order is corrected to 2...\n";
+		order = 2;
+	}
+}
+
+CTensor::CTensor(const CTensor& deviatoric, const double volumetric)
+{
+	// move the input deviatoric CTensor
+	*this = deviatoric;
+	// add the volumetric part
+	if (order == 2) {
+		addTensor(1.0, Constants::I(dim, repr) * volumetric, 1.0);
+	}
+	else {
+		addTensor(1.0, Constants::IIvol(dim, repr) * volumetric, 1.0);
+	}
+	if (ct.noCols() > 1 && order == 2) {
+		opserr << "WARNING! CTensor::CTensor() - other had the wrong order specified! ctensor order is corrected to 4...\n";
+		order = 4;
+	}
+	if (ct.noCols() == 1 && order == 4) {
+		opserr << "WARNING! CTensor::CTensor() - other had the wrong order specified! ctensor order is corrected to 2...\n";
+		order = 2;
+	}
 }
 
 // second-order tensor
@@ -196,8 +225,8 @@ int CTensor::makeRep(int rep) {
 	return 0;
 }
 
-int CTensor::getRep(void) { return repr; }
-int CTensor::getOrder(void) { return order; }
+int CTensor::getRep(void) const { return repr; }
+int CTensor::getOrder(void) const { return order; }
 int CTensor::length(void) const { return (numRows * numCols); }
 int CTensor::noRows(void) const { return numRows; }
 int CTensor::noCols(void) const { return numCols; }
@@ -209,13 +238,14 @@ double CTensor::trace(void) {
 		if (dim == 3) { sum += ct(2, 0); }
 	}
 	else {
-		sum = operator%(Constants::IIvol(dim, repr));
+		opserr << "FATAL! CTensor::trace() - 4th order trace operator is not implemented yet!\n";
+		exit(-1);
 	}
 	return sum;
 }
 
 CTensor CTensor::deviator(void) {
-	CTensor dev(ct, repr);
+	CTensor dev(*this);
 	if (order == 2) {
 		dev -= Constants::I(dim, repr) * (trace() / double(dim));
 	}
@@ -674,6 +704,40 @@ int CTensor::addTensorTranspose(double factThis, const CTensor& other, double fa
 }
 
 // overloaded operators
+bool CTensor::operator==(const CTensor& other) const {
+	if (order != other.order) return false;
+	if (dim != other.dim) return false;
+	if (numRows != other.numRows) return false;
+	if (numCols != other.numCols) return false;
+	if (repr != other.repr) return false;
+	for (int i = 1; i < numRows; i++)
+	{
+		for (int j = 0; j < numCols; j++)
+		{
+			if (ct(i, j) != other.ct(i, j))
+				return false;
+		}
+	}
+	return true;
+}
+
+bool CTensor::operator!=(const CTensor& other) const {
+	if (order != other.order) return true;
+	if (dim != other.dim) return true;
+	if (numRows != other.numRows) return true;
+	if (numCols != other.numCols) return true;
+	if (repr != other.repr) return true;
+	for (int i = 1; i < numRows; i++)
+	{
+		for (int j = 0; j < numCols; j++)
+		{
+			if (ct(i, j) != other.ct(i, j))
+				return true;
+		}
+	}
+	return false;
+}
+
 double& CTensor::operator()(int row) { 
 	if (order == 2) { 
 		return ct(row, 0);
@@ -683,6 +747,7 @@ double& CTensor::operator()(int row) {
 		exit(-1); 
 	} 
 }
+
 double CTensor::operator()(int row) const { 
 	if (order == 2) { 
 		return ct(row, 0); 
@@ -726,13 +791,20 @@ CTensor& CTensor::operator=(const CTensor& other) {
 		return *this;
 
 	// assignment operation
-	this->order = other.order;
-	this->dim = other.dim;
-	this->numRows = other.numRows;
-	this->numCols = other.numCols;
-	this->repr = other.repr;
-	this->ct = other.ct;
-
+	order = other.order;
+	dim = other.dim;
+	numRows = other.numRows;
+	numCols = other.numCols;
+	repr = other.repr;
+	ct = other.ct;
+	if (ct.noCols() > 1 && order == 2) {
+		opserr << "WARNING! CTensor::operator=() - other had the wrong order specified! ctensor order is corrected to 4...\n";
+		order = 4;
+	}
+	if (ct.noCols() == 1 && order == 4) {
+		opserr << "WARNING! CTensor::operator=() - other had the wrong order specified! ctensor order is corrected to 2...\n";
+		order = 2;
+	}
 	return *this;
 }
 
@@ -1030,7 +1102,7 @@ const CTensor CTensor::Constants::I(const int nD, int rep = 2) {
 	else {
 		m = int((nD == 3) * (6) + (nD == 2) * (3));
 	}
-	CTensor T(m, m, rep);
+	CTensor T(m, rep);
 	for (int i = 0; i < nD; ++i) {
 		T(i) = 1.0;
 	}

@@ -55,6 +55,7 @@ public:
     // constructors
     CTensor(void);
     CTensor(const CTensor& C);
+    CTensor(const CTensor& deviatoric, const double volumetric);
 
     // second-order tensor
     CTensor(int nRows, int rep);
@@ -74,8 +75,8 @@ public:
     void Zero(void);
     int setOrder(int ord);
     int makeRep(int rep);  // mind that makeRep may trigger switch-representation
-    int getRep(void);
-    int getOrder(void);
+    int getRep(void) const;
+    int getOrder(void) const;
     int length(void) const;
     int noRows(void) const;
     int noCols(void) const;
@@ -118,6 +119,8 @@ public:
     int addTensorTranspose(double factThis, const CTensor& other, double factOther);
 
     // overloaded operators
+    bool operator==(const CTensor& C) const;
+    bool operator!=(const CTensor& C) const;
     double& operator()(int row);
     double operator()(int row) const;
     double& operator()(int row, int col);

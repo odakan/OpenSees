@@ -77,20 +77,20 @@ namespace tools {
     class GlobalStorage {
     public:
         int size = 0;
-        Matrix K;	//stiffness
-        Matrix K0;	//initial stiffness
-        Vector p;	//stress
-        Vector u;	//strain
+        Matrix Ct;	//stiffness
+        Matrix Ce;	//elasic stiffness
+        Vector s;	//stress
+        Vector e;	//strain
 
 
     public:
         GlobalStorage() = default;
         GlobalStorage& resize(int N) {
             if (N != size) {
-                K.resize(N, N);
-                K0.resize(N, N);
-                p.resize(N);
-                u.resize(N);
+                Ct.resize(N, N);
+                Ce.resize(N, N);
+                s.resize(N);
+                e.resize(N);
             }
             return *this;
         }
@@ -102,7 +102,6 @@ namespace tools {
         return gsmap[N].resize(N);
     }
 }
-
 
 
 int SRSMYSand::matCount = 0;
@@ -134,16 +133,8 @@ double* SRSMYSand::residualPressx = 0;
 double* SRSMYSand::stressRatioPTx = 0;
 double* SRSMYSand::Hvx = 0;
 double* SRSMYSand::Pvx = 0;
-
 double SRSMYSand::pAtm = 101.;
-
-CTensor SRSMYSand::theTangent(6, 6, 2);
-CTensor SRSMYSand::trialStrain;
-CTensor SRSMYSand::subStrainRate;
-CTensor SRSMYSand::workV6(6, 1);
-CTensor SRSMYSand::workT2V;
 const	double pi = 3.14159265358979;
-
 
 // Public methods
     // full constructor
@@ -167,8 +158,8 @@ SRSMYSand::SRSMYSand(int tag, int nd,
     double volLim1, double volLim2, double volLim3,
     double atm, double cohesi,
     double hv, double pv)
-    :NDMaterial(tag, ND_TAG_SRSMYSand), currentStress(6, 2),
-    trialStress(6, 2), updatedTrialStress(6, 2), currentStrain(6, 1), strainRate(6, 1),
+    :NDMaterial(tag, ND_TAG_SRSMYSand),
+    trialStress(6, 2), updatedTrialStress(6, 2), strainRate(6, 1),
     PPZPivot(6, 2), PPZCenter(6, 2), PPZPivotCommitted(6, 2), PPZCenterCommitted(6, 2),
     PivotStrainRate(6, 1), PivotStrainRateCommitted(6, 1), check(0)
 {
@@ -179,6 +170,7 @@ SRSMYSand::SRSMYSand(int tag, int nd,
         opserr << "FATAL! SRSMYSand::SRSMYSand() - erroneous dimension recieved: needs to either 2 or 3" << "\n";
         exit(-1);
     }
+    nDOF = (nD == 2) * (3) + (nD == 3) * (6);
     // do some checks
     if (refShearModul <= 0) {
         opserr << "FATAL:SRSMYSand:: refShearModulus <= 0" << endln;
@@ -378,10 +370,10 @@ SRSMYSand::SRSMYSand(int tag, int nd,
     matCount++;
     pAtm = atm;
 
-    int numOfSurfaces = numOfSurfacesx[matN];
+    size_t numOfSurfaces = numOfSurfacesx[matN];
     initPress = refPressurex[matN];
 
-    e2p = committedActiveSurf = activeSurfaceNum = 0;
+    e2p = sv.nYs_commit = sv.nYs = 0;
     onPPZCommitted = onPPZ = -1;
     PPZSizeCommitted = PPZSize = 0.;
     pressureDCommitted = pressureD = modulusFactor = 0.;
@@ -392,13 +384,13 @@ SRSMYSand::SRSMYSand(int tag, int nd,
     oppoPrePPZStrainOctaCommitted = oppoPrePPZStrainOcta = 0.;
     maxPress = 0.;
     damage = 0.;
-    
-    theSurfaces = new NestedSurface[numOfSurfaces + 1]; //first surface not used
-    committedSurfaces = new NestedSurface[numOfSurfaces + 1];
-    
+    theSurfaces.clear();
+    committedSurfaces.clear();
+    theSurfaces.resize(numOfSurfaces + 1);
+    committedSurfaces.resize(numOfSurfaces + 1);
     mGredu = gredu;
     setUpSurfaces(gredu);  // residualPress and stressRatioPT are calculated inside.
-    
+
     // reset internal parameters
     revertToStart();
     opserr << "SRSMYSand::SRSMYSand() - out!\n";
@@ -406,67 +398,68 @@ SRSMYSand::SRSMYSand(int tag, int nd,
 
 
 SRSMYSand::SRSMYSand()
-    : NDMaterial(0, ND_TAG_SRSMYSand),
-    currentStress(), trialStress(), currentStrain(),
-    strainRate(), PPZPivot(), PPZCenter(), PivotStrainRate(6, 1), PivotStrainRateCommitted(6, 1),
+    :NDMaterial(0, ND_TAG_SRSMYSand), trialStress(),strainRate(), PPZPivot(), 
+    PPZCenter(), PivotStrainRate(6, 1), PivotStrainRateCommitted(6, 1),
     PPZPivotCommitted(), PPZCenterCommitted(), theSurfaces(0), committedSurfaces(0)
 {
     //does nothing
 }
 
 
-SRSMYSand::SRSMYSand(const SRSMYSand& a)
-    : NDMaterial(a.getTag(), ND_TAG_SRSMYSand),
-    currentStress(a.currentStress), trialStress(a.trialStress),
-    currentStrain(a.currentStrain), strainRate(a.strainRate), check(0),
-    PPZPivot(a.PPZPivot), PPZCenter(a.PPZCenter), updatedTrialStress(a.updatedTrialStress),
-    PPZPivotCommitted(a.PPZPivotCommitted), PPZCenterCommitted(a.PPZCenterCommitted),
-    PivotStrainRate(a.PivotStrainRate), PivotStrainRateCommitted(a.PivotStrainRateCommitted)
+SRSMYSand::SRSMYSand(const SRSMYSand& other)
+    :NDMaterial(other.getTag(), ND_TAG_SRSMYSand), trialStress(other.trialStress),
+    strainRate(other.strainRate), check(0),PPZPivot(other.PPZPivot), PPZCenter(other.PPZCenter), 
+    updatedTrialStress(other.updatedTrialStress), PPZPivotCommitted(other.PPZPivotCommitted), 
+    PPZCenterCommitted(other.PPZCenterCommitted), PivotStrainRate(other.PivotStrainRate), 
+    PivotStrainRateCommitted(other.PivotStrainRateCommitted)
 {
-    matN = a.matN;
+    sv.sig = other.sv.sig;
+    sv.eps = other.sv.eps;
+
+
+
+    matN = other.matN;
 
     int numOfSurfaces = numOfSurfacesx[matN];
 
-    e2p = a.e2p;
-    strainPTOcta = a.strainPTOcta;
-    modulusFactor = a.modulusFactor;
-    activeSurfaceNum = a.activeSurfaceNum;
-    committedActiveSurf = a.committedActiveSurf;
-    pressureDCommitted = a.pressureDCommitted;
-    onPPZCommitted = a.onPPZCommitted;
-    PPZSizeCommitted = a.PPZSizeCommitted;
-    cumuDilateStrainOctaCommitted = a.cumuDilateStrainOctaCommitted;
-    maxCumuDilateStrainOctaCommitted = a.maxCumuDilateStrainOctaCommitted;
-    cumuTranslateStrainOctaCommitted = a.cumuTranslateStrainOctaCommitted;
-    prePPZStrainOctaCommitted = a.prePPZStrainOctaCommitted;
-    oppoPrePPZStrainOctaCommitted = a.oppoPrePPZStrainOctaCommitted;
-    pressureD = a.pressureD;
-    onPPZ = a.onPPZ;
-    PPZSize = a.PPZSize;
-    cumuDilateStrainOcta = a.cumuDilateStrainOcta;
-    maxCumuDilateStrainOcta = a.maxCumuDilateStrainOcta;
-    cumuTranslateStrainOcta = a.cumuTranslateStrainOcta;
-    prePPZStrainOcta = a.prePPZStrainOcta;
-    oppoPrePPZStrainOcta = a.oppoPrePPZStrainOcta;
-    initPress = a.initPress;
-    maxPress = a.maxPress;
-    damage = a.damage;
-
-    theSurfaces = new NestedSurface[numOfSurfaces + 1];  //first surface not used
-    committedSurfaces = new NestedSurface[numOfSurfaces + 1];
+    e2p = other.e2p;
+    strainPTOcta = other.strainPTOcta;
+    modulusFactor = other.modulusFactor;
+    sv.nYs = other.sv.nYs;
+    sv.nYs_commit = other.sv.nYs_commit;
+    pressureDCommitted = other.pressureDCommitted;
+    onPPZCommitted = other.onPPZCommitted;
+    PPZSizeCommitted = other.PPZSizeCommitted;
+    cumuDilateStrainOctaCommitted = other.cumuDilateStrainOctaCommitted;
+    maxCumuDilateStrainOctaCommitted = other.maxCumuDilateStrainOctaCommitted;
+    cumuTranslateStrainOctaCommitted = other.cumuTranslateStrainOctaCommitted;
+    prePPZStrainOctaCommitted = other.prePPZStrainOctaCommitted;
+    oppoPrePPZStrainOctaCommitted = other.oppoPrePPZStrainOctaCommitted;
+    pressureD = other.pressureD;
+    onPPZ = other.onPPZ;
+    PPZSize = other.PPZSize;
+    cumuDilateStrainOcta = other.cumuDilateStrainOcta;
+    maxCumuDilateStrainOcta = other.maxCumuDilateStrainOcta;
+    cumuTranslateStrainOcta = other.cumuTranslateStrainOcta;
+    prePPZStrainOcta = other.prePPZStrainOcta;
+    oppoPrePPZStrainOcta = other.oppoPrePPZStrainOcta;
+    initPress = other.initPress;
+    maxPress = other.maxPress;
+    damage = other.damage;
+    theSurfaces.clear();
+    committedSurfaces.clear();
+    theSurfaces.resize(numOfSurfaces + 1);
+    committedSurfaces.resize(numOfSurfaces + 1);
     for (int i = 1; i <= numOfSurfaces; i++) {
-        committedSurfaces[i] = a.committedSurfaces[i];
-        theSurfaces[i] = a.theSurfaces[i];
+        committedSurfaces[i] = other.committedSurfaces[i];
+        theSurfaces[i] = other.theSurfaces[i];
     }
 }
 
 
 SRSMYSand::~SRSMYSand()
 {
-    opserr << "SRSMYSand::~SRSMYSand() - in!\n";
-    if (theSurfaces != 0) delete[] theSurfaces;
-    if (committedSurfaces != 0) delete[] committedSurfaces;
-    opserr << "SRSMYSand::~SRSMYSand() - in!\n";
+    opserr << "SRSMYSand::~SRSMYSand()\n";
 }
 
 
@@ -481,25 +474,26 @@ void SRSMYSand::elast2Plast(void)
 
     e2p = 1;
 
-    if (currentStress.trace() > 0.0) {
+    if (sv.sig.trace() > 0.0) {
         if (beVerbose) { opserr << "WARNING! SRSMYSand::elast2Plast(): material in tension\n"; }
-        currentStress = currentStress.deviator();  // assume zero mean pressure
+        sv.sig = sv.sig.deviator();  // assume zero mean pressure
     }
-
+    
     // Active surface is 0, return
-    if (currentStress.deviator().norm() == 0.) return;
-
+    sv.sig = sv.sig.deviator();
+    if (sv.sig.norm() == 0.) return;
+    
     // Find active surface
-    while (yieldFunc(currentStress, committedSurfaces, ++committedActiveSurf) > 0) {
-        if (committedActiveSurf == numOfSurfaces) {
+    while (yieldFunc(sv.sig, committedSurfaces, ++sv.nYs_commit) > 0) {
+        if (sv.nYs_commit == numOfSurfaces) {
             if (beVerbose) { opserr << "WARNING:SRSMYSand::elast2Plast(): stress out of failure surface\n"; }
-            deviatorScaling(currentStress, committedSurfaces, numOfSurfaces);
+            deviatorScaling(sv.sig, committedSurfaces, numOfSurfaces);
             initSurfaceUpdate();
             return;
         }
     }
 
-    committedActiveSurf--;
+    sv.nYs_commit--;
     initSurfaceUpdate();
     opserr << "SRSMYSand::elast2Plast() - out!\n";
 }
@@ -507,28 +501,32 @@ void SRSMYSand::elast2Plast(void)
 
 int SRSMYSand::setTrialStrain(const Vector& strain)
 {
-    opserr << "SRSMYSand::setTrialStrain() - in!\n";
-    if (nD == 3 && strain.Size() == 6) {
-        workV6 = CTensor(strain, 1);    // 1: covariant
+    sv.eps = CTensor(strain, 1); // 1: covariant
+    if (beVerbose)  opserr << "SRSMYSand::setTrialStrain() - " << sv.eps << "\n";
+    // implex time step
+    if (!sv.dtime_is_user_defined) {
+        sv.dtime_n = ops_Dt;
+        if (!sv.dtime_first_set) {
+            sv.dtime_n_commit = sv.dtime_n;
+            sv.dtime_first_set = true;
+        }
     }
-    else if (nD == 2 && strain.Size() == 3) {
-        workV6 = CTensor(6, 1);         // 1: covariant
-        workV6(0) = strain[0];
-        workV6(1) = strain[1];
-        workV6(2) = 0.0;
-        workV6(3) = strain[2];
-        workV6(4) = 0.0;
-        workV6(5) = 0.0;
+    // trigger material update
+    if (useImplex) {
+        if (beVerbose) {
+            opserr << "SRSMYSand::setTrialStrain() -nD Material "
+                << getTag() << "::" << getSubTag() << " -> IMPL-EX: explicit stage...\n";
+        }
+        updateInternal(true, true);
+        sv.sig_implex = sv.sig; // save stress for output
     }
     else {
-        opserr << "FATAL! SRSMYSand::setTrialStrain() - material dimension is: " << nD << "\n";
-        opserr << "but strain vector size is: " << strain.Size() << "\n";
-        exit(-1);
+        if (beVerbose) {
+            opserr << "SRSMYSand::setTrialStrain() - nD Material "
+                << getTag() << "::" << getSubTag() << " -> IMPLICIT...\n";
+        }
+        updateInternal(false, true);
     }
-
-    workV6 -= currentStrain; // compute strain increment
-    strainRate = workV6;
-
     opserr << "SRSMYSand::setTrialStrain() - out!\n";
     return 0;
 }
@@ -542,29 +540,32 @@ int SRSMYSand::setTrialStrain(const Vector& strain, const Vector& rate)
 
 int SRSMYSand::setTrialStrainIncr(const Vector& strain)
 {
-    opserr << "SRSMYSand::setTrialStrainIncr() - in!\n";
-    int ndm = ndmx[matN];
-    if (ndmx[matN] == 0) ndm = 2;
-
-    if (ndm == 3 && strain.Size() == 6) {
-        workV6 = CTensor(strain, 1);    // 1: covariant
+    sv.eps += CTensor(strain, 1); // 1: covariant
+    if (beVerbose)  opserr << "SRSMYSand::setTrialStrainIncr() - " << sv.eps << "\n";
+    // implex time step
+    if (!sv.dtime_is_user_defined) {
+        sv.dtime_n = ops_Dt;
+        if (!sv.dtime_first_set) {
+            sv.dtime_n_commit = sv.dtime_n;
+            sv.dtime_first_set = true;
+        }
     }
-    else if (ndm == 2 && strain.Size() == 3) {
-        workV6 = CTensor(6, 1);         // 1: covariant
-        workV6(0) = strain[0];
-        workV6(1) = strain[1];
-        workV6(2) = 0.0;
-        workV6(3) = strain[2];
-        workV6(4) = 0.0;
-        workV6(5) = 0.0;
+    // trigger material update
+    if (useImplex) {
+        if (beVerbose) {
+            opserr << "SRSMYSand::setTrialStrainIncr() -nD Material "
+                << getTag() << "::" << getSubTag() << " -> IMPL-EX: explicit stage...\n";
+        }
+        updateInternal(true, true);
+        sv.sig_implex = sv.sig; // save stress for output
     }
     else {
-        opserr << "FATAL! SRSMYSand::setTrialStrainIncr() - material dimension is: " << nD << "\n";
-        opserr << "but strain vector size is: " << strain.Size() << "\n";
-        exit(-1);
+        if (beVerbose) {
+            opserr << "SRSMYSand::setTrialStrainIncr() - nD Material "
+                << getTag() << "::" << getSubTag() << " -> IMPLICIT...\n";
+        }
+        updateInternal(false, true);
     }
-
-    strainRate = workV6;
     opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
     return 0;
 }
@@ -579,6 +580,10 @@ int SRSMYSand::setTrialStrainIncr(const Vector& strain, const Vector& rate)
 const Matrix& SRSMYSand::getTangent(void)
 {
     opserr << "SRSMYSand::getTangent() - in!\n";
+    auto& gs = tools::getGlobalStorage(nDOF);
+    Matrix& stiff = gs.Ct;
+    CTensor normal(nDOF, 2); // 2: contravariant
+
     int loadStage = loadStagex[matN];
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
@@ -589,11 +594,11 @@ const Matrix& SRSMYSand::getTangent(void)
     if (ndmx[matN] == 0) ndm = 3;
 
     if (loadStage == 1 && e2p == 0) {
-        initPress = currentStress.trace() / nD;
+        initPress = sv.sig.trace() / nD;
         elast2Plast();
     }
     if (loadStage == 2 && initPress == refPressure)
-        initPress = currentStress.trace() / nD;
+        initPress = sv.sig.trace() / nD;
 
     if (loadStage == 0 || loadStage == 2) {  //linear elastic
         double factor;
@@ -607,13 +612,13 @@ const Matrix& SRSMYSand::getTangent(void)
         }
         for (int i = 0; i < 6; i++)
             for (int j = 0; j < 6; j++) {
-                theTangent(i, j) = 0.;
+                stiff(i, j) = 0.;
                 if (i == j)
-                    theTangent(i, j) += refShearModulus * factor;
+                    stiff(i, j) += refShearModulus * factor;
                 if (i < 3 && j < 3 && i == j)
-                    theTangent(i, j) += refShearModulus * factor;
+                    stiff(i, j) += refShearModulus * factor;
                 if (i < 3 && j < 3)
-                    theTangent(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
+                    stiff(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
             }
     }
     else {
@@ -629,93 +634,45 @@ const Matrix& SRSMYSand::getTangent(void)
             bulkModulus = (bulkModulus * Hvx[matN] * pow(tp, Pvx[matN])) / (bulkModulus + Hvx[matN] * pow(tp, Pvx[matN]));
         }
 
-        /*if (loadStage!=0 && committedActiveSurf > 0) {
-          getSurfaceNormal(updatedTrialStress, workT2V);
-          workV6 = workT2V.deviator();
-          double volume = workT2V.trace() / nD;
-          double Ho = 9.*bulkModulus*volume*volume + 2.*shearModulus*(workV6 && workV6);
-          double plastModul = factor*committedSurfaces[committedActiveSurf].modulus();
-          coeff1 = 9.*bulkModulus*bulkModulus*volume*volume/(Ho+plastModul);
-          coeff2 = 4.*shearModulus*shearModulus/(Ho+plastModul);
-          // non-symmetric stiffness
-          getSurfaceNormal(updatedTrialStress, workT2V);
-          workV6 = workT2V.deviator();
-          double qq = workT2V.trace() / nD;
-                double pp=getPlasticPotential(updatedTrialStress, workT2V);
-          double Ho = 9.*bulkModulus*pp*qq + 2.*shearModulus*(workV6 && workV6);
-          double plastModul = factor*committedSurfaces[committedActiveSurf].modulus();
-          coeff1 = 9.*bulkModulus*bulkModulus*pp*qq/(Ho+plastModul);
-          coeff2 = 4.*shearModulus*shearModulus/(Ho+plastModul);
-                coeff3 = 6.*shearModulus*pp/(Ho+plastModul);
-                coeff4 = 6.*shearModulus*qq/(Ho+plastModul);
-        }*/
-        if (loadStage != 0 && activeSurfaceNum > 0) {
+        if (loadStage != 0 && sv.nYs > 0) {
             //	 opserr << "PDMY02::getTang() - 5\n";
             factor = getModulusFactor(trialStress);
             shearModulus = factor * refShearModulus;
             bulkModulus = factor * refBulkModulus;
-            getSurfaceNormal(trialStress, workT2V);
-            workV6 = workT2V.deviator();
-            double volume = workT2V.trace() / nD;
-            double Ho = 9. * bulkModulus * volume * volume + 2. * shearModulus * (workV6 % workV6);
-            double plastModul = factor * theSurfaces[activeSurfaceNum].modulus();
+            getSurfaceNormal(trialStress, normal);
+            double volume = normal.trace() / nD;
+            normal = normal.deviator();
+            double Ho = 9. * bulkModulus * volume * volume + 2. * shearModulus * (normal % normal);
+            double plastModul = factor * theSurfaces[sv.nYs].modulus();
             coeff1 = 9. * bulkModulus * bulkModulus * volume * volume / (Ho + plastModul);
             coeff2 = 4. * shearModulus * shearModulus / (Ho + plastModul);
         }
 
         else {
             coeff1 = coeff2 = coeff3 = coeff4 = 0.;
-            workV6.Zero();
+            normal.Zero();
         }
 
         for (int i = 0; i < 6; i++)
             for (int j = 0; j < 6; j++) {
-                theTangent(i, j) = -coeff2 * workV6(i) * workV6(j);
-                if (i == j) theTangent(i, j) += shearModulus;
-                if (i < 3 && j < 3 && i == j) theTangent(i, j) += shearModulus;
-                if (i < 3 && j < 3) theTangent(i, j) += (bulkModulus - 2. * shearModulus / 3. - coeff1);
-                /* non-symmetric stiffness
-                                if (i<3) theTangent(i,j) -= coeff3 * workV6[j];
-                                if (j<3) theTangent(i,j) -= coeff4 * workV6[i];*/
+                stiff(i, j) = -coeff2 * normal(i) * normal(j);
+                if (i == j) stiff(i, j) += shearModulus;
+                if (i < 3 && j < 3 && i == j) stiff(i, j) += shearModulus;
+                if (i < 3 && j < 3) stiff(i, j) += (bulkModulus - 2. * shearModulus / 3. - coeff1);
             }
     }
-    //  opserr << "PDMY02::getTang() - 9\n";
 
-    
-    if (ndm == 3) {
-        opserr << "SRSMYSand::getTangent() - out!\n";
-        static Matrix stiff = theTangent.makeMatrix();
-        return stiff;
-    }
-    else {
-        static Matrix workM(3, 3);
-        workM(0, 0) = theTangent(0, 0);
-        workM(0, 1) = theTangent(0, 1);
-        workM(0, 2) = 0.;
-
-        workM(1, 0) = theTangent(1, 0);
-        workM(1, 1) = theTangent(1, 1);
-        workM(1, 2) = 0.;
-
-        workM(2, 0) = 0.;
-        workM(2, 1) = 0.;
-        workM(2, 2) = theTangent(3, 3);
-
-        /* non-symmetric stiffness
-           workM(0,2) = theTangent(0,3);
-           workM(1,2) = theTangent(1,3);
-           workM(2,0) = theTangent(3,0);
-           workM(2,1) = theTangent(3,1);*/
-        opserr << "SRSMYSand::getTangent() - out!\n";
-        return workM;
-    }
-    //opserr << "PDMY02::getTang() - DONE\n";
+    opserr << "SRSMYSand::getTangent() - out!\n";
+    return stiff;
 }
 
 
 const Matrix& SRSMYSand::getInitialTangent(void)
 {
     opserr << "SRSMYSand::getInitialTangent() - in!\n";
+    auto& gs = tools::getGlobalStorage(nDOF);
+    Matrix& stiff = gs.Ce;
+
     int loadStage = loadStagex[matN];
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
@@ -726,11 +683,11 @@ const Matrix& SRSMYSand::getInitialTangent(void)
     if (ndmx[matN] == 0) ndm = 3;
 
     if (loadStage == 1 && e2p == 0) {
-        initPress = currentStress.trace() / nD;
+        initPress = sv.sig.trace() / nD;
         elast2Plast();
     }
     if (loadStage == 2 && initPress == refPressure)
-        initPress = currentStress.trace() / nD;
+        initPress = sv.sig.trace() / nD;
     double factor;
     if (loadStage == 0)
         factor = 1.;
@@ -741,182 +698,71 @@ const Matrix& SRSMYSand::getInitialTangent(void)
         factor = (1.e-10 > factor) ? 1.e-10 : factor;
     }
     else if (loadStage == 1)
-        factor = getModulusFactor(currentStress);
+        factor = getModulusFactor(sv.sig);
 
     for (int i = 0; i < 6; i++)
         for (int j = 0; j < 6; j++) {
-            theTangent(i, j) = 0.;
-            if (i == j) theTangent(i, j) += refShearModulus * factor;
-            if (i < 3 && j < 3 && i == j) theTangent(i, j) += refShearModulus * factor;
-            if (i < 3 && j < 3) theTangent(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
+            stiff(i, j) = 0.;
+            if (i == j) stiff(i, j) += refShearModulus * factor;
+            if (i < 3 && j < 3 && i == j) stiff(i, j) += refShearModulus * factor;
+            if (i < 3 && j < 3) stiff(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
         }
 
-    if (ndm == 3) {
-        opserr << "SRSMYSand::getInitialTangent() - out!\n";
-        opserr << theTangent;
-        static Matrix stiff = theTangent.makeMatrix();
-        return stiff;
-    }
-    else {
-        static Matrix workM(3, 3);
-        workM(0, 0) = theTangent(0, 0);
-        workM(0, 1) = theTangent(0, 1);
-        workM(0, 2) = 0.;
-
-        workM(1, 0) = theTangent(1, 0);
-        workM(1, 1) = theTangent(1, 1);
-        workM(1, 2) = 0.;
-
-        workM(2, 0) = 0.;
-        workM(2, 1) = 0.;
-        workM(2, 2) = theTangent(3, 3);
-
-        /* non-symmetric stiffness
-            workM(0,2) = theTangent(0,3);
-            workM(1,2) = theTangent(1,3);
-            workM(2,0) = theTangent(3,0);
-            workM(2,1) = theTangent(3,1);*/
-        opserr << "SRSMYSand::getInitialTangent() - out!\n";
-        return workM;
-    }
-
+    opserr << "SRSMYSand::getInitialTangent() - out!\n";
+    return stiff;
+    /* non-symmetric stiffness
+        workM(0,2) = theTangent(0,3);
+        workM(1,2) = theTangent(1,3);
+        workM(2,0) = theTangent(3,0);
+        workM(2,1) = theTangent(3,1);*/
 }
 
 
 const Vector& SRSMYSand::getStress(void)
 {
-    opserr << "SRSMYSand::getStress() - in!\n";
-    //	opserr << "PDMY02-getStress() -1\n";
-    int loadStage = loadStagex[matN];
-    int numOfSurfaces = numOfSurfacesx[matN];
-    int ndm = ndmx[matN];
-    if (ndmx[matN] == 0) ndm = 3;
-
-    int i, is;
-    if (loadStage == 1 && e2p == 0) {
-        initPress = currentStress.trace() / nD;
-        elast2Plast();
-    }
-
-    if (loadStage != 1) {  //linear elastic
-        getTangent();
-        workV6 = currentStress;
-        workV6 = theTangent ^ strainRate;
-        trialStress = workV6;
-        
-    }
-    else {
-        for (i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
-        activeSurfaceNum = committedActiveSurf;
-        pressureD = pressureDCommitted;
-        onPPZ = onPPZCommitted;
-        PPZSize = PPZSizeCommitted;
-        cumuDilateStrainOcta = cumuDilateStrainOctaCommitted;
-        maxCumuDilateStrainOcta = maxCumuDilateStrainOctaCommitted;
-        cumuTranslateStrainOcta = cumuTranslateStrainOctaCommitted;
-        prePPZStrainOcta = prePPZStrainOctaCommitted;
-        oppoPrePPZStrainOcta = oppoPrePPZStrainOctaCommitted;
-        PPZPivot = PPZPivotCommitted;
-        PivotStrainRate = PivotStrainRateCommitted;
-        PPZCenter = PPZCenterCommitted;
-
-        subStrainRate = strainRate;
-        setTrialStress(currentStress);
-        if (activeSurfaceNum > 0 && isLoadReversal(currentStress)) {
-            updateInnerSurface();
-            activeSurfaceNum = 0;
-        }
-
-        if (activeSurfaceNum == 0 && !isCrossingNextSurface()) {
-            workV6 = currentStrain;
-            workV6 += strainRate;
-            trialStrain = workV6;
-        }
-        else {
-            int numSubIncre = setSubStrainRate();
-
-            for (i = 0; i < numSubIncre; i++) {
-                //      trialStrain.setData(currentStrain
-                //			     + subStrainRate*(i+1));
-                workV6 = currentStrain;
-                workV6 += subStrainRate * (i + 1);
-                trialStrain = workV6;
-
-                if (i == 0) {
-                    updatedTrialStress = currentStress;
-                    setTrialStress(currentStress);
-                    is = isLoadReversal(currentStress);
-                }
-                else {
-                    updatedTrialStress = trialStress;
-                    workT2V = trialStress;
-                    setTrialStress(trialStress);
-                    is = isLoadReversal(workT2V);
-                }
-
-                if (activeSurfaceNum > 0 && is) {
-                    updateInnerSurface();
-                    activeSurfaceNum = 0;
-                }
-                if (activeSurfaceNum == 0 && !isCrossingNextSurface()) continue;
-                if (activeSurfaceNum == 0) activeSurfaceNum++;
-                stressCorrection(0);
-                updateActiveSurface();
-
-                double refBulkModulus = refBulkModulusx[matN];
-                //modulusFactor was calculated in setTrialStress
-                double B = refBulkModulus * modulusFactor;
-                //double deltaD = 3.*subStrainRate.trace() / nD
-                //	         - (trialStress.trace() / nD-updatedTrialStress.trace() / nD)/B;
-                //if (deltaD<0) deltaD /=2 ;
-                //pressureD += deltaD;
-                pressureD += 3. * subStrainRate.trace() / nD
-                    - (trialStress.trace() / nD - updatedTrialStress.trace() / nD) / B;
-                if (pressureD < 0.) pressureD = 0.;
-                //opserr<<i<<" "<<activeSurfaceNum<<" "<<is<<" "<<subStrainRate[3]<<endln;
-            }
-        }
-    }
-    //  opserr << "PDMY02::getStress() - DONE\n";
-    if (ndm == 3) {
-        opserr << "SRSMYSand::getStress() - out!\n";
-        return trialStress.makeVector();
-    }
-    else {
-        static Vector workV(3);
-        workV[0] = trialStress(0);
-        workV[1] = trialStress(1);
-        workV[2] = trialStress(3);
-        opserr << "SRSMYSand::getStress() - out!\n";
-        return workV;
-    }
+    auto& gs = tools::getGlobalStorage(nDOF);
+    Vector& stress = gs.s;
+    if (beVerbose)  opserr << "SRSMYSand::getStress() - " << sv.sig << "\n";
+    stress = sv.sig.makeVector();
+    return stress;
 }
 
 
 const Vector& SRSMYSand::getStrain(void)
 {
-    opserr << "SRSMYSand::getStrain()\n";
-    return getCommittedStrain();
+    auto& gs = tools::getGlobalStorage(nDOF);
+    Vector& strain = gs.e;
+    if (beVerbose)  opserr << "SRSMYSand::getStrain() - " << sv.eps << "\n";
+    strain = sv.eps.makeVector();
+    return strain;
 }
 
 
 int SRSMYSand::commitState(void)
 {
     opserr << "SRSMYSand::commitState() - in!\n";
+
+    // do the implicit correction if impl-ex
+    if (useImplex) {
+        // update material internal variables
+        if (beVerbose) {
+            opserr << "SRSMYSand::commitState() - nD Material "
+                << getTag() << "::" << getSubTag() << " -> IMPL-EX: implicit correction...\n";
+        }
+        updateInternal(false, false);  // explicit_phase?, do_tangent?
+    }
+
+    // commit internal variables
+    if (sv.commitState()) {
+        opserr << "FATAL: SRSMYSand::commitState() - material internal variables failed commit!\n";
+        exit(-1);
+    }
+
     int loadStage = loadStagex[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
-    currentStress = trialStress;
-    //currentStrain = CTensor(currentStrain + strainRate);
-    workV6 = currentStrain;
-    workV6 += strainRate;
-    currentStrain = workV6;
-
-    workV6.Zero();
-    strainRate = workV6;
-
     if (loadStage == 1) {
-        committedActiveSurf = activeSurfaceNum;
+        sv.nYs_commit = sv.nYs;
         for (int i = 1; i <= numOfSurfaces; i++) committedSurfaces[i] = theSurfaces[i];
         pressureDCommitted = pressureD;
         onPPZCommitted = onPPZ;
@@ -929,9 +775,18 @@ int SRSMYSand::commitState(void)
         PPZPivotCommitted = PPZPivot;
         PivotStrainRateCommitted = PivotStrainRate;
         PPZCenterCommitted = PPZCenter;
-        if (currentStress.trace() / nD < maxPress) maxPress = currentStress.trace() / nD;
+        if (sv.sig.trace() / nD < maxPress) {
+            maxPressCommitted = maxPress;
+            maxPress = sv.sig.trace() / nD;
+        }
     }
 
+    if (beVerbose) {
+        opserr << "SRSMYSand::commitState() - nD Material " << getTag() << "::" << getSubTag() << " ->\n";
+        sv.printStats(false);
+    }
+
+    // done
     opserr << "SRSMYSand::commitState() - out!\n";
     return 0;
 }
@@ -939,10 +794,43 @@ int SRSMYSand::commitState(void)
 
 int SRSMYSand::revertToLastCommit(void)
 {
+    // restore committed internal variables
+    if (sv.revertToLastCommit()) {
+        opserr << "FATAL: SRSMYSand::revertToLastCommit() - material internal variables failed reverting to last commit!\n";
+        exit(-1);
+    }
+
+    int loadStage = loadStagex[matN];
+    int numOfSurfaces = numOfSurfacesx[matN];
+
+    if (loadStage == 1) {
+        sv.nYs = sv.nYs_commit;
+        for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
+        pressureD = pressureDCommitted;
+        onPPZ = onPPZCommitted;
+        PPZSize = PPZSizeCommitted;
+        cumuDilateStrainOcta = cumuDilateStrainOctaCommitted;
+        maxCumuDilateStrainOcta = maxCumuDilateStrainOctaCommitted;
+        cumuTranslateStrainOcta = cumuTranslateStrainOctaCommitted;
+        prePPZStrainOcta = prePPZStrainOctaCommitted;
+        oppoPrePPZStrainOcta = oppoPrePPZStrainOctaCommitted;
+        PPZPivot = PPZPivotCommitted;
+        PivotStrainRate = PivotStrainRateCommitted;
+        PPZCenter = PPZCenterCommitted;
+        maxPress = maxPressCommitted;
+    }
+
+    if (beVerbose) { opserr << "SRSMYSand::revertToLastCommit() - nD Material " << getTag() << "::" << getSubTag() << "\n"; }
+
+    // done
     return 0;
 }
 
 int SRSMYSand::revertToStart(void) {
+    // reset state variables
+    sv = MaterialStateVariables(nD);
+    loadStagex[matN] = 0;
+    // done
     return 0;
 }
 
@@ -990,7 +878,6 @@ int SRSMYSand::getOrder(void) const
     return (ndm == 2) ? 3 : 6;
     opserr << "SRSMYSand::getOrder() - out!\n";
 }
-
 
 int SRSMYSand::setParameter(const char** argv, int argc, Parameter& param)
 {
@@ -1182,7 +1069,7 @@ int SRSMYSand::sendSelf(int commitTag, Channel& theChannel)
     data(20) = residualPress;
     data(21) = stressRatioPT;
     data(22) = e2p;
-    data(23) = committedActiveSurf;
+    data(23) = sv.nYs_commit;
     data(24) = strainPTOcta;
     data(25) = pressureDCommitted;
     data(26) = onPPZCommitted;
@@ -1199,29 +1086,21 @@ int SRSMYSand::sendSelf(int commitTag, Channel& theChannel)
     data(36) = hv; //  = Hvx[matN];
     data(37) = Pv; //  = Pvx[matN];
 
-    workV6 = currentStress;
-    for (i = 0; i < 6; i++) data(i + 38) = workV6(i);
-
-    workV6 = currentStrain;
-    for (i = 0; i < 6; i++) data(i + 44) = workV6(i);
-
-    workV6 = PPZPivotCommitted;
-    for (i = 0; i < 6; i++) data(i + 50) = workV6(i);
-
-    workV6 = PPZCenterCommitted;
-    for (i = 0; i < 6; i++) data(i + 56) = workV6(i);
+    for (i = 0; i < 6; i++) data(i + 38) = sv.sig(i);
+    for (i = 0; i < 6; i++) data(i + 44) = sv.eps(i);
+    for (i = 0; i < 6; i++) data(i + 50) = PPZPivotCommitted(i);
+    for (i = 0; i < 6; i++) data(i + 56) = PPZCenterCommitted(i);
 
     for (i = 0; i < numOfSurfaces; i++) {
         int k = 62 + i * 8;
         data(k) = committedSurfaces[i + 1].size();
         data(k + 1) = committedSurfaces[i + 1].modulus();
-        workV6 = committedSurfaces[i + 1].center();
-        data(k + 2) = workV6(0);
-        data(k + 3) = workV6(1);
-        data(k + 4) = workV6(2);
-        data(k + 5) = workV6(3);
-        data(k + 6) = workV6(4);
-        data(k + 7) = workV6(5);
+        data(k + 2) = committedSurfaces[i + 1].center()(0);
+        data(k + 3) = committedSurfaces[i + 1].center()(1);
+        data(k + 4) = committedSurfaces[i + 1].center()(2);
+        data(k + 5) = committedSurfaces[i + 1].center()(3);
+        data(k + 6) = committedSurfaces[i + 1].center()(4);
+        data(k + 7) = committedSurfaces[i + 1].center()(5);
     }
 
     res += theChannel.sendVector(this->getDbTag(), commitTag, data);
@@ -1286,7 +1165,7 @@ int SRSMYSand::recvSelf(int commitTag, Channel& theChannel,
     double residualPress = data(20);
     double stressRatioPT = data(21);
     e2p = data(22);
-    committedActiveSurf = data(23);
+    sv.nYs_commit = data(23);
     strainPTOcta = data(24);
     pressureDCommitted = data(25);
     onPPZCommitted = data(26);
@@ -1304,35 +1183,26 @@ int SRSMYSand::recvSelf(int commitTag, Channel& theChannel,
     double Pv = data(37); // = Pv; //  = Pvx[matN];
 
 
-    for (i = 0; i < 6; i++) workV6(i) = data(i + 38);
-    currentStress = workV6;
+    for (i = 0; i < 6; i++) sv.sig(i) = data(i + 38);
+    for (i = 0; i < 6; i++) sv.eps(i) = data(i + 44);
+    for (i = 0; i < 6; i++) PPZPivotCommitted(i) = data(i + 50);
+    for (i = 0; i < 6; i++) PPZCenterCommitted(i) = data(i + 56);
 
-    for (i = 0; i < 6; i++) workV6(i) = data(i + 44);
-    currentStrain = workV6;
+    theSurfaces.clear();
+    committedSurfaces.clear();
+    theSurfaces.resize(numOfSurfaces + 1);
+    committedSurfaces.resize(numOfSurfaces + 1);
 
-    for (i = 0; i < 6; i++) workV6(i) = data(i + 50);
-    PPZPivotCommitted = workV6;
-
-    for (i = 0; i < 6; i++) workV6(i) = data(i + 56);
-    PPZCenterCommitted = workV6;
-
-    if (committedSurfaces != 0) {
-        delete[] committedSurfaces;
-        delete[] theSurfaces;
-    }
-
-    theSurfaces = new NestedSurface[numOfSurfaces + 1]; //first surface not used
-    committedSurfaces = new NestedSurface[numOfSurfaces + 1];
-
+    CTensor center(6, 2);   // 2: contravariant
     for (i = 0; i < numOfSurfaces; i++) {
         int k = 62 + i * 8;
-        workV6(0) = data(k + 2);
-        workV6(1) = data(k + 3);
-        workV6(2) = data(k + 4);
-        workV6(3) = data(k + 5);
-        workV6(4) = data(k + 6);
-        workV6(5) = data(k + 7);
-        committedSurfaces[i + 1].setData(workV6, data(k), data(k + 1));
+        center(0) = data(k + 2);
+        center(1) = data(k + 3);
+        center(2) = data(k + 4);
+        center(3) = data(k + 5);
+        center(4) = data(k + 6);
+        center(5) = data(k + 7);
+        committedSurfaces[i + 1].setData(center, data(k), data(k + 1));
     }
 
     int* temp1, * temp2, * temp11;
@@ -1602,12 +1472,9 @@ int SRSMYSand::getResponse(int responseID, Information& matInfo)
     }
 }
 
-
-void SRSMYSand::Print(OPS_Stream& s, int flag)
-{
-    s << "SRSMYSand" << endln;
-}
-
+void SRSMYSand::Print(OPS_Stream& s, int flag) { s << "SRSMYSand" << endln; }
+void SRSMYSand::setSubTag(const int tag) { subTag = tag; }
+int SRSMYSand::getSubTag(void) const { return subTag; }
 
 const Vector& SRSMYSand::getCommittedStress(void)
 {
@@ -1617,52 +1484,17 @@ const Vector& SRSMYSand::getCommittedStress(void)
     int numOfSurfaces = numOfSurfacesx[matN];
     double residualPress = residualPressx[matN];
 
-    double deviatorRatio = sdevRatio(currentStress, residualPress);
+    double deviatorRatio = sdevRatio(sv.sig, residualPress);
     double scale = deviatorRatio / committedSurfaces[numOfSurfaces].size();
     if (loadStagex[matN] != 1) scale = 0.;
-    if (ndm == 3) {
-        static Vector temp7(7);
-        workV6 = currentStress;
-        temp7[0] = workV6(0);
-        temp7[1] = workV6(1);
-        temp7[2] = workV6(2);
-        temp7[3] = workV6(3);
-        temp7[4] = workV6(4);
-        temp7[5] = workV6(5);
-        temp7[6] = scale;
-        /*temp7[7] = committedActiveSurf;
-        temp7[8] = stressRatioPTx[matN];
-        temp7[9] = currentStress.deviatorRatio(residualPressx[matN]);
-        temp7[10] = pressureDCommitted;
-        temp7[11] = cumuDilateStrainOctaCommitted;
-        temp7[12] = maxCumuDilateStrainOctaCommitted;
-        temp7[13] = cumuTranslateStrainOctaCommitted;
-        temp7[14] = onPPZCommitted;
-        temp7[15] = PPZSizeCommitted;*/
-        return temp7;
-    }
 
-    else {
-        static Vector temp5(5);
-        workV6 = currentStress;
-        temp5[0] = workV6(0);
-        temp5[1] = workV6(1);
-        temp5[2] = workV6(2);
-        temp5[3] = workV6(3);
-        temp5[4] = scale;
-        /*temp5[5] = committedActiveSurf;
-        temp5[6] = PPZCenterCommitted.deviator()[3];
-        temp5[7] = PPZPivotCommitted.deviator()[3];
-        temp5[8] = pressureDCommitted;
-        temp5[9] = cumuDilateStrainOctaCommitted;
-        temp5[10] = maxCumuDilateStrainOctaCommitted;
-        temp5[11] = cumuTranslateStrainOctaCommitted;
-        temp5[12] = onPPZCommitted;
-        temp5[13] = PPZSizeCommitted;
-        temp5[14] = PivotStrainRateCommitted[3];
-        temp5[15] = initPress;*/
-        return temp5;
+    static Vector temp7(sv.sig.length());
+    for (int i = 0; i < sv.sig.length(); i++)
+    {
+        temp7[i] = sv.sig(i);
     }
+    temp7[sv.sig.length()] = scale;
+    return temp7;
 }
 
 // begin change by Alborz Ghofrani - UW --- get 6 components of stress
@@ -1731,11 +1563,11 @@ SRSMYSand::getStressToRecord(int numOutput)
 
 const Vector& SRSMYSand::getCommittedStrain(void)
 {
-    opserr << "SRSMYSand::getCommittedStrain()\n";
-    int ndm = ndmx[matN];
-    if (ndmx[matN] == 0) ndm = 2;
-    return currentStrain.makeVector();
-
+    auto& gs = tools::getGlobalStorage(nDOF);
+    Vector& strain = gs.e;
+    if (beVerbose)  opserr << "SRSMYSand::getCommittedStrain() - " << sv.eps_commit << "\n";
+    strain = sv.eps_commit.makeVector();
+    return strain;
 }
 
 
@@ -1757,6 +1589,10 @@ void SRSMYSand::setUpSurfaces(double* gredu)
     double refStrain, peakShear, coneHeight;
     double stress1, stress2, strain1, strain2, size, elasto_plast_modul, plast_modul;
     double ratio1, ratio2;
+
+    // intialize
+    CTensor workV6(6, 2);
+    CTensor workT2V(6, 2);
 
     if (gredu == 0) {
         double sinPhi = sin(frictionAngle * pi / 180.);
@@ -1878,57 +1714,45 @@ void SRSMYSand::setUpSurfaces(double* gredu)
 }
 
 
-double SRSMYSand::yieldFunc(CTensor& stress,
-    const NestedSurface* surfaces,
-    int surfaceNum)
+double SRSMYSand::yieldFunc(CTensor& stress, const std::vector<NestedSurface> surfaces, int surfaceNum)
 {
     opserr << "SRSMYSand::yieldFunc() - in!\n";
     double residualPress = residualPressx[matN];
     double currentPress = stress.trace() / nD;
-
     double coneHeight = currentPress - residualPress;
-    //workV6 = stress.deviator() - surfaces[surfaceNum].center()*coneHeight;
-    workV6 = stress.deviator();
-    workV6 += surfaces[surfaceNum].center() * -coneHeight;
-
+    CTensor zeta = stress.deviator() -  surfaces[surfaceNum].center() * coneHeight;;
     double sz = surfaces[surfaceNum].size() * coneHeight;
-
+    double yieldf = 3. / 2. * (zeta % zeta) - sz * sz;
     opserr << "SRSMYSand::yieldFunc() - out!\n";
-    return 3. / 2. * (workV6 % workV6) - sz * sz;
+    return yieldf;
 }
 
 
-void SRSMYSand::deviatorScaling(CTensor& stress,
-    const NestedSurface* surfaces,
-    int surfaceNum)
+void SRSMYSand::deviatorScaling(CTensor& stress, std::vector<NestedSurface> surfaces, int surfaceNum)
 {
     opserr << "SRSMYSand::deviatorScaling() - in!\n";
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
-
+    
     double diff = yieldFunc(stress, surfaces, surfaceNum);
     double coneHeight = stress.trace() / nD - residualPress;
-
+    
     if (surfaceNum < numOfSurfaces && diff < 0.) {
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         double deviaSz = sqrt(sz * sz + diff);
-        static CTensor devia(6, 2); // 2: contravariant
-        devia = stress.deviator();
-        workV6 = devia;
-        workV6 += surfaces[surfaceNum].center() * -coneHeight;
+        CTensor devia = stress.deviator();
+        CTensor zeta = devia - surfaces[surfaceNum].center() * coneHeight;
         double coeff = (sz - deviaSz) / deviaSz;
         if (coeff < 1.e-13) coeff = 1.e-13;
-        devia += workV6 * coeff;
+        devia += zeta * coeff;
         stress.setData(devia, stress.trace() / nD);
         deviatorScaling(stress, surfaces, surfaceNum);  // recursive call
     }
 
     if (surfaceNum == numOfSurfaces && fabs(diff) > LOW_LIMIT) {
         double sz = -surfaces[surfaceNum].size() * coneHeight;
-        //workV6 = stress.deviator() * sz/sqrt(diff+sz*sz);
-        workV6 = stress.deviator();
-        workV6 *= sz / sqrt(diff + sz * sz);
-        stress.setData(workV6, stress.trace() / nD);
+        CTensor devia = stress.deviator() * sz / sqrt(diff + sz * sz);
+        stress.setData(devia, stress.trace() / nD);
     }
     opserr << "SRSMYSand::deviatorScaling() - out!\n";
 }
@@ -1940,28 +1764,30 @@ void SRSMYSand::initSurfaceUpdate(void)
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
-    if (committedActiveSurf == 0) return;
+    if (sv.nYs_commit == 0) return;
 
-    double coneHeight = -(currentStress.trace() / nD - residualPress);
-    static CTensor devia(6, 2); // 2: contravariant
-    devia = currentStress.deviator();
+    CTensor devia = sv.sig.deviator();
+    CTensor center(nDOF, 2); // 2: contravariant
+
+    double coneHeight = -(sv.sig.trace() / nD - residualPress);
+
     double Ms = sqrt(3. / 2. * (devia % devia));
 
-    if (committedActiveSurf < numOfSurfaces) { // failure surface can't move
-        workV6 = devia * (1. - committedSurfaces[committedActiveSurf].size() * coneHeight / Ms);
+    if (sv.nYs_commit < numOfSurfaces) { // failure surface can't move
+        center = devia * (1. - committedSurfaces[sv.nYs_commit].size() * coneHeight / Ms);
 
         //workV6 = workV6 / -coneHeight;
-        workV6 /= -coneHeight;
-        committedSurfaces[committedActiveSurf].setCenter(workV6);
+        center /= -coneHeight;
+        committedSurfaces[sv.nYs_commit].setCenter(center);
     }
 
-    for (int i = 1; i < committedActiveSurf; i++) {
-        workV6 = devia * (1. - committedSurfaces[i].size() * coneHeight / Ms);
-        workV6 /= -coneHeight;
-        committedSurfaces[i].setCenter(workV6);
+    for (int i = 1; i < sv.nYs_commit; i++) {
+        center = devia * (1. - committedSurfaces[i].size() * coneHeight / Ms);
+        center /= -coneHeight;
+        committedSurfaces[i].setCenter(center);
         theSurfaces[i] = committedSurfaces[i];
     }
-    activeSurfaceNum = committedActiveSurf;
+    sv.nYs = sv.nYs_commit;
     opserr << "SRSMYSand::initSurfaceUpdate() - out!\n";
 }
 
@@ -1969,6 +1795,9 @@ void SRSMYSand::initSurfaceUpdate(void)
 void SRSMYSand::initStrainUpdate(void)
 {
     opserr << "SRSMYSand::initStrainUpdate() - in!\n";
+    
+    CTensor deviator;
+
     double residualPress = residualPressx[matN];
     double refPressure = refPressurex[matN];
     double pressDependCoeff = pressDependCoeffx[matN];
@@ -1977,21 +1806,21 @@ void SRSMYSand::initStrainUpdate(void)
     double stressRatioPT = stressRatioPTx[matN];
 
     // elastic strain state
-    double stressRatio = sdevRatio(currentStress, residualPress);
-    double ratio = (-currentStress.trace() / nD + residualPress) / (-refPressure + residualPress);
+    double stressRatio = sdevRatio(sv.sig, residualPress);
+    double ratio = (-sv.sig.trace() / nD + residualPress) / (-refPressure + residualPress);
     ratio = pow(ratio, 1. - pressDependCoeff);
-    modulusFactor = getModulusFactor(currentStress);
+    modulusFactor = getModulusFactor(sv.sig);
     double shearCoeff = 1. / (2. * refShearModulus * modulusFactor);
     double bulkCoeff = 1. / (3. * refBulkModulus * modulusFactor);
 
-    //currentStrain = currentStress.deviator()*shearCoeff
-    //              + currentStress.trace() / nD*bulkCoeff;
+    //sv.eps = sv.sig.deviator()*shearCoeff
+    //              + sv.sig.trace() / nD*bulkCoeff;
 
     // modified fmk as discussed with z.yang
-    workV6 = currentStress.deviator() * shearCoeff;
-    currentStrain.setData(workV6, currentStress.trace() / nD * bulkCoeff);
+    deviator = sv.sig.deviator() * shearCoeff;
+    sv.eps.setData(deviator, sv.sig.trace() / nD * bulkCoeff);
 
-    double octalStrain = currentStrain.octahedral();
+    double octalStrain = sv.eps.octahedral();
     if (octalStrain <= LOW_LIMIT) octalStrain = LOW_LIMIT;
 
     // plastic strain state (scaled from elastic strain)
@@ -1999,7 +1828,7 @@ void SRSMYSand::initStrainUpdate(void)
     if (stressRatio >= stressRatioPT) {  //above PT
         onPPZCommitted = 2;
         prePPZStrainOctaCommitted = strainPTOcta * ratio;
-        PPZLimit = getPPZLimits(1, currentStress);
+        PPZLimit = getPPZLimits(1, sv.sig);
         scale = sqrt(prePPZStrainOctaCommitted + PPZLimit) / octalStrain;
     }
     else {  // below PT
@@ -2009,10 +1838,10 @@ void SRSMYSand::initStrainUpdate(void)
             prePPZStrainOctaCommitted = strainPTOcta * ratio;
         scale = sqrt(prePPZStrainOctaCommitted) / octalStrain;
     }
-    //currentStrain.setData(currentStrain.deviator()*scale, currentStrain.trace() / nD);
-    workV6 = currentStrain.deviator() * scale;
-    currentStrain.setData(workV6, currentStrain.trace() / nD);
-    PPZPivotCommitted = currentStrain;
+    //sv.eps.setData(sv.eps.deviator()*scale, sv.eps.trace() / nD);
+    deviator = sv.eps.deviator() * scale;
+    sv.eps.setData(deviator, sv.eps.trace() / nD);
+    PPZPivotCommitted = sv.eps;
     opserr << "SRSMYSand::initStrainUpdate() - out!\n";
 }
 
@@ -2039,9 +1868,11 @@ void SRSMYSand::setTrialStress(CTensor& stress)
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
 
+    CTensor deviator(nDOF, 2);  // 2: contravariant
+
     modulusFactor = getModulusFactor(stress);
-    workV6 = stress.deviator();
-    workV6 += subStrainRate.deviator() * 2 * refShearModulus * modulusFactor;
+    deviator = stress.deviator();
+    deviator += subStrainRate.deviator() * 2 * refShearModulus * modulusFactor;
 
     double B = refBulkModulus * modulusFactor;
 
@@ -2054,7 +1885,7 @@ void SRSMYSand::setTrialStress(CTensor& stress)
     double volume = stress.trace() / nD + subStrainRate.trace() / nD * 3. * B;
 
     if (volume > 0.) volume = 0.;
-    trialStress.setData(workV6, volume);
+    trialStress.setData(deviator, volume);
     opserr << "SRSMYSand::setTrialStress() - out!\n";
 }
 
@@ -2062,6 +1893,8 @@ void SRSMYSand::setTrialStress(CTensor& stress)
 int SRSMYSand::setSubStrainRate(void)
 {
     opserr << "SRSMYSand::setSubStrainRate() - in!\n";
+
+    CTensor deviator;
     double residualPress = residualPressx[matN];
     double refShearModulus = refShearModulusx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
@@ -2069,20 +1902,19 @@ int SRSMYSand::setSubStrainRate(void)
     if (strainRate.norm() == 0) return 0;
 
     double elast_plast_modulus;
-    double conHeig = -(currentStress.trace() / nD - residualPress);
-    double factor = getModulusFactor(currentStress);
-    if (activeSurfaceNum == 0)
+    double conHeig = -(sv.sig.trace() / nD - residualPress);
+    double factor = getModulusFactor(sv.sig);
+    if (sv.nYs == 0)
         elast_plast_modulus = 2 * refShearModulus * factor;
     else {
-        double plast_modulus = theSurfaces[activeSurfaceNum].modulus() * factor;
+        double plast_modulus = theSurfaces[sv.nYs].modulus() * factor;
         elast_plast_modulus = 2 * refShearModulus * factor * plast_modulus
             / (2 * refShearModulus * factor + plast_modulus);
     }
-    workV6 = strainRate.deviator() * elast_plast_modulus;
-    workT2V = workV6;
+    deviator = strainRate.deviator() * elast_plast_modulus;
 
     double singleCross = theSurfaces[numOfSurfaces].size() * conHeig / numOfSurfaces;
-    double totalCross = 3. * workT2V.octahedral() / sqrt(2.);
+    double totalCross = 3. * deviator.octahedral() / sqrt(2.);
     int numOfSub = totalCross / singleCross + 1;
     if (numOfSub > numOfSurfaces) numOfSub = numOfSurfaces;
 
@@ -2091,32 +1923,27 @@ int SRSMYSand::setSubStrainRate(void)
     if (numOfSub1 > numOfSub) numOfSub = numOfSub1;
     if (numOfSub2 > numOfSub) numOfSub = numOfSub2;
 
-    workV6 = strainRate * (1.0 / numOfSub);
+    deviator = strainRate * (1.0 / numOfSub);
 
-    subStrainRate = workV6;
+    subStrainRate = deviator;
 
     opserr << "SRSMYSand::setSubStrainRate() - out!\n";
     return numOfSub;
 }
 
 
-void
-SRSMYSand::getContactStress(CTensor& contactStress)
+void SRSMYSand::getContactStress(CTensor& contactStress)
 {
     opserr << "SRSMYSand::getContactStress() - in!\n";
     double residualPress = residualPressx[matN];
-
     double conHeig = trialStress.trace() / nD - residualPress;
-    static CTensor center(6, 2); // 3: contravariant
-    center = theSurfaces[activeSurfaceNum].center();
-    //workV6 = trialStress.deviator() - center*conHeig;
-    workV6 = trialStress.deviator();
-    workV6 += center * -conHeig;
-    double Ms = sqrt(3. / 2. * (workV6 % workV6));
-    workV6 = workV6 * theSurfaces[activeSurfaceNum].size() * (-conHeig) / Ms + center * conHeig;
-
-    //return CTensor(workV6,trialStress.trace() / nD);
-    contactStress.setData(workV6, trialStress.trace() / nD);
+    CTensor center(6, 2); // 2: contravariant
+    CTensor deviator(6, 2); // 2: contravariant
+    center = theSurfaces[sv.nYs].center();
+    deviator = trialStress.deviator() - center * conHeig;
+    double Ms = sqrt(3. / 2. * (deviator % deviator));
+    deviator = deviator * theSurfaces[sv.nYs].size() * (-conHeig) / Ms + center * conHeig;
+    contactStress.setData(deviator, trialStress.trace() / nD);
     opserr << "SRSMYSand::getContactStress() - out!\n";
 }
 
@@ -2124,16 +1951,17 @@ SRSMYSand::getContactStress(CTensor& contactStress)
 int SRSMYSand::isLoadReversal(CTensor& stress)
 {
     opserr << "SRSMYSand::isLoadReversal() - in!\n";
-    if (activeSurfaceNum == 0) return 0;
+    if (sv.nYs == 0) return 0;
+    CTensor normal(6, 2); // 2: contravariant
+    
+    getSurfaceNormal(stress, normal);
 
-    getSurfaceNormal(stress, workT2V);
-
-    //if (((trialStress - currentStress)
+    //if (((trialStress - sv.sig)
     //	&& workT2V) < 0) return 1;
-    workV6 = trialStress;
-    workV6 -= currentStress;
+    CTensor temp = trialStress;
+    temp -= sv.sig;
 
-    if ((workV6 % workT2V) < 0) return 1;
+    if ((temp % normal) < 0) return 1;
 
     opserr << "SRSMYSand::isLoadReversal() - out!\n";
     return 0;
@@ -2145,19 +1973,16 @@ SRSMYSand::getSurfaceNormal(CTensor& stress, CTensor& normal)
 {
     opserr << "SRSMYSand::getSurfaceNormal() - in!\n";
     double residualPress = residualPressx[matN];
-
     double conHeig = stress.trace() / nD - residualPress;
-    workV6 = stress.deviator();
-    static CTensor center(6, 2); // 2: contravariant
-    center = theSurfaces[activeSurfaceNum].center();
-    double sz = theSurfaces[activeSurfaceNum].size();
-    double volume = conHeig * ((center % center) - 2. / 3. * sz * sz) - (workV6 % center);
-    //workT2V.setData((workV6-center*conHeig)*3., volume);
-    workV6 += center * -conHeig;
-    workV6 *= 3.0;
-    workT2V.setData(workV6, volume);
-    workT2V.Normalize();
-    normal = workT2V;
+    CTensor deviator = stress.deviator();
+    CTensor center = theSurfaces[sv.nYs].center();
+    center = theSurfaces[sv.nYs].center();
+    double sz = theSurfaces[sv.nYs].size();
+    double volume = conHeig * ((center % center) - 2. / 3. * sz * sz) - (deviator % center);
+    deviator += center * -conHeig;
+    deviator *= 3.0;
+    normal.setData(deviator, volume);
+    normal.Normalize();
     opserr << "SRSMYSand::getSurfaceNormal() - out!\n";
 }
 
@@ -2173,6 +1998,7 @@ double SRSMYSand::getPlasticPotential(CTensor& contactStress,
     double contractParam3 = contractParam3x[matN];
     double dilateParam1 = dilateParam1x[matN];
     double dilateParam2 = dilateParam2x[matN];
+    CTensor deviator_ratio(nDOF, 2);  // 2: contravariant
 
     double plasticPotential, contractRule, shearLoading, angle;
 
@@ -2183,7 +2009,7 @@ double SRSMYSand::getPlasticPotential(CTensor& contactStress,
     double trialRatio = sdevRatio(trialStress, residualPress);
 
     shearLoading = updatedTrialStress.deviator() % trialStress.deviator();
-    //shearLoading = currentStress.deviator() && trialStress.deviator();
+    //shearLoading = sv.sig.deviator() % trialStress.deviator();
 
     if (factorPT >= 1. && trialRatio >= currentRatio && shearLoading >= 0.) {  //dilation
         updatePPZ(contactStress);
@@ -2205,30 +2031,24 @@ double SRSMYSand::getPlasticPotential(CTensor& contactStress,
     else {  //contraction
         if (currentRatio == 0.) angle = 1.0;
         else {
-            workV6 = trialStress.deviator();
-            workV6 /= (fabs(trialStress.trace() / nD) + fabs(residualPress));
-            workV6 -= updatedTrialStress.deviator() / (fabs(updatedTrialStress.trace() / nD) + fabs(residualPress));
-            //workV6	-= currentStress.deviator()/(fabs(currentStress.trace() / nD)+fabs(residualPress));
-            //workV6.Normalize();
-            //angle = updatedTrialStress.unitDeviator() && workV6;
-            workT2V = CTensor(workV6);
-            if (workT2V.deviator().norm() == 0.) angle = 1.0;
-            //angle = (currentStress.deviator() && workV6)/workT2V.deviator().norm()/currentStress.deviator().norm();
-            else angle = (updatedTrialStress.deviator() % workV6) / workT2V.deviator().norm() / updatedTrialStress.deviator().norm();
+            deviator_ratio = trialStress.deviator();
+            deviator_ratio /= (fabs(trialStress.trace() / nD) + fabs(residualPress));
+            deviator_ratio -= updatedTrialStress.deviator() / (fabs(updatedTrialStress.trace() / nD) + fabs(residualPress));
+            CTensor temp = deviator_ratio;
+            temp = temp.deviator();
+            double tempnorm = temp.norm();
+            CTensor updatedTrialStressDev = updatedTrialStress.deviator();
+            if (tempnorm == 0.) angle = 1.0;
+            else angle = (updatedTrialStressDev % deviator_ratio) / tempnorm / updatedTrialStressDev.norm();
         }
         factorPT = factorPT * angle - 1.0;
 
         contractRule = pow((fabs(contactStress.trace() / nD) + fabs(residualPress)) / pAtm, contractParam3);
         if (contractRule < 0.1) contractRule = 0.1;
 
-        //plasticPotential = factorPT*(contractParam1+pressureD*contractParam2)*contractRule;
-        //plasticPotential = factorPT*(contractParam1+cumuDilateStrainOcta*contractParam2)*contractRule;
-        //double dd = maxCumuDilateStrainOcta > cumuDilateStrainOcta ? maxCumuDilateStrainOcta : cumuDilateStrainOcta;
-        //plasticPotential = -(factorPT)*(factorPT)*(contractParam1+dd*contractParam2)*contractRule;
         plasticPotential = -(factorPT) * (factorPT) * (contractParam1 + maxCumuDilateStrainOcta * contractParam2) * contractRule;
 
         if (plasticPotential > 0.) plasticPotential = -plasticPotential;
-        //if (contractRule<-5.0e4) contractRule = -5.0e4;
         if (onPPZ > 0) onPPZ = 0;
         if (onPPZ != -1) PPZTranslation(contactStress);
     }
@@ -2249,7 +2069,7 @@ int SRSMYSand::isCriticalState(CTensor& stress)
 
     double vol = trialStrain.trace() / nD * 3.0;
     double etria = einit + vol + vol * einit;
-    vol = currentStrain.trace() / nD * 3.0;
+    vol = sv.eps.trace() / nD * 3.0;
     double ecurr = einit + vol + vol * einit;
 
     double ecr1, ecr2;
@@ -2285,8 +2105,8 @@ void SRSMYSand::updatePPZ(CTensor& contactStress)
 
     if (onPPZ < 1) {
         damage = 0.0;
-        if ((maxPress - currentStress.trace() / nD) / (maxPress - residualPress) > 0.)
-            damage = pow((maxPress - currentStress.trace() / nD) / (maxPress - residualPress), 0.25);
+        if ((maxPress - sv.sig.trace() / nD) / (maxPress - residualPress) > 0.)
+            damage = pow((maxPress - sv.sig.trace() / nD) / (maxPress - residualPress), 0.25);
     }
 
     // PPZ inactive if liquefyParam1==0.
@@ -2341,32 +2161,26 @@ void SRSMYSand::updatePPZ(CTensor& contactStress)
     //(prePPZStrainOcta+oppoPrePPZStrainOcta+cumuTranslateStrainOcta+maxCumuDilateStrainOcta)/2.;
 
  // calc. new PPZ center.
+    CTensor PPZ;
     if (onPPZ == 0 || (onPPZ == 1 && temp < 0.0)) {
         // new center lies on the vector of PPZPivot-PPZCenter,
         // its distance from PPZPivot is (PPZSize-cumuTranslateStrainOcta).
 
         //workT2V.setData(PPZPivot - PPZCenter);
-        workV6 = PPZPivot;
-        workV6 -= PPZCenter;
-        workT2V = workV6;
+        PPZ = PPZPivot - PPZCenter;
 
         double coeff;
-        if (workT2V.octahedral() == 0.) coeff = 0.;
-        else coeff = (PPZSize - cumuTranslateStrainOcta) / workT2V.octahedral();
-        //PPZCenter.setData(PPZPivot - workT2V*coeff);
-        workV6 = PPZPivot;
-        workV6 += workT2V * -coeff;
-        PPZCenter = workV6;
+        if (PPZ.octahedral() == 0.) coeff = 0.;
+        else coeff = (PPZSize - cumuTranslateStrainOcta) / PPZ.octahedral();
+        PPZCenter = PPZPivot - PPZ * coeff;
     }
 
     //workT2V.setData(trialStrain - PPZCenter);
-    workV6 = trialStrain;
-    workV6 -= PPZCenter;
-    workT2V = workV6;
+    PPZ = trialStrain - PPZCenter;
 
     //outside PPZ
     //if (workT2V.octahedral(1) > PPZSize && temp > 0. || PPZLimit==0.) {
-    if (workT2V.octahedral() > PPZSize) {
+    if (PPZ.octahedral() > PPZSize) {
 
         // rezero cumuDilateStrainOcta only when load reverses
         // (partial unloading does not erase cumuDilateStrainOcta.
@@ -2405,8 +2219,8 @@ void SRSMYSand::PPZTranslation(const CTensor& contactStress)
     //and is also limited by the amount of previous dilation (no translation
     //if there was no dilation), as damage is really caused by dilation.
     damage = 0.0;
-    if ((maxPress - currentStress.trace() / nD) / (maxPress - residualPress) > 0.)
-        damage = pow((maxPress - currentStress.trace() / nD) / (maxPress - residualPress), 0.25);
+    if ((maxPress - sv.sig.trace() / nD) / (maxPress - residualPress) > 0.)
+        damage = pow((maxPress - sv.sig.trace() / nD) / (maxPress - residualPress), 0.25);
 
     double zzz = 0.;
     if (damage > zzz) zzz = damage;
@@ -2416,11 +2230,10 @@ void SRSMYSand::PPZTranslation(const CTensor& contactStress)
     if (temp < 0.0) {  //update only when load reverses
 
         //workT2V.setData(trialStrain.deviator()-PPZPivot.deviator());
-        workV6 = trialStrain.deviator();
-        workV6 -= PPZPivot.deviator();
-        workT2V = workV6;
+        CTensor deviator = trialStrain.deviator();
+        deviator -= PPZPivot.deviator();
 
-        temp = workT2V.octahedral();
+        temp = deviator.octahedral();
         if (cumuTranslateStrainOcta < zzz * liquefyParam2 * temp)
             cumuTranslateStrainOcta = zzz * liquefyParam2 * temp;
         //if (maxCumuDilateStrainOcta == 0.) temp = 0.; //PPZTransLimit;
@@ -2466,10 +2279,7 @@ double SRSMYSand::getPPZLimits(int which, CTensor& contactStress)
 }
 
 
-double SRSMYSand::getLoadingFunc(CTensor& contactStress,
-    CTensor& surfaceNormal,
-    double* plasticPotential,
-    int crossedSurface)
+double SRSMYSand::getLoadingFunc(CTensor& contactStress, CTensor& surfaceNormal, double* plasticPotential, int crossedSurface)
 {
     opserr << "SRSMYSand::getLoadingFunc() - in!\n";
     int numOfSurfaces = numOfSurfacesx[matN];
@@ -2477,14 +2287,14 @@ double SRSMYSand::getLoadingFunc(CTensor& contactStress,
     double refBulkModulus = refBulkModulusx[matN];
 
     double loadingFunc, limit;
-    double modul = theSurfaces[activeSurfaceNum].modulus();
+    double modul = theSurfaces[sv.nYs].modulus();
     double temp1 = 2. * refShearModulus * modulusFactor * (surfaceNormal.deviator() % surfaceNormal.deviator());
     double temp2 = 9. * refBulkModulus * modulusFactor * surfaceNormal.trace() / nD * (*plasticPotential);
 
     //for the first crossing
     double temp = temp1 + temp2 + modul * modulusFactor;
-    if (activeSurfaceNum == numOfSurfaces)
-        limit = theSurfaces[activeSurfaceNum - 1].modulus() * modulusFactor / 2.;
+    if (sv.nYs == numOfSurfaces)
+        limit = theSurfaces[sv.nYs - 1].modulus() * modulusFactor / 2.;
     else limit = modul * modulusFactor / 2.;
     if (temp < limit) {
         (*plasticPotential) = (temp2 + limit - temp) / (9. * refBulkModulus * modulusFactor
@@ -2493,16 +2303,16 @@ double SRSMYSand::getLoadingFunc(CTensor& contactStress,
     }
     //loadingFunc = (surfaceNormal
     //	             && (trialStress.deviator()-contactStress.deviator()))/temp;
-    workV6 = trialStress.deviator();
-    workV6 -= contactStress.deviator();
-    loadingFunc = (surfaceNormal % workV6) / temp;
+    CTensor deviator = trialStress.deviator();
+    deviator -= contactStress.deviator();
+    loadingFunc = (surfaceNormal % deviator) / temp;
 
     if (loadingFunc < 0.) loadingFunc = 0;
 
     //for more than one crossing
     if (crossedSurface) {
-        temp = (theSurfaces[activeSurfaceNum - 1].modulus() - modul)
-            / theSurfaces[activeSurfaceNum - 1].modulus();
+        temp = (theSurfaces[sv.nYs - 1].modulus() - modul)
+            / theSurfaces[sv.nYs - 1].modulus();
         loadingFunc *= temp;
     }
 
@@ -2529,12 +2339,12 @@ int SRSMYSand::stressCorrection(int crossedSurface)
 
     //workV6 = trialStress.deviator()
     //	         - surfNormal.deviator()*2*refShearModulus*modulusFactor*loadingFunc;
-    workV6 = trialStress.deviator();
+    CTensor deviator = trialStress.deviator();
 
     if (volume > 0. && volume != tVolume) {
         double coeff = tVolume / (tVolume - volume);
         coeff *= -2 * refShearModulus * modulusFactor * loadingFunc;
-        workV6 += surfNormal.deviator() * coeff;
+        deviator += surfNormal.deviator() * coeff;
         volume = 0.;
     }
     else if (volume > 0.) {
@@ -2542,18 +2352,18 @@ int SRSMYSand::stressCorrection(int crossedSurface)
     }
     else {
         double coeff = -2 * refShearModulus * modulusFactor * loadingFunc;
-        workV6 += surfNormal.deviator() * coeff;
+        deviator += surfNormal.deviator() * coeff;
     }
     /*
       if (volume>0.)volume = 0.;
         double coeff = -2*refShearModulus*modulusFactor*loadingFunc;
     workV6.addVector(1.0, surfNormal.deviator(), coeff);
   */
-    trialStress.setData(workV6, volume);
-    deviatorScaling(trialStress, theSurfaces, activeSurfaceNum);
+    trialStress.setData(deviator, volume);
+    deviatorScaling(trialStress, theSurfaces, sv.nYs);
 
     if (isCrossingNextSurface()) {
-        activeSurfaceNum++;
+        sv.nYs++;
         return stressCorrection(1);  //recursive call
     }
 
@@ -2568,7 +2378,7 @@ void SRSMYSand::updateActiveSurface(void)
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
-    if (activeSurfaceNum == numOfSurfaces) return;
+    if (sv.nYs == numOfSurfaces) return;
 
     double A, B, C, X;
     static CTensor t1(6, 2);        // 2: contravariant
@@ -2576,10 +2386,10 @@ void SRSMYSand::updateActiveSurface(void)
     static CTensor center(6, 2);    // 2: contravariant
     static CTensor outcenter(6, 2); // 2: contravariant
     double conHeig = trialStress.trace() / nD - residualPress;
-    center = theSurfaces[activeSurfaceNum].center();
-    double size = theSurfaces[activeSurfaceNum].size();
-    outcenter = theSurfaces[activeSurfaceNum + 1].center();
-    double outsize = theSurfaces[activeSurfaceNum + 1].size();
+    center = theSurfaces[sv.nYs].center();
+    double size = theSurfaces[sv.nYs].size();
+    outcenter = theSurfaces[sv.nYs + 1].center();
+    double outsize = theSurfaces[sv.nYs + 1].size();
 
     //t1 = trialStress.deviator() - center*conHeig;
     //t2 = (center - outcenter)*conHeig;
@@ -2604,7 +2414,7 @@ void SRSMYSand::updateActiveSurface(void)
         double xx1 = (t2 % t2) - 2. / 3. * outsize * outsize * conHeig * conHeig;
         double xx2 = (t1 % t1) - 2. / 3. * size * size * conHeig * conHeig;
         opserr << "FATAL:SRSMYSand::updateActiveSurface(): error in Direction of surface motion." << endln;
-        opserr << "X-1= " << X - 1 << " A= " << A << " B= " << B << " C= " << C << " M= " << activeSurfaceNum << " low_limit=" << LOW_LIMIT << endln;
+        opserr << "X-1= " << X - 1 << " A= " << A << " B= " << B << " C= " << C << " M= " << sv.nYs << " low_limit=" << LOW_LIMIT << endln;
         opserr << "diff1= " << xx1 << " diff2= " << xx2 << " p= " << conHeig << " size= " << size << " outs= " << outsize << endln;
         exit(-1);
     }
@@ -2612,7 +2422,7 @@ void SRSMYSand::updateActiveSurface(void)
     //workV6 = (t1 * X + center*conHeig) * (1. - size / outsize)
     //	     - (center - outcenter * size / outsize) * conHeig;
 
-    workV6 = t1 * X;
+    CTensor workV6 = t1 * X;
     workV6 += center * conHeig;
     workV6 *= (1.0 - size / outsize);
     t2 = center;
@@ -2620,10 +2430,10 @@ void SRSMYSand::updateActiveSurface(void)
     t2 *= conHeig;
     workV6 -= t2;
 
-    workT2V = workV6;
-    if (workT2V.deviator().norm() < LOW_LIMIT) return;
+    CTensor workT2V = workV6.deviator();
+    if (workT2V.norm() < LOW_LIMIT) return;
 
-    workV6 = workT2V.deviator();
+    workV6 = workT2V;
     A = conHeig * conHeig * (workV6 % workV6);
     B = 2 * conHeig * (t1 % workV6);
     if (fabs(B) < LOW_LIMIT) B = 0.;
@@ -2637,7 +2447,7 @@ void SRSMYSand::updateActiveSurface(void)
     X = secondOrderEqn(A, B, C, 1);
 
     center += workV6 * -X;
-    theSurfaces[activeSurfaceNum].setCenter(center);
+    theSurfaces[sv.nYs].setCenter(center);
     opserr << "SRSMYSand::updateActiveSurface() - out!\n";
 }
 
@@ -2647,32 +2457,34 @@ void SRSMYSand::updateInnerSurface(void)
     opserr << "SRSMYSand::updateInnerSurface() - in!\n";
     double residualPress = residualPressx[matN];
 
-    if (activeSurfaceNum <= 1) return;
-    static CTensor devia(6, 2);     // 2: contravariant
-    static CTensor center(6, 2);    // 2: contravariant
+    if (sv.nYs <= 1) return;
+    CTensor devia(6, 2);     // 2: contravariant
+    CTensor center(6, 2);    // 2: contravariant
+    CTensor temp;
 
-    double conHeig = currentStress.trace() / nD - residualPress;
-    devia = currentStress.deviator();
-    center = theSurfaces[activeSurfaceNum].center();
-    double size = theSurfaces[activeSurfaceNum].size();
+    double conHeig = sv.sig.trace() / nD - residualPress;
+    devia = sv.sig.deviator();
+    center = theSurfaces[sv.nYs].center();
+    double size = theSurfaces[sv.nYs].size();
 
-    for (int i = 1; i < activeSurfaceNum; i++) {
-        workV6 = center * conHeig;
-        workV6 -= devia;
-        workV6 *= theSurfaces[i].size() / size;
-        workV6 += devia;
+    for (int i = 1; i < sv.nYs; i++) {
+        temp = center * conHeig;
+        temp -= devia;
+        temp *= theSurfaces[i].size() / size;
+        temp += devia;
 
         //workV6 = devia - (devia - center*conHeig) * theSurfaces[i].size() / size;
 
-        workV6 /= conHeig;
-        theSurfaces[i].setCenter(workV6);
+        temp /= conHeig;
+        theSurfaces[i].setCenter(temp);
     }
     opserr << "SRSMYSand::updateInnerSurface() - out!\n";
 }
 
 double SRSMYSand::sdevRatio(CTensor& stress, double residualPress) {
     opserr << "SRSMYSand::sdevRatio()\n";
-    return sqrt(3. / 2. * (stress.deviator().norm())) / (abs(stress.trace() / nD) + abs(residualPress));
+    CTensor dev = stress.deviator();
+    return sqrt(3. / 2. * (dev.norm())) / (abs(stress.trace() / nD) + abs(residualPress));
 }
 
 int SRSMYSand::isCrossingNextSurface(void)
@@ -2680,9 +2492,9 @@ int SRSMYSand::isCrossingNextSurface(void)
     opserr << "SRSMYSand::isCrossingNextSurface()\n";
     int numOfSurfaces = numOfSurfacesx[matN];
 
-    if (activeSurfaceNum == numOfSurfaces) return 0;
+    if (sv.nYs == numOfSurfaces) return 0;
 
-    if (yieldFunc(trialStress, theSurfaces, activeSurfaceNum + 1) > 0) return 1;
+    if (yieldFunc(trialStress, theSurfaces, sv.nYs + 1) > 0) return 1;
 
     return 0;
 }
@@ -2741,4 +2553,97 @@ double SRSMYSand::secondOrderEqn(double A, double B, double C, int i)
         return val;
     }
     opserr << "SRSMYSand::secondOrderEqn() - out!\n";
+}
+
+void SRSMYSand::updateInternal(const bool do_implex, const bool do_tangent) {
+
+    opserr << "SRSMYSand::updateInternal() - in!\n";
+
+    int loadStage = loadStagex[matN];
+    int numOfSurfaces = numOfSurfacesx[matN];
+    int ndm = ndmx[matN];
+    if (ndmx[matN] == 0) ndm = 3;
+
+    int i, is;
+    if (loadStage == 1 && e2p == 0) {
+        initPress = sv.sig.trace() / nD;
+        elast2Plast();
+    }
+
+    if (loadStage != 1) {  //linear elastic
+        getTangent();
+        auto& gs = tools::getGlobalStorage(nDOF);
+        CTensor theTangent (gs.Ct, 2);  // 2: contravariant
+        sv.sig += theTangent ^ (sv.eps - sv.eps_commit);
+
+    }
+    else {
+        for (i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
+        sv.nYs = sv.nYs_commit;
+        pressureD = pressureDCommitted;
+        onPPZ = onPPZCommitted;
+        PPZSize = PPZSizeCommitted;
+        cumuDilateStrainOcta = cumuDilateStrainOctaCommitted;
+        maxCumuDilateStrainOcta = maxCumuDilateStrainOctaCommitted;
+        cumuTranslateStrainOcta = cumuTranslateStrainOctaCommitted;
+        prePPZStrainOcta = prePPZStrainOctaCommitted;
+        oppoPrePPZStrainOcta = oppoPrePPZStrainOctaCommitted;
+        PPZPivot = PPZPivotCommitted;
+        PivotStrainRate = PivotStrainRateCommitted;
+        PPZCenter = PPZCenterCommitted;
+
+        subStrainRate = strainRate;
+        setTrialStress(sv.sig);
+        if (sv.nYs > 0 && isLoadReversal(sv.sig)) {
+            updateInnerSurface();
+            sv.nYs = 0;
+        }
+
+        if (sv.nYs == 0 && !isCrossingNextSurface()) {
+            trialStrain = sv.eps;
+        }
+        else {
+            int numSubIncre = setSubStrainRate();
+
+            for (i = 0; i < numSubIncre; i++) {
+                trialStrain = sv.eps_commit + subStrainRate * (i + 1);
+
+                if (i == 0) {
+                    updatedTrialStress = sv.sig;
+                    setTrialStress(sv.sig);
+                    is = isLoadReversal(sv.sig);
+                }
+                else {
+                    updatedTrialStress = trialStress;
+                    setTrialStress(trialStress);
+                    is = isLoadReversal(trialStress);
+                }
+
+                if (sv.nYs > 0 && is) {
+                    updateInnerSurface();
+                    sv.nYs = 0;
+                }
+                if (sv.nYs == 0 && !isCrossingNextSurface()) continue;
+                if (sv.nYs == 0) sv.nYs++;
+                stressCorrection(0);
+                updateActiveSurface();
+
+                double refBulkModulus = refBulkModulusx[matN];
+                //modulusFactor was calculated in setTrialStress
+                double B = refBulkModulus * modulusFactor;
+                //double deltaD = 3.*subStrainRate.trace() / nD
+                //	         - (trialStress.trace() / nD-updatedTrialStress.trace() / nD)/B;
+                //if (deltaD<0) deltaD /=2 ;
+                //pressureD += deltaD;
+                pressureD += 3. * subStrainRate.trace() / nD
+                    - (trialStress.trace() / nD - updatedTrialStress.trace() / nD) / B;
+                if (pressureD < 0.) pressureD = 0.;
+                //opserr<<i<<" "<<sv.nYs<<" "<<is<<" "<<subStrainRate[3]<<endln;
+            }
+        }
+    }
+
+    opserr << "SRSMYSand::updateInternal() - out!\n";
+
+
 }
