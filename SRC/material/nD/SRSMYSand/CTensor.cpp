@@ -486,14 +486,15 @@ CTensor CTensor::operator^(const CTensor& other) const {
 	}
 	// decide output properties
 	int rep = -1;
-	int r = (dim == 2) * 3 + (dim == 3) * 6;
-	int c = 1;
 	double* theData = nullptr;
 	CTensor result;
 	if (order == 2 && other.order == 4) {		// double dot between 2nd and 4th order tensors
+		if (numRows != other.numRows) {
+			opserr << "FATAL! CTensor::operator^() - 2nd-4th order ctensor size do not match! [numRows != other.numRows]\n";
+			exit(-1);
+		}
 		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
-			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = Contr(2)
 			rep = 2;
@@ -512,24 +513,26 @@ CTensor CTensor::operator^(const CTensor& other) const {
 			exit(-1);
 		}
 		// compute the double dot operation
-		theData = new (nothrow) double[r];
-		if (theData == nullptr) {
-			opserr << "FATAL! CTensor::operator^() - memory allocation failed!\n";
-			exit(-1);
+		result.order = 2;
+		result.dim = dim;
+		result.repr = rep;
+		result.numCols = 1;
+		result.numRows = other.numCols;
+		result.resize(result.numRows, result.numCols);
+		result.Zero();
+		for (int i = 0; i < result.numRows; i++) {
+			for (int j = 0; j < numRows; j++) {
+				result.ct(i, 0) += other.ct(j, 0) * ct(j, i);
+			}
 		}
-		for (int i = 0; i < r; i++)
-			theData[i] = this->ct(i, 0);
-		Vector temp(theData, r);
-		delete[] theData;
-		theData = nullptr;
-		temp = other.ct ^ temp;
-		result = CTensor(temp, rep);
-
 	}
 	else if (order == 4 && other.order == 2) {	// double dot between 4th and 2nd order tensors
+		if (numCols != other.numRows) {
+			opserr << "FATAL! CTensor::operator^() - 4th-2nd order ctensor size do not match! [numCols != other.numRows]\n";
+			exit(-1);
+		}
 		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
-			r = (dim == 2) * 4 + (dim == 3) * 9;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = Cov(1)
 			rep = 1;
@@ -548,56 +551,65 @@ CTensor CTensor::operator^(const CTensor& other) const {
 			exit(-1);
 		}
 		// compute the double dot operation
-		theData = new (nothrow) double[r];
-		if (theData == nullptr) {
-			opserr << "FATAL! CTensor::operator^() - memory allocation failed!\n";
+		result.order = 2;
+		result.dim = dim;
+		result.repr = rep;
+		result.numCols = 1;
+		result.numRows = numRows;
+		result.resize(result.numRows, result.numCols);
+		result.Zero();
+		for (int i = 0; i < result.numRows; i++) {
+			for (int j = 0; j < numCols; j++) {
+				result.ct(i, 0) += ct(i, j) * other.ct(j, 0);
+			}
+		}
+		opserr << "result = " << result << "\n";
+	}
+	else if (order == 4 && other.order == 4) {	// double dot between two 4th order tensors
+		if (numRows != other.numCols) {
+			opserr << "FATAL! CTensor::operator^() - 4th order ctensor size do not match! [numRows != other.numCols]\n";
 			exit(-1);
 		}
-		for (int i = 0; i < r; i++)
-			theData[i] = other.ct(i, 0);
-		Vector temp(theData, r);
-		delete[] theData;
-		theData = nullptr;
-		temp = this->ct * temp;
-		result = CTensor(temp, rep);
-	}
-	else if (order == 4 && other.order == 2) {	// double dot between two 4th order tensors
 		if (repr == 0 && other.repr == 0) {			// Full(0) x Full(0) = Full(0)
 			rep = 0;
-			r = (dim == 2) * 4 + (dim == 3) * 9;
-			c = r;
 		}
 		else if (repr == 1 && other.repr == 2) {	// Cov(1) x Contr(2) = CovContr(3)
 			rep = 3;
-			c = r;
 		}
 		else if (repr == 2 && other.repr == 1) {	// Contr(2) x Cov(1) = ContrCov(4)
 			rep = 4;
-			c = r;
 		}
 		else if (repr == 4 && other.repr == 2) {	// ContrCov(4) x Contr(2) = Contr(2)
 			rep = 2;
-			c = r;
 		}
 		else if (repr == 3 && other.repr == 1) {	// CovContr(3) x Cov(1) = Cov(1)
 			rep = 1;
-			c = r;
 		}
 		else if (repr == 4 && other.repr == 4) {	// ContrCov(4) x ContrCov(4) = ContrCov(4)
 			rep = 4;
-			c = r;
 		}
 		else if (repr == 3 && other.repr == 3) {	// CovContr(3) x CovContr(3) = CovContr(3)
 			rep = 3;
-			c = r;
 		}
 		else {
 			opserr << "FATAL! CTensor::operator^() - matrices with unsupported combination of representations. cannot double dot!\n";
 			exit(-1);
 		}
 		// compute the double dot operation
-		result = CTensor(r, c, rep);
-		result.ct = this->ct * other.ct;
+		result.order = 4;
+		result.dim = dim;
+		result.repr = rep;
+		result.numCols = other.numCols;
+		result.numRows = numRows;
+		result.resize(result.numRows, result.numCols);
+		result.Zero();
+		for (int i = 0; i < result.numRows; i++) {
+			for (int j = 0; j < result.numCols; j++) {
+				for (int k = 0; k < result.numRows; k++) {
+					result.ct(i, j) += ct(i, k) * other.ct(k, j);
+				}
+			}
+		}
 	}
 	else {
 		// make trouble

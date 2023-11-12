@@ -501,6 +501,7 @@ void SRSMYSand::elast2Plast(void)
 
 int SRSMYSand::setTrialStrain(const Vector& strain)
 {
+    opserr << "SRSMYSand::setTrialStrain() - in!\n";
     sv.eps = CTensor(strain, 1); // 1: covariant
     if (beVerbose)  opserr << "SRSMYSand::setTrialStrain() - " << sv.eps << "\n";
     // implex time step
@@ -540,6 +541,7 @@ int SRSMYSand::setTrialStrain(const Vector& strain, const Vector& rate)
 
 int SRSMYSand::setTrialStrainIncr(const Vector& strain)
 {
+    opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
     sv.eps += CTensor(strain, 1); // 1: covariant
     if (beVerbose)  opserr << "SRSMYSand::setTrialStrainIncr() - " << sv.eps << "\n";
     // implex time step
@@ -662,6 +664,7 @@ const Matrix& SRSMYSand::getTangent(void)
             }
     }
 
+    if (beVerbose)  opserr << "SRSMYSand::getTangent() - " << stiff << "\n";
     opserr << "SRSMYSand::getTangent() - out!\n";
     return stiff;
 }
@@ -708,6 +711,8 @@ const Matrix& SRSMYSand::getInitialTangent(void)
             if (i < 3 && j < 3) stiff(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
         }
 
+    
+    if (beVerbose)  opserr << "SRSMYSand::getInitialTangent() - " << stiff << "\n";
     opserr << "SRSMYSand::getInitialTangent() - out!\n";
     return stiff;
     /* non-symmetric stiffness
@@ -722,8 +727,9 @@ const Vector& SRSMYSand::getStress(void)
 {
     auto& gs = tools::getGlobalStorage(nDOF);
     Vector& stress = gs.s;
-    if (beVerbose)  opserr << "SRSMYSand::getStress() - " << sv.sig << "\n";
     stress = sv.sig.makeVector();
+    if (beVerbose)  opserr << "SRSMYSand::getStress() - " << sv.sig << "\n";
+    opserr << "stress - " << stress << "\n";
     return stress;
 }
 
@@ -848,13 +854,13 @@ NDMaterial* SRSMYSand::getCopy(const char* code)
     opserr << "SRSMYSand::getCopy(char*) - in!\n";
     if (strcmp(code, "PlaneStrain") == 0 || strcmp(code, "ThreeDimensional") == 0) {
         SRSMYSand* copy = new SRSMYSand(*this);
+        opserr << "SRSMYSand::getCopy(char*) - out!\n";
         return copy;
     }
     else {
         opserr << "ERROR SRSMYSand::getCopy -- cannot make copy for type " << code << endln;
         return 0;
     }
-    opserr << "SRSMYSand::getCopy(char*) - out!\n";
 }
 
 
@@ -2574,8 +2580,7 @@ void SRSMYSand::updateInternal(const bool do_implex, const bool do_tangent) {
         getTangent();
         auto& gs = tools::getGlobalStorage(nDOF);
         CTensor theTangent (gs.Ct, 2);  // 2: contravariant
-        sv.sig += theTangent ^ (sv.eps - sv.eps_commit);
-
+        sv.sig = theTangent ^ sv.eps;
     }
     else {
         for (i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
