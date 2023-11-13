@@ -80,7 +80,7 @@ public:
     int length(void) const;
     int noRows(void) const;
     int noCols(void) const;
-    double trace(void);
+    double trace(void) const;
     CTensor deviator(void);
     Vector makeVector(void);
     Matrix makeMatrix(void);
@@ -111,8 +111,8 @@ public:
     CTensor& invert(void);
 
     // special norms
-    double J2(void);
-    double octahedral(void);    // tangential component
+    double J2(void) const;
+    double octahedral(void) const;    // tangential component
 
     // fast and efficient operations
     int addTensor(double factThis, const CTensor& other, double factOther);

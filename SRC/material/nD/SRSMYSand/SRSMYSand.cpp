@@ -37,6 +37,9 @@
 
 using tc = CTensor::Constants;
 
+constexpr double SMALL_VALUE = 1e-8;
+constexpr bool doDebug = true;
+
 namespace tools {
     // keep track of all material instances local to the current process
     class MaterialList {
@@ -163,7 +166,7 @@ SRSMYSand::SRSMYSand(int tag, int nd,
     PPZPivot(6, 2), PPZCenter(6, 2), PPZPivotCommitted(6, 2), PPZCenterCommitted(6, 2),
     PivotStrainRate(6, 1), PivotStrainRateCommitted(6, 1), check(0)
 {
-    opserr << "SRSMYSand::SRSMYSand() - in!\n";
+    if (doDebug) { opserr << "SRSMYSand::SRSMYSand() - in!\n"; }
     // handle dimension
     nD = OPS_GetNDM();
     if (nD != 2 && nD != 3) {
@@ -393,7 +396,9 @@ SRSMYSand::SRSMYSand(int tag, int nd,
 
     // reset internal parameters
     revertToStart();
-    opserr << "SRSMYSand::SRSMYSand() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::SRSMYSand() - out!\n";
+    }
 }
 
 
@@ -459,13 +464,17 @@ SRSMYSand::SRSMYSand(const SRSMYSand& other)
 
 SRSMYSand::~SRSMYSand()
 {
-    opserr << "SRSMYSand::~SRSMYSand()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::~SRSMYSand()\n";
+    }
 }
 
 
 void SRSMYSand::elast2Plast(void)
 {
-    opserr << "SRSMYSand::elast2Plast() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::elast2Plast() - in!\n";
+    }
     int loadStage = loadStagex[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
@@ -480,11 +489,10 @@ void SRSMYSand::elast2Plast(void)
     }
     
     // Active surface is 0, return
-    sv.sig = sv.sig.deviator();
-    if (sv.sig.norm() == 0.) return;
+    if (sv.sig.octahedral() <= SMALL_VALUE) return;
     
     // Find active surface
-    while (yieldFunc(sv.sig, committedSurfaces, ++sv.nYs_commit) > 0) {
+    while (yieldFunc(sv.sig, committedSurfaces, ++sv.nYs_commit) > SMALL_VALUE) {
         if (sv.nYs_commit == numOfSurfaces) {
             if (beVerbose) { opserr << "WARNING:SRSMYSand::elast2Plast(): stress out of failure surface\n"; }
             deviatorScaling(sv.sig, committedSurfaces, numOfSurfaces);
@@ -495,13 +503,17 @@ void SRSMYSand::elast2Plast(void)
 
     sv.nYs_commit--;
     initSurfaceUpdate();
-    opserr << "SRSMYSand::elast2Plast() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::elast2Plast() - out!\n";
+    }
 }
 
 
 int SRSMYSand::setTrialStrain(const Vector& strain)
 {
-    opserr << "SRSMYSand::setTrialStrain() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStrain() - in!\n";
+    }
     sv.eps = CTensor(strain, 1); // 1: covariant
     if (beVerbose)  opserr << "SRSMYSand::setTrialStrain() - " << sv.eps << "\n";
     // implex time step
@@ -528,7 +540,9 @@ int SRSMYSand::setTrialStrain(const Vector& strain)
         }
         updateInternal(false, true);
     }
-    opserr << "SRSMYSand::setTrialStrain() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStrain() - out!\n";
+    }
     return 0;
 }
 
@@ -541,7 +555,9 @@ int SRSMYSand::setTrialStrain(const Vector& strain, const Vector& rate)
 
 int SRSMYSand::setTrialStrainIncr(const Vector& strain)
 {
-    opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
+    }
     sv.eps += CTensor(strain, 1); // 1: covariant
     if (beVerbose)  opserr << "SRSMYSand::setTrialStrainIncr() - " << sv.eps << "\n";
     // implex time step
@@ -568,7 +584,9 @@ int SRSMYSand::setTrialStrainIncr(const Vector& strain)
         }
         updateInternal(false, true);
     }
-    opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStrainIncr() - out!\n";
+    }
     return 0;
 }
 
@@ -581,7 +599,9 @@ int SRSMYSand::setTrialStrainIncr(const Vector& strain, const Vector& rate)
 
 const Matrix& SRSMYSand::getTangent(void)
 {
-    opserr << "SRSMYSand::getTangent() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getTangent() - in!\n";
+    }
     auto& gs = tools::getGlobalStorage(nDOF);
     Matrix& stiff = gs.Ct;
     CTensor normal(nDOF, 2); // 2: contravariant
@@ -665,14 +685,18 @@ const Matrix& SRSMYSand::getTangent(void)
     }
 
     if (beVerbose)  opserr << "SRSMYSand::getTangent() - " << stiff << "\n";
-    opserr << "SRSMYSand::getTangent() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getTangent() - out!\n";
+    }
     return stiff;
 }
 
 
 const Matrix& SRSMYSand::getInitialTangent(void)
 {
-    opserr << "SRSMYSand::getInitialTangent() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getInitialTangent() - in!\n";
+    }
     auto& gs = tools::getGlobalStorage(nDOF);
     Matrix& stiff = gs.Ce;
 
@@ -713,7 +737,9 @@ const Matrix& SRSMYSand::getInitialTangent(void)
 
     
     if (beVerbose)  opserr << "SRSMYSand::getInitialTangent() - " << stiff << "\n";
-    opserr << "SRSMYSand::getInitialTangent() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getInitialTangent() - out!\n";
+    }
     return stiff;
     /* non-symmetric stiffness
         workM(0,2) = theTangent(0,3);
@@ -729,7 +755,6 @@ const Vector& SRSMYSand::getStress(void)
     Vector& stress = gs.s;
     stress = sv.sig.makeVector();
     if (beVerbose)  opserr << "SRSMYSand::getStress() - " << sv.sig << "\n";
-    opserr << "stress - " << stress << "\n";
     return stress;
 }
 
@@ -746,7 +771,9 @@ const Vector& SRSMYSand::getStrain(void)
 
 int SRSMYSand::commitState(void)
 {
-    opserr << "SRSMYSand::commitState() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::commitState() - in!\n";
+    }
 
     // do the implicit correction if impl-ex
     if (useImplex) {
@@ -793,7 +820,9 @@ int SRSMYSand::commitState(void)
     }
 
     // done
-    opserr << "SRSMYSand::commitState() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::commitState() - out!\n";
+    }
     return 0;
 }
 
@@ -842,7 +871,9 @@ int SRSMYSand::revertToStart(void) {
 
 NDMaterial* SRSMYSand::getCopy(void)
 {
-    opserr << "SRSMYSand::getCopy() - in!\n";
+    if (beVerbose) {
+        opserr << "SRSMYSand::getCopy() - in!\n";
+    }
     SRSMYSand* copy = new SRSMYSand(*this);
     opserr << "SRSMYSand::getCopy() - out!\n";
     return copy;
@@ -851,10 +882,14 @@ NDMaterial* SRSMYSand::getCopy(void)
 
 NDMaterial* SRSMYSand::getCopy(const char* code)
 {
-    opserr << "SRSMYSand::getCopy(char*) - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getCopy(char*) - in!\n";
+    }
     if (strcmp(code, "PlaneStrain") == 0 || strcmp(code, "ThreeDimensional") == 0) {
         SRSMYSand* copy = new SRSMYSand(*this);
-        opserr << "SRSMYSand::getCopy(char*) - out!\n";
+        if (doDebug) {
+            opserr << "SRSMYSand::getCopy(char*) - out!\n";
+        }
         return copy;
     }
     else {
@@ -866,28 +901,38 @@ NDMaterial* SRSMYSand::getCopy(const char* code)
 
 const char* SRSMYSand::getType(void) const
 {
-    opserr << "SRSMYSand::getType() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getType() - in!\n";
+    }
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
-    opserr << "SRSMYSand::getType() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getType() - out!\n";
+    }
     return (ndm == 2) ? "PlaneStrain" : "ThreeDimensional";
 }
 
 
 int SRSMYSand::getOrder(void) const
 {
-    opserr << "SRSMYSand::getOrder() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getOrder() - in!\n";
+    }
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
     return (ndm == 2) ? 3 : 6;
-    opserr << "SRSMYSand::getOrder() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getOrder() - out!\n";
+    }
 }
 
 int SRSMYSand::setParameter(const char** argv, int argc, Parameter& param)
 {
-    opserr << "SRSMYSand::setParameter() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setParameter() - in!\n";
+    }
     /*if (argc < 1)
       return -1;
 
@@ -915,7 +960,9 @@ int SRSMYSand::setParameter(const char** argv, int argc, Parameter& param)
     int theMaterialTag;
     theMaterialTag = atoi(argv[1]);
 
-    opserr << "SRSMYSand::setParameter() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setParameter() - out!\n";
+    }
 
     // check for material tag
     if (theMaterialTag == this->getTag()) {
@@ -941,7 +988,9 @@ int SRSMYSand::setParameter(const char** argv, int argc, Parameter& param)
 
 int SRSMYSand::updateParameter(int responseID, Information& info)
 {
-    opserr << "SRSMYSand::updateParameter() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateParameter() - in!\n";
+    }
     if (responseID == 1) {
         loadStagex[matN] = info.theInt;
     }
@@ -966,14 +1015,18 @@ int SRSMYSand::updateParameter(int responseID, Information& info)
     else if (responseID == 20 && ndmx[matN] == 2)
         ndmx[matN] = 0;
 
-    opserr << "SRSMYSand::updateParameter() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateParameter() - out!\n";
+    }
     return 0;
 }
 
 
 int SRSMYSand::sendSelf(int commitTag, Channel& theChannel)
 {
-    opserr << "SRSMYSand::sendSelf() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::sendSelf() - in!\n";
+    }
     // ndmx[matCount] = nd;
     // loadStagex[matCount] = 0;   //default
      //refShearModulusx[matCount] = refShearModul;
@@ -1114,7 +1167,9 @@ int SRSMYSand::sendSelf(int commitTag, Channel& theChannel)
         opserr << "SRSMYSand::sendSelf -- could not send Vector\n";
         return res;
     }
-    opserr << "SRSMYSand::sendSelf() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::sendSelf() - out!\n";
+    }
     return res;
 }
 
@@ -1122,7 +1177,9 @@ int SRSMYSand::sendSelf(int commitTag, Channel& theChannel)
 int SRSMYSand::recvSelf(int commitTag, Channel& theChannel,
     FEM_ObjectBroker& theBroker)
 {
-    opserr << "SRSMYSand::recvSelf() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::recvSelf() - in!\n";
+    }
     int i, res = 0;
 
     static ID idData(6);
@@ -1348,7 +1405,9 @@ int SRSMYSand::recvSelf(int commitTag, Channel& theChannel,
     volLimit2x[matN] = volLimit2;
     volLimit3x[matN] = volLimit3;
 
-    opserr << "SRSMYSand::recvSelf() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::recvSelf() - out!\n";
+    }
     return res;
 }
 
@@ -1356,7 +1415,9 @@ int SRSMYSand::recvSelf(int commitTag, Channel& theChannel,
 Response*
 SRSMYSand::setResponse(const char** argv, int argc, OPS_Stream& s)
 {
-    opserr << "SRSMYSand::setResponse()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setResponse()\n";
+    }
     // begin change by Alborz Ghofrani - UW --- get only 6 components of stress
     if (strcmp(argv[0], "stress") == 0 || strcmp(argv[0], "stresses") == 0)
         if ((argc > 1) && (atoi(argv[1]) > 2) && (atoi(argv[1]) < 8))
@@ -1385,7 +1446,9 @@ SRSMYSand::setResponse(const char** argv, int argc, OPS_Stream& s)
 
 void SRSMYSand::getBackbone(Matrix& bb)
 {
-    opserr << "SRSMYSand::getBackbone() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getBackbone() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double refPressure = refPressurex[matN];
     double pressDependCoeff = pressDependCoeffx[matN];
@@ -1424,14 +1487,18 @@ void SRSMYSand::getBackbone(Matrix& bb)
             }
         }
     }
-    opserr << "SRSMYSand::getBackbone() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getBackbone() - out!\n";
+    }
 
 }
 
 
 int SRSMYSand::getResponse(int responseID, Information& matInfo)
 {
-    opserr << "SRSMYSand::getResponse() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getResponse() - in!\n";
+    }
     switch (responseID) {
     case -1:
         return -1;
@@ -1484,7 +1551,9 @@ int SRSMYSand::getSubTag(void) const { return subTag; }
 
 const Vector& SRSMYSand::getCommittedStress(void)
 {
-    opserr << "SRSMYSand::getCommittedStress()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getCommittedStress()\n";
+    }
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
     int numOfSurfaces = numOfSurfacesx[matN];
@@ -1507,7 +1576,9 @@ const Vector& SRSMYSand::getCommittedStress(void)
 const Vector&
 SRSMYSand::getStressToRecord(int numOutput)
 {
-    opserr << "SRSMYSand::getStressToRecord()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getStressToRecord()\n";
+    }
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
@@ -1580,7 +1651,9 @@ const Vector& SRSMYSand::getCommittedStrain(void)
 // NOTE: surfaces[0] is not used
 void SRSMYSand::setUpSurfaces(double* gredu)
 {
-    opserr << "SRSMYSand::setUpSurfaces() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setUpSurfaces() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double refPressure = refPressurex[matN];
     double pressDependCoeff = pressDependCoeffx[matN];
@@ -1716,27 +1789,38 @@ void SRSMYSand::setUpSurfaces(double* gredu)
     cohesionx[matN] = cohesion;
     phaseTransfAnglex[matN] = phaseTransfAngle;
     stressRatioPTx[matN] = stressRatioPT;
-    opserr << "SRSMYSand::setUpSurfaces() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setUpSurfaces() - out!\n";
+    }
 }
 
+double SRSMYSand::pressure(const CTensor& stress) {
+    double press = stress.trace() / nD;
+    if (press > 0.0) { press = 0.0; }
+    return press;
+}
 
-double SRSMYSand::yieldFunc(CTensor& stress, const std::vector<NestedSurface> surfaces, int surfaceNum)
-{
-    opserr << "SRSMYSand::yieldFunc() - in!\n";
+double SRSMYSand::yieldFunc(CTensor& stress, const std::vector<NestedSurface> surfaces, int surfaceNum) {
+    if (doDebug) {
+        opserr << "SRSMYSand::yieldFunc() - in!\n";
+    }
     double residualPress = residualPressx[matN];
-    double currentPress = stress.trace() / nD;
-    double coneHeight = currentPress - residualPress;
-    CTensor zeta = stress.deviator() -  surfaces[surfaceNum].center() * coneHeight;;
+    double currentPress = pressure(stress);
+    double coneHeight = abs(currentPress - residualPress);
+    CTensor zeta = stress.deviator() -  surfaces[surfaceNum].center() * coneHeight;
     double sz = surfaces[surfaceNum].size() * coneHeight;
-    double yieldf = 3. / 2. * (zeta % zeta) - sz * sz;
-    opserr << "SRSMYSand::yieldFunc() - out!\n";
+    double yieldf = sqrt(3. / 2. * (zeta % zeta)) - sz;
+    if (doDebug) {
+        opserr << "SRSMYSand::yieldFunc() - out!\n";
+    }
     return yieldf;
 }
 
 
-void SRSMYSand::deviatorScaling(CTensor& stress, std::vector<NestedSurface> surfaces, int surfaceNum)
-{
-    opserr << "SRSMYSand::deviatorScaling() - in!\n";
+void SRSMYSand::deviatorScaling(CTensor& stress, std::vector<NestedSurface> surfaces, int surfaceNum) {
+    if (doDebug) {
+        opserr << "SRSMYSand::deviatorScaling() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
     
@@ -1760,13 +1844,17 @@ void SRSMYSand::deviatorScaling(CTensor& stress, std::vector<NestedSurface> surf
         CTensor devia = stress.deviator() * sz / sqrt(diff + sz * sz);
         stress.setData(devia, stress.trace() / nD);
     }
-    opserr << "SRSMYSand::deviatorScaling() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::deviatorScaling() - out!\n";
+    }
 }
 
 
 void SRSMYSand::initSurfaceUpdate(void)
 {
-    opserr << "SRSMYSand::initSurfaceUpdate() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::initSurfaceUpdate() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
@@ -1794,13 +1882,17 @@ void SRSMYSand::initSurfaceUpdate(void)
         theSurfaces[i] = committedSurfaces[i];
     }
     sv.nYs = sv.nYs_commit;
-    opserr << "SRSMYSand::initSurfaceUpdate() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::initSurfaceUpdate() - out!\n";
+    }
 }
 
 
 void SRSMYSand::initStrainUpdate(void)
 {
-    opserr << "SRSMYSand::initStrainUpdate() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::initStrainUpdate() - in!\n";
+    }
     
     CTensor deviator;
 
@@ -1848,13 +1940,17 @@ void SRSMYSand::initStrainUpdate(void)
     deviator = sv.eps.deviator() * scale;
     sv.eps.setData(deviator, sv.eps.trace() / nD);
     PPZPivotCommitted = sv.eps;
-    opserr << "SRSMYSand::initStrainUpdate() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::initStrainUpdate() - out!\n";
+    }
 }
 
 
 double SRSMYSand::getModulusFactor(CTensor& stress)
 {
-    opserr << "SRSMYSand::getModulusFactor() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getModulusFactor() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double refPressure = refPressurex[matN];
     double pressDependCoeff = pressDependCoeffx[matN];
@@ -1863,22 +1959,28 @@ double SRSMYSand::getModulusFactor(CTensor& stress)
     double scale = conHeig / (refPressure - residualPress);
     scale = pow(scale, pressDependCoeff);
 
-    opserr << "SRSMYSand::getModulusFactor() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getModulusFactor() - out!\n";
+    }
     return (1.e-10 > scale) ? 1.e-10 : scale;
 }
 
 
 void SRSMYSand::setTrialStress(CTensor& stress)
 {
-    opserr << "SRSMYSand::setTrialStress() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStress() - in!\n";
+    }
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
 
-    CTensor deviator(nDOF, 2);  // 2: contravariant
+    CTensor deviator;
 
     modulusFactor = getModulusFactor(stress);
-    deviator = stress.deviator();
-    deviator += subStrainRate.deviator() * 2 * refShearModulus * modulusFactor;
+    
+    deviator = subStrainRate.deviator() * 2 * refShearModulus * modulusFactor;
+    deviator.makeRep(2);    // convert to contravariant
+    deviator += stress.deviator();
 
     double B = refBulkModulus * modulusFactor;
 
@@ -1892,13 +1994,17 @@ void SRSMYSand::setTrialStress(CTensor& stress)
 
     if (volume > 0.) volume = 0.;
     trialStress.setData(deviator, volume);
-    opserr << "SRSMYSand::setTrialStress() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setTrialStress() - out!\n";
+    }
 }
 
 
 int SRSMYSand::setSubStrainRate(void)
 {
-    opserr << "SRSMYSand::setSubStrainRate() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setSubStrainRate() - in!\n";
+    }
 
     CTensor deviator;
     double residualPress = residualPressx[matN];
@@ -1933,14 +2039,18 @@ int SRSMYSand::setSubStrainRate(void)
 
     subStrainRate = deviator;
 
-    opserr << "SRSMYSand::setSubStrainRate() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::setSubStrainRate() - out!\n";
+    }
     return numOfSub;
 }
 
 
 void SRSMYSand::getContactStress(CTensor& contactStress)
 {
-    opserr << "SRSMYSand::getContactStress() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getContactStress() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double conHeig = trialStress.trace() / nD - residualPress;
     CTensor center(6, 2); // 2: contravariant
@@ -1950,13 +2060,17 @@ void SRSMYSand::getContactStress(CTensor& contactStress)
     double Ms = sqrt(3. / 2. * (deviator % deviator));
     deviator = deviator * theSurfaces[sv.nYs].size() * (-conHeig) / Ms + center * conHeig;
     contactStress.setData(deviator, trialStress.trace() / nD);
-    opserr << "SRSMYSand::getContactStress() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getContactStress() - out!\n";
+    }
 }
 
 
 int SRSMYSand::isLoadReversal(CTensor& stress)
 {
-    opserr << "SRSMYSand::isLoadReversal() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::isLoadReversal() - in!\n";
+    }
     if (sv.nYs == 0) return 0;
     CTensor normal(6, 2); // 2: contravariant
     
@@ -1969,7 +2083,9 @@ int SRSMYSand::isLoadReversal(CTensor& stress)
 
     if ((temp % normal) < 0) return 1;
 
-    opserr << "SRSMYSand::isLoadReversal() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::isLoadReversal() - out!\n";
+    }
     return 0;
 }
 
@@ -1977,7 +2093,9 @@ int SRSMYSand::isLoadReversal(CTensor& stress)
 void
 SRSMYSand::getSurfaceNormal(CTensor& stress, CTensor& normal)
 {
-    opserr << "SRSMYSand::getSurfaceNormal() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getSurfaceNormal() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double conHeig = stress.trace() / nD - residualPress;
     CTensor deviator = stress.deviator();
@@ -1989,14 +2107,18 @@ SRSMYSand::getSurfaceNormal(CTensor& stress, CTensor& normal)
     deviator *= 3.0;
     normal.setData(deviator, volume);
     normal.Normalize();
-    opserr << "SRSMYSand::getSurfaceNormal() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getSurfaceNormal() - out!\n";
+    }
 }
 
 
 double SRSMYSand::getPlasticPotential(CTensor& contactStress,
     const CTensor& surfaceNormal)
 {
-    opserr << "SRSMYSand::getPlasticPotential() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getPlasticPotential() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     double stressRatioPT = stressRatioPTx[matN];
     double contractParam1 = contractParam1x[matN];
@@ -2060,14 +2182,18 @@ double SRSMYSand::getPlasticPotential(CTensor& contactStress,
     }
 
     if (isCriticalState(contactStress)) plasticPotential = 0;
-    opserr << "SRSMYSand::getPlasticPotential() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getPlasticPotential() - out!\n";
+    }
     return plasticPotential;
 }
 
 
 int SRSMYSand::isCriticalState(CTensor& stress)
 {
-    opserr << "SRSMYSand::isCriticalState() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::isCriticalState() - in!\n";
+    }
     double einit = einitx[matN];
     double volLimit1 = volLimit1x[matN];
     double volLimit2 = volLimit2x[matN];
@@ -2090,14 +2216,18 @@ int SRSMYSand::isCriticalState(CTensor& stress)
 
     if (ecurr < ecr2 && etria < ecr1) return 0;
     if (ecurr > ecr2 && etria > ecr1) return 0;
-    opserr << "SRSMYSand::isCriticalState() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::isCriticalState() - out!\n";
+    }
     return 1;
 }
 
 
 void SRSMYSand::updatePPZ(CTensor& contactStress)
 {
-    opserr << "SRSMYSand::updatePPZ() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updatePPZ() - in!\n";
+    }
     double liquefyParam1 = liquefyParam1x[matN];
     double residualPress = residualPressx[matN];
     double refPressure = refPressurex[matN];
@@ -2205,13 +2335,17 @@ void SRSMYSand::updatePPZ(CTensor& contactStress)
         //if (onPPZ == 0) onPPZ = 1;
         if (onPPZ == -1 || onPPZ == 0) onPPZ = 1;
     }
-    opserr << "SRSMYSand::updatePPZ() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updatePPZ() - out!\n";
+    }
 }
 
 
 void SRSMYSand::PPZTranslation(const CTensor& contactStress)
 {
-    opserr << "SRSMYSand::PPZTranslation() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::PPZTranslation() - in!\n";
+    }
     double liquefyParam1 = liquefyParam1x[matN];
     double liquefyParam2 = liquefyParam2x[matN];
     double residualPress = residualPressx[matN];
@@ -2249,13 +2383,17 @@ void SRSMYSand::PPZTranslation(const CTensor& contactStress)
 
         //\\// cumuTranslateStrainOcta = dilateParam3*cumuDilateStrainOcta;
     }
-    opserr << "SRSMYSand::PPZTranslation() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::PPZTranslation() - out!\n";
+    }
 }
 
 
 double SRSMYSand::getPPZLimits(int which, CTensor& contactStress)
 {
-    opserr << "SRSMYSand::getPPZLimits() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getPPZLimits() - in!\n";
+    }
     double liquefyParam1 = liquefyParam1x[matN];
     double liquefyParam2 = liquefyParam2x[matN];
     double dilateParam3 = dilateParam3x[matN];
@@ -2272,7 +2410,9 @@ double SRSMYSand::getPPZLimits(int which, CTensor& contactStress)
         PPZLimit = 0.0;
     }
 
-    opserr << "SRSMYSand::getPPZLimits() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getPPZLimits() - out!\n";
+    }
     if (which == 1)
         return PPZLimit;
     else if (which == 2)
@@ -2287,7 +2427,9 @@ double SRSMYSand::getPPZLimits(int which, CTensor& contactStress)
 
 double SRSMYSand::getLoadingFunc(CTensor& contactStress, CTensor& surfaceNormal, double* plasticPotential, int crossedSurface)
 {
-    opserr << "SRSMYSand::getLoadingFunc() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getLoadingFunc() - in!\n";
+    }
     int numOfSurfaces = numOfSurfacesx[matN];
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
@@ -2322,14 +2464,18 @@ double SRSMYSand::getLoadingFunc(CTensor& contactStress, CTensor& surfaceNormal,
         loadingFunc *= temp;
     }
 
-    opserr << "SRSMYSand::getLoadingFunc() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::getLoadingFunc() - out!\n";
+    }
     return loadingFunc;
 }
 
 
 int SRSMYSand::stressCorrection(int crossedSurface)
 {
-    opserr << "SRSMYSand::stressCorrection() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::stressCorrection() - in!\n";
+    }
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
 
@@ -2373,14 +2519,18 @@ int SRSMYSand::stressCorrection(int crossedSurface)
         return stressCorrection(1);  //recursive call
     }
 
-    opserr << "SRSMYSand::stressCorrection() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::stressCorrection() - out!\n";
+    }
     return 0;
 }
 
 
 void SRSMYSand::updateActiveSurface(void)
 {
-    opserr << "SRSMYSand::updateActiveSurface() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateActiveSurface() - in!\n";
+    }
     double residualPress = residualPressx[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
@@ -2453,14 +2603,18 @@ void SRSMYSand::updateActiveSurface(void)
     X = secondOrderEqn(A, B, C, 1);
 
     center += workV6 * -X;
-    theSurfaces[sv.nYs].setCenter(center);
+    if (doDebug) {
+        theSurfaces[sv.nYs].setCenter(center);
+    }
     opserr << "SRSMYSand::updateActiveSurface() - out!\n";
 }
 
 
 void SRSMYSand::updateInnerSurface(void)
 {
-    opserr << "SRSMYSand::updateInnerSurface() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateInnerSurface() - in!\n";
+    }
     double residualPress = residualPressx[matN];
 
     if (sv.nYs <= 1) return;
@@ -2484,18 +2638,24 @@ void SRSMYSand::updateInnerSurface(void)
         temp /= conHeig;
         theSurfaces[i].setCenter(temp);
     }
-    opserr << "SRSMYSand::updateInnerSurface() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateInnerSurface() - out!\n";
+    }
 }
 
 double SRSMYSand::sdevRatio(CTensor& stress, double residualPress) {
-    opserr << "SRSMYSand::sdevRatio()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::sdevRatio()\n";
+    }
     CTensor dev = stress.deviator();
     return sqrt(3. / 2. * (dev.norm())) / (abs(stress.trace() / nD) + abs(residualPress));
 }
 
 int SRSMYSand::isCrossingNextSurface(void)
 {
-    opserr << "SRSMYSand::isCrossingNextSurface()\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::isCrossingNextSurface()\n";
+    }
     int numOfSurfaces = numOfSurfacesx[matN];
 
     if (sv.nYs == numOfSurfaces) return 0;
@@ -2507,7 +2667,9 @@ int SRSMYSand::isCrossingNextSurface(void)
 
 double SRSMYSand::secondOrderEqn(double A, double B, double C, int i)
 {
-    opserr << "SRSMYSand::secondOrderEqn() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::secondOrderEqn() - in!\n";
+    }
     if (A == 0) {
         opserr << "FATAL:second_order_eqn: A=0." << endln;
         if (i == 0) opserr << " when finding reference point on outer surface." << endln;
@@ -2558,12 +2720,16 @@ double SRSMYSand::secondOrderEqn(double A, double B, double C, int i)
         if (val > val2)  val = val2;
         return val;
     }
-    opserr << "SRSMYSand::secondOrderEqn() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::secondOrderEqn() - out!\n";
+    }
 }
 
 void SRSMYSand::updateInternal(const bool do_implex, const bool do_tangent) {
 
-    opserr << "SRSMYSand::updateInternal() - in!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateInternal() - in!\n";
+    }
 
     int loadStage = loadStagex[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
@@ -2648,7 +2814,9 @@ void SRSMYSand::updateInternal(const bool do_implex, const bool do_tangent) {
         }
     }
 
-    opserr << "SRSMYSand::updateInternal() - out!\n";
+    if (doDebug) {
+        opserr << "SRSMYSand::updateInternal() - out!\n";
+    }
 
 
 }

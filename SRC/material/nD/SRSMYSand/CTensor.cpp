@@ -231,7 +231,7 @@ int CTensor::length(void) const { return (numRows * numCols); }
 int CTensor::noRows(void) const { return numRows; }
 int CTensor::noCols(void) const { return numCols; }
 
-double CTensor::trace(void) {
+double CTensor::trace(void) const {
 	double sum = 0;
 	if (order == 2) {
 		sum = ct(0, 0) + ct(1, 0);
@@ -364,7 +364,7 @@ int CTensor::Normalize(void) {
 
 double CTensor::det(void) const {
 	// compute the determinant of ctensor
-	opserr << "Function not implemented yet!\n"; exit(-1);
+	opserr << "FATAL! CTensor::det() - function not implemented yet!\n"; exit(-1);
 	double deteminant = 0;;
 
 	return deteminant;
@@ -563,7 +563,6 @@ CTensor CTensor::operator^(const CTensor& other) const {
 				result.ct(i, 0) += ct(i, j) * other.ct(j, 0);
 			}
 		}
-		opserr << "result = " << result << "\n";
 	}
 	else if (order == 4 && other.order == 4) {	// double dot between two 4th order tensors
 		if (numRows != other.numCols) {
@@ -672,7 +671,7 @@ CTensor CTensor::operator*(const CTensor& other) const {
 
 CTensor& CTensor::dot(const CTensor& C) {
 	// single dot operation between two CTensors
-	opserr << "Function not implemented yet!\n"; exit(-1);
+	opserr << "FATAL! CTensor::dot() - function not implemented yet!\n"; exit(-1);
 	CTensor result;
 
 	return result;
@@ -680,19 +679,21 @@ CTensor& CTensor::dot(const CTensor& C) {
 
 CTensor& CTensor::invert(void) {
 	// return the inverse of ctensor
-	opserr << "Function not implemented yet!\n"; exit(-1);
+	opserr << "FATAL! CTensor::invert() - function not implemented yet!\n"; exit(-1);
 	CTensor result;
 
 	return result;
 }
 
 // special norms
-double CTensor::J2(void) {
-	return 0.5 * deviator().norm();
+double CTensor::J2(void) const {
+	CTensor a(*this);
+	CTensor b(*this);
+	return 0.5 * (a % b);
 }
 
-double CTensor::octahedral(void) {
-	return sqrt(1.0 / 3.0) * deviator().norm();
+double CTensor::octahedral(void) const {
+	return sqrt(2.0 / 3.0 * J2());
 }
 
 int CTensor::addTensor(double factThis, const CTensor& other, double factOther) {
@@ -827,7 +828,7 @@ CTensor CTensor::operator+(double fact) const {
 		return *this;
 
 	CTensor result(*this);
-	result += fact;
+	result.ct += fact;
 	return result;
 }
 
@@ -837,7 +838,7 @@ CTensor CTensor::operator-(double fact) const {
 		return *this;
 
 	CTensor result(*this);
-	result -= fact;
+	result.ct -= fact;
 	return result;
 }
 
@@ -847,7 +848,7 @@ CTensor CTensor::operator*(double fact) const {
 		return *this;
 
 	CTensor result(*this);
-	result *= fact;
+	result.ct *= fact;
 	return result;
 }
 
@@ -857,7 +858,7 @@ CTensor CTensor::operator/(double fact) const {
 		exit(0);
 	}
 	CTensor result(*this);
-	result /= fact;
+	result.ct /= fact;
 	return result;
 }
 
@@ -980,21 +981,47 @@ OPS_Stream& operator<<(OPS_Stream& s, const CTensor& tensor) {
 }
 
 int CTensor::toCov(void) {
-	opserr << "Function not implemented yet!\n"; exit(-1);
-	if (repr == 0) {
-
+	if (repr == 0) {		// Full to Covariant
+		opserr << "FATAL! CTensor::toCov() - function not implemented yet!\n"; exit(-1);
 	}
-	else if (repr == 1) {
+	else if (repr == 1) {	// Covariant to Covariant
 		return 0;
 	}
-	else if (repr ==2) {
-
+	else if (repr ==2) {	// Contravariant to Covariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 2.0;
+				}
+				if (j >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 1;
+		return 0;
 	}
-	else if (repr == 3) {
-
+	else if (repr == 3) {	// CovContr to Covariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (j >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 1;
+		return 0;
 	}
-	else if (repr == 4) {
-
+	else if (repr == 4) {	// ContrCov to Covariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 1;
+		return 0;
 	}
 	else {
 		opserr << "WARNING! CTensor::toCov() - cannot convert ctensor to Cov representation\n";
@@ -1004,19 +1031,19 @@ int CTensor::toCov(void) {
 
 int CTensor::toFull(void) {
 	opserr << "Function not implemented yet!\n"; exit(-1);
-	if (repr == 0) {
+	if (repr == 0) {		// Full to Full
 		return 0;
 	}
-	else if (repr == 1) {
+	else if (repr == 1) {	// Covariant to Full
 
 	}
-	else if (repr == 2) {
+	else if (repr == 2) {	// Contravariant to Full
 
 	}
-	else if (repr == 3) {
+	else if (repr == 3) {	// CovContr to Full
 
 	}
-	else if (repr == 4) {
+	else if (repr == 4) {	// ContrCov to Full
 
 	}
 	else {
@@ -1026,21 +1053,47 @@ int CTensor::toFull(void) {
 }
 
 int CTensor::toContr(void) {
-	opserr << "Function not implemented yet!\n"; exit(-1);
-	if (repr == 0) {
-
+	if (repr == 0) {	// Full to Contravariant
+		opserr << "FATAL! CTensor::toContr() - function not implemented yet!\n"; exit(-1);
 	}
-	else if (repr == 1) {
-
-	}
-	else if (repr == 2) {
+	else if (repr == 1) {	// Covariant to Contravariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 0.5;
+				}
+				if (j >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 2;
 		return 0;
 	}
-	else if (repr == 3) {
-
+	else if (repr == 2) {	// Contravariant to Contravariant
+		return 0;
 	}
-	else if (repr == 4) {
-
+	else if (repr == 3) {	// CovContr to Contravariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 2;
+		return 0;
+	}
+	else if (repr == 4) {	// ContrCov to Contravariant
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (j >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 2;
+		return 0;
 	}
 	else {
 		opserr << "WARNING! CTensor::toContr() - cannot convert ctensor to Contr representation\n";
@@ -1049,25 +1102,51 @@ int CTensor::toContr(void) {
 }
 
 int CTensor::toCovContr(void) {
-	opserr << "Function not implemented yet!\n"; exit(-1);
 	if (order != 4) {
 		opserr << "WARNING! CTensor::toCovContr() - cannot convert 2nd order ctensor to mixed representation\n";
 		return -1;
 	}
-	if (repr == 0) {
-
+	if (repr == 0) {		// Full to CovContr
+		opserr << "FATAL! CTensor::toCovContr() - function not implemented yet!\n"; exit(-1);
 	}
-	else if (repr == 1) {
-
-	}
-	else if (repr == 2) {
-
-	}
-	else if (repr == 3) {
+	else if (repr == 1) {	// Covariant to CovContr
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (j >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 3;
 		return 0;
 	}
-	else if (repr == 4) {
-
+	else if (repr == 2) {	// Contravariant to CovContr
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 3;
+		return 0;
+	}
+	else if (repr == 3) {	// CovContr to CovContr
+		return 0;
+	}
+	else if (repr == 4) {	// ContrCov to CovContr
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 2.0;
+				}
+				if (j >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 3;
+		return 0;
 	}
 	else {
 		opserr << "WARNING! CTensor::toCovContr() - cannot convert ctensor to CovContr representation\n";
@@ -1076,24 +1155,50 @@ int CTensor::toCovContr(void) {
 }
 
 int CTensor::toContrCov(void) {
-	opserr << "Function not implemented yet!\n"; exit(-1);
 	if (order != 4) {
 		opserr << "WARNING! CTensor::toContrCov() - cannot convert 2nd order ctensor to mixed representation\n";
 		return -1;
 	}
-	if (repr == 0) {
-
+	if (repr == 0) {		// Full to ContrCov
+		opserr << "FATAL! CTensor::toContrCov() - function not implemented yet!\n"; exit(-1);
 	}
-	else if (repr == 1) {
-
+	else if (repr == 1) {	// Covariant to ContrCov
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 0.5;
+				}
+			}
+		}
+		repr = 4;
+		return 0;
 	}
-	else if (repr == 2) {
-
+	else if (repr == 2) {	// Contravariant to ContrCov
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (j >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 4;
+		return 0;
 	}
-	else if (repr == 3) {
-
+	else if (repr == 3) {	// CovContr to ContrCov
+		for (int i = 0; i < ct.noRows(); i++) {
+			for (int j = 0; j < ct.noCols(); j++) {
+				if (i >= dim) {
+					ct(i, j) *= 0.5;
+				}
+				if (j >= dim) {
+					ct(i, j) *= 2.0;
+				}
+			}
+		}
+		repr = 4;
+		return 0;
 	}
-	else if (repr == 4) {
+	else if (repr == 4) {	// ContrCov to ContrCov
 		return 0;
 	}
 	else {

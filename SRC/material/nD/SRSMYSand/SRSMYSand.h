@@ -255,6 +255,7 @@ private:
 
 	// Called by constructor
 	void setUpSurfaces(double*);
+	double pressure(const CTensor& stress);
 
 	void updateInternal(const bool do_implex, const bool do_tangent);
 
