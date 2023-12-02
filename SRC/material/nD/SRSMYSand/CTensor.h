@@ -55,7 +55,8 @@ public:
     // constructors
     CTensor(void);
     CTensor(const CTensor& C);
-    CTensor(const CTensor& deviatoric, const double volumetric);
+    CTensor(const CTensor& deviatoric, const double volumetric, const bool linearized);
+    CTensor(const CTensor& deviatoric, const CTensor& volumetric, const bool linearized);
 
     // second-order tensor
     CTensor(int nRows, int rep);
@@ -81,7 +82,8 @@ public:
     int noRows(void) const;
     int noCols(void) const;
     double trace(void) const;
-    CTensor deviator(void);
+    CTensor volumetric(const bool linearized);
+    CTensor deviator(const bool linearized);
     Vector makeVector(void);
     Matrix makeMatrix(void);
 
@@ -96,7 +98,8 @@ public:
     int resize(const Matrix& M);
 
         // from CTensor
-    int setData(const CTensor& deviatoric, const double volumetric);
+    int setData(const CTensor& deviatoric, const double volumetric, const bool linearized);
+    int setData(const CTensor& deviatoric, const CTensor& volumetric, const bool linearized);
 
     // symmetric tensor operations
     int Normalize(void);
@@ -105,18 +108,19 @@ public:
     double operator%(const CTensor& C) const;       // % : [2-to-2] order double dot
     CTensor operator^(const CTensor& C) const;      // ^ : [2-to-4, 4-to-2 or 4-to-4] order double dot
     CTensor operator*(const CTensor& C) const;      // * : [2-to-2] order dyadic product
-    CTensor& operator^=(const CTensor& C);
-    CTensor& operator*=(const CTensor& C);
-    CTensor& dot(const CTensor& C);                 // single dot product
+    CTensor dot(const CTensor& C, bool pre) const;  // single dot product
     CTensor& invert(void);
 
     // special norms
-    double J2(void) const;
-    double octahedral(void) const;    // tangential component
+    double J2(void) const;          // J2 sum
+    double octahedral(void) const;  // octahedral tangential component
 
     // fast and efficient operations
     int addTensor(double factThis, const CTensor& other, double factOther);
     int addTensorTranspose(double factThis, const CTensor& other, double factOther);
+    int addDotProduct(double factThis, const CTensor& other, double factOther, bool premultiply);
+    int addDoubleDotProduct(double factThis, const CTensor& other, double factOther, bool premultiply);
+    int addTensorProduct(double factThis, const CTensor& other, double factOther, bool premultiply);
 
     // overloaded operators
     bool operator==(const CTensor& C) const;
@@ -148,11 +152,9 @@ public:
     friend OPS_Stream& operator<<(OPS_Stream& s, const CTensor& C);
 
 private:
-    int dim = 0;
-    int order = 0;
-    int repr = -1;   // -1: Unset, Full: 0, Cov: 1, Contr: 2, CovContr: 3 and ContrCov: 4
-    int numRows = 0;
-    int numCols = 0;
+    int dim = 0;        // supports 2 and 3 dimensions
+    int order = 0;      // supports 2nd and 4th order square tensors
+    int repr = -1;      // -1: Unset, Full: 0, Cov: 1, Contr: 2, CovContr: 3 and ContrCov: 4
     Matrix ct = Matrix(1, 1);
 
 private:
@@ -172,7 +174,6 @@ public:
     public:
         static const CTensor I(const int dim, int rep);         // 2nd order identity tensor
         static const CTensor IIsymm(const int dim, int rep);    // 4th order symmetric tensor
-        //static const CTensor IIskew(const int dim, int rep);    // 4th order skew-symmetric tensor
         static const CTensor IIvol(const int dim, int rep);     // 4th order volumetric operator
         static const CTensor IIdev(const int dim, int rep);     // 4th order deviatoric operator
     };

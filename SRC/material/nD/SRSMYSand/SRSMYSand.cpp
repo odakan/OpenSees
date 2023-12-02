@@ -37,8 +37,11 @@
 
 using tc = CTensor::Constants;
 
-constexpr double SMALL_VALUE = 1e-8;
 constexpr bool doDebug = true;
+constexpr double SMALL_VALUE = 1e-8;
+
+// decision on linear or multiplicative composition of volumetric and deviatoric
+constexpr bool linear_composition = true;
 
 namespace tools {
     // keep track of all material instances local to the current process
@@ -1835,14 +1838,14 @@ void SRSMYSand::deviatorScaling(CTensor& stress, std::vector<NestedSurface> surf
         double coeff = (sz - deviaSz) / deviaSz;
         if (coeff < 1.e-13) coeff = 1.e-13;
         devia += zeta * coeff;
-        stress.setData(devia, stress.trace() / nD);
+        stress.setData(devia, stress.trace() / nD, linear_composition);
         deviatorScaling(stress, surfaces, surfaceNum);  // recursive call
     }
 
     if (surfaceNum == numOfSurfaces && fabs(diff) > LOW_LIMIT) {
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         CTensor devia = stress.deviator() * sz / sqrt(diff + sz * sz);
-        stress.setData(devia, stress.trace() / nD);
+        stress.setData(devia, stress.trace() / nD, linear_composition);
     }
     if (doDebug) {
         opserr << "SRSMYSand::deviatorScaling() - out!\n";
@@ -1916,7 +1919,7 @@ void SRSMYSand::initStrainUpdate(void)
 
     // modified fmk as discussed with z.yang
     deviator = sv.sig.deviator() * shearCoeff;
-    sv.eps.setData(deviator, sv.sig.trace() / nD * bulkCoeff);
+    sv.eps.setData(deviator, sv.sig.trace() / nD * bulkCoeff, linear_composition);
 
     double octalStrain = sv.eps.octahedral();
     if (octalStrain <= LOW_LIMIT) octalStrain = LOW_LIMIT;
@@ -1938,7 +1941,7 @@ void SRSMYSand::initStrainUpdate(void)
     }
     //sv.eps.setData(sv.eps.deviator()*scale, sv.eps.trace() / nD);
     deviator = sv.eps.deviator() * scale;
-    sv.eps.setData(deviator, sv.eps.trace() / nD);
+    sv.eps.setData(deviator, sv.eps.trace() / nD, linear_composition);
     PPZPivotCommitted = sv.eps;
     if (doDebug) {
         opserr << "SRSMYSand::initStrainUpdate() - out!\n";
@@ -1993,7 +1996,7 @@ void SRSMYSand::setTrialStress(CTensor& stress)
     double volume = stress.trace() / nD + subStrainRate.trace() / nD * 3. * B;
 
     if (volume > 0.) volume = 0.;
-    trialStress.setData(deviator, volume);
+    trialStress.setData(deviator, volume, linear_composition);
     if (doDebug) {
         opserr << "SRSMYSand::setTrialStress() - out!\n";
     }
@@ -2059,7 +2062,7 @@ void SRSMYSand::getContactStress(CTensor& contactStress)
     deviator = trialStress.deviator() - center * conHeig;
     double Ms = sqrt(3. / 2. * (deviator % deviator));
     deviator = deviator * theSurfaces[sv.nYs].size() * (-conHeig) / Ms + center * conHeig;
-    contactStress.setData(deviator, trialStress.trace() / nD);
+    contactStress.setData(deviator, trialStress.trace() / nD, linear_composition);
     if (doDebug) {
         opserr << "SRSMYSand::getContactStress() - out!\n";
     }
@@ -2105,7 +2108,7 @@ SRSMYSand::getSurfaceNormal(CTensor& stress, CTensor& normal)
     double volume = conHeig * ((center % center) - 2. / 3. * sz * sz) - (deviator % center);
     deviator += center * -conHeig;
     deviator *= 3.0;
-    normal.setData(deviator, volume);
+    normal.setData(deviator, volume, linear_composition);
     normal.Normalize();
     if (doDebug) {
         opserr << "SRSMYSand::getSurfaceNormal() - out!\n";
@@ -2511,7 +2514,7 @@ int SRSMYSand::stressCorrection(int crossedSurface)
         double coeff = -2*refShearModulus*modulusFactor*loadingFunc;
     workV6.addVector(1.0, surfNormal.deviator(), coeff);
   */
-    trialStress.setData(deviator, volume);
+    trialStress.setData(deviator, volume, linear_composition);
     deviatorScaling(trialStress, theSurfaces, sv.nYs);
 
     if (isCrossingNextSurface()) {
