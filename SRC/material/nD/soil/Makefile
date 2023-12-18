@@ -1,6 +1,8 @@
 include ../../../../Makefile.def
 
 OBJS       = FluidSolidPorousMaterial.o \
+	PIMYImplex.o \
+	PDMY02Implex.o \
 	MultiYieldSurface.o \
 	MultiYieldSurfaceClay.o \
 	PressureDependMultiYield.o \

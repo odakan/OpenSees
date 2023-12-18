@@ -14,6 +14,8 @@ target_sources(OPS_Material
     T2Vector.cpp
     PressureDependMultiYield02.cpp
     PressureDependMultiYield03.cpp
+	PIMYImplex.cpp
+	PDMY02Implex.cpp
     PUBLIC
     FluidSolidPorousMaterial.h
     MultiYieldSurface.h
@@ -23,6 +25,8 @@ target_sources(OPS_Material
     T2Vector.h
     PressureDependMultiYield02.h
     PressureDependMultiYield03.h
+	PIMYImplex.h
+	PDMY02Implex.h
 )
 
 target_include_directories(OPS_Material PUBLIC ${CMAKE_CURRENT_LIST_DIR})

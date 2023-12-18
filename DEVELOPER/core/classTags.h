@@ -370,6 +370,8 @@
 #define ND_TAG_PressureDependMultiYield		101
 #define ND_TAG_PressureIndependMultiYield		102
 #define ND_TAG_PressureDependMultiYield02		103
+#define ND_TAG_PIMYImplex			102011	// Deniz Akan, IUSS Pavia
+#define ND_TAG_PDMY02Implex			103011	// Deniz Akan, IUSS Pavia
 #define ND_TAG_ReinforcedConcretePlaneStress  104
 #define ND_TAG_FAReinforcedConcretePlaneStress  105
 #define ND_TAG_FAFourSteelRCPlaneStress  106

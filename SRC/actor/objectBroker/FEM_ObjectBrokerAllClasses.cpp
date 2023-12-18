@@ -207,6 +207,8 @@
 #include "soil/PressureDependMultiYield02.h"
 #include "soil/PressureDependMultiYield03.h"
 #include "soil/PressureIndependMultiYield.h"
+#include "soil/PIMYImplex.h"
+#include "soil/PDMY02Implex.h"
 
 #include "UWmaterials/ContactMaterial2D.h"
 #include "UWmaterials/ContactMaterial3D.h"
@@ -1786,6 +1788,12 @@ FEM_ObjectBrokerAllClasses::getNewNDMaterial(int classTag)
 	
   case ND_TAG_PressureIndependMultiYield:
     return new PressureIndependMultiYield();
+	
+  case ND_TAG_PIMYImplex:
+    return new PIMYImplex();
+	
+  case ND_TAG_PDMY02Implex:
+    return new PDMY02Implex();
 
 #if defined(OPSDEF_ELEMENT_FEAP)
   case ND_TAG_FeapMaterial03:
