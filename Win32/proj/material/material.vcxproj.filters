@@ -1385,6 +1385,12 @@
     <ClCompile Include="..\..\..\SRC\material\section\FiberSectionWarping3d.cpp">
       <Filter>section</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.cpp">
+      <Filter>nD\soilModels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PIMYImplex.cpp">
+      <Filter>nD\soilModels</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\SRC\material\uniaxial\AxialSp.h">
@@ -2599,6 +2605,12 @@
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\section\FiberSectionWarping3d.h">
       <Filter>section</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.h">
+      <Filter>nD\soilModels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PIMYImplex.h">
+      <Filter>nD\soilModels</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

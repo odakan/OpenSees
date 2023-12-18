@@ -1552,6 +1552,11 @@
     </ClCompile>
     <ClCompile Include="..\..\..\SRC\material\section\PipeSection.cpp">
       <Filter>section</Filter>
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.cpp">
+      <Filter>nD\soilModels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PIMYImplex.cpp">
+      <Filter>nD\soilModels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -2827,6 +2832,11 @@
     </ClInclude>
     <ClInclude Include="..\..\..\SRC\material\nD\MinMaxNDMaterial.h">
       <Filter>nD</Filter>
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.h">
+      <Filter>nD\soilModels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PIMYImplex.h">
+      <Filter>nD\soilModels</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

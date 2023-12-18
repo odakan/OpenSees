@@ -122,6 +122,8 @@ extern void* OPS_ASDConcrete3DMaterial(void);
 #ifdef _EIGEN3
 extern void* OPS_AllASDPlasticMaterial3Ds(void);
 #endif // _EIGEN3
+extern void* OPS_PIMYImplex(void);
+extern void* OPS_PDMY02Implex(void);
 extern  void *OPS_ConcreteMcftNonlinear5(void);
 extern  void *OPS_ConcreteMcftNonlinear7(void);
 extern  void *OPS_ConcreteS(void);
@@ -1267,6 +1269,25 @@ TclModelBuilderNDMaterialCommand (ClientData clientData, Tcl_Interp *interp, int
       return TCL_ERROR;
   }
 #endif // _EIGEN3
+
+	else if (strcmp(argv[1], "PIMYImplex") == 0) {
+		void* theMat = OPS_PIMYImplex();
+		if (theMat != 0) {
+			theMaterial = (NDMaterial*)theMat;
+		}
+		else
+			return TCL_ERROR;
+	}
+
+	else if (strcmp(argv[1], "PDMY02Implex") == 0) {
+		void* theMat = OPS_PDMY02Implex();
+		if (theMat != 0) {
+			theMaterial = (NDMaterial*)theMat;
+		}
+		else
+			return TCL_ERROR;
+	}
+
     else if (strcmp(argv[1],"PlaneStressMaterial") == 0 ||
  	     strcmp(argv[1],"PlaneStress") == 0) {
       void *theMat = OPS_PlaneStress();
