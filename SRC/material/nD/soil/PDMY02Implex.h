@@ -1,14 +1,57 @@
-// $Revision: 1.10 $
-// $Date: 2009-01-16 19:40:36 $
+/* ****************************************************************** **
+**    OpenSees - Open System for Earthquake Engineering Simulation    **
+**          Pacific Earthquake Engineering Research Center            **
+**                                                                    **
+**                                                                    **
+** (C) Copyright 1999, The Regents of the University of California    **
+** All Rights Reserved.                                               **
+**                                                                    **
+** Commercial use of this program without express permission of the   **
+** University of California, Berkeley, is strictly prohibited.  See   **
+** file 'COPYRIGHT'  in main directory for information on usage and   **
+** redistribution,  and for a DISCLAIMER OF ALL WARRANTIES.           **
+**                                                                    **
+** Developed by:                                                      **
+**   Frank McKenna (fmckenna@ce.berkeley.edu)                         **
+**   Gregory L. Fenves (fenves@ce.berkeley.edu)                       **
+**   Filip C. Filippou (filippou@ce.berkeley.edu)                     **
+**                                                                    **
+** ****************************************************************** */
+
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/soil/PDMY02Implex.h,v $
+// $Revision: 1.0 $
+// $Date: 2024-01-05 12:00:00 $
 
-// Written: ZHY
-// Created: May 2004
-
-
-// Description: This file contains the class prototype for PDMY02Implex.
+// Written by:	    Onur Deniz Akan		(onur.akan@iusspavia.it)
+// Based on:        ZHY's PressureDependMultiYield02.h
+// Created:         December 2023
+// Last Modified:
 //
-// What: "@(#) PDMY02Implex.h, revA"
+// Description: This file contains the implementation for the PDMY02Implex function.
+
+ /*----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----*
+ |                                                                                |
+ |                           PDMY02Implex nD material                             |
+ |                                                                                |
+ +--------------------------------------------------------------------------------+
+ |                                                                                |
+ |         Authors: Onur Deniz Akan (IUSS),                                       |
+ +                  Guido Camata, Enrico Spacone (UNICH)                          +
+ |                  and Carlo G. Lai (UNIPV)                                      |
+ |                                                                                |
+ +      Istituto Universitario di Studi Superiori di Pavia          (IUSS)        +
+ |		Universita degli Studi 'G. d'Annunzio' Chieti - Pescara	    (UNICH)       |
+ |      Universita degli Studi di Pavia                             (UNIPV)       |
+ +			                                                                      +
+ |                                                                                |
+ |           Email: onur.akan@iusspavia.it                                        |
+ +                                                                                +
+ |  Development History:                                                          |
+ |  Created       -- December 2023                                                |
+ +  Final Release -- XXX XXXX                                                     +
+ |                                                                                |
+ |                                                                                |
+ +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----*/
 
 #ifndef PDMY02Implex_h
 #define PDMY02Implex_h
@@ -24,7 +67,6 @@ class PDMY02Implex : public NDMaterial
 public:
     // Initialization constructor
     PDMY02Implex(int tag,
-        int nd,
         double rho,
         double refShearModul,
         double refBulkModul,
@@ -37,20 +79,22 @@ public:
         double contractionParam3,
         double dilationParam1,
         double dilationParam3,
-        int   numberOfYieldSurf = 20,
-        double* gredu = 0,
-        double contractionParam2 = 5.,
-        double dilationParam2 = 3.,
-        double liquefactionParam1 = 1.,
-        double liquefactionParam2 = 0.,
-        double e = 0.6,
-        double volLimit1 = 0.9,
-        double volLimit2 = 0.02,
-        double volLimit3 = 0.7,
-        double atm = 101.,
-        double cohesi = 0.1,
-        double hv = 0.,
-        double pv = 1.);
+        int   numberOfYieldSurf,
+        double* gredu,
+        double contractionParam2,
+        double dilationParam2,
+        double liquefactionParam1,
+        double liquefactionParam2,
+        double e,
+        double volLimit1,
+        double volLimit2,
+        double volLimit3,
+        double atm,
+        double cohesi,
+        double hv,
+        double pv,
+        int implexFlag,
+        int verbosityFlag);
 
     // Default constructor
     PDMY02Implex();
@@ -84,7 +128,8 @@ public:
     const Vector& getCommittedStress(bool isImplex = false);
     const Vector& getStressToRecord(int numOutput, bool isImplex = false); // Added by Alborz Ghofrani - UW
     const Vector& getCommittedStrain(void);
-    const Vector& getImplexSateVariables(bool energy = false);
+    const Vector& getDissipatedEnergy(void);
+    const Vector& getImplexSateVariables(void);
 
     // Accepts the current trial strain values as being on the solution path, and updates
     // all model parameters related to stress/strain states. Return 0 on success.
@@ -128,9 +173,9 @@ protected:
 private:
     // user supplied
     static int matCount;
-    static int* ndmx;  //num of dimensions (2 or 3)
-    static int* loadStagex;  //=0 if elastic; =1 or 2 if plastic
-    static double* rhox;  //mass density
+    static int* ndmx;                       //num of dimensions (2 or 3)
+    static int* loadStagex;                 //=0 if elastic; =1 or 2 if plastic
+    static double* rhox;                    //mass density
     static double* refShearModulusx;
     static double* refBulkModulusx;
     static double* frictionAnglex;
@@ -148,7 +193,7 @@ private:
     static double* liquefyParam1x;
     static double* liquefyParam2x;
     static double* dilateParam3x;
-    static double* einitx;    //initial void ratio
+    static double* einitx;                  //initial void ratio
     static double* volLimit1x;
     static double* volLimit2x;
     static double* volLimit3x;
@@ -156,11 +201,12 @@ private:
     static double* Hvx;
     static double* Pvx;
     static bool* doImplex;                 // solve implicit by default
+    static bool* beVerbose;                // give internal solution info
 
     // internal
     static double* residualPressx;
     static double* stressRatioPTx;
-    Matrix theTangent = Matrix(6,6);
+    static Matrix theTangent;
     double* mGredu;
 
     // implex state variables
@@ -173,18 +219,19 @@ private:
     double kappa = 0;                       // step n+1 normalized plastic dilatancy
     double kappa_commit = 0;                // step n   normalized plastic dilatancy
     double kappa_commit_old = 0;            // step n-1 normalized plastic dilatancy
-    double ksi = 0;                         // step n+1 surface translation magnitude
-    double ksi_commit = 0;                  // step n   surface translation magnitude
-    double ksi_commit_old = 0;              // step n-1 surface translation magnitude
     double dtime_n = 0.0;                   // time factor
     double dtime_n_commit = 0.0;            // committed time factor
     bool dtime_is_user_defined = false;
     bool dtime_first_set = false;
-    Vector ksi_bar = Vector(6);             // committed surface translation direction
-    T2Vector currentStressImplex;           // extrapolated stress as a material result
 
-    // move stress and tangent computations here
-    int updateInternal(bool doExplicit, bool doTangent);
+    // new results
+    double plasticMultiplier = 0.0;
+    double spentDistortionEnergy = 0.0;
+    double spentDilationEnergy = 0.0;
+    double spentEnergy = 0.0;
+    T2Vector currentStressImplex;           // extrapolated stress as a material result
+    double plasticDeviatoricStressNorm = 0.0;
+    double plasticVolumetricStressNorm = 0.0;
 
     int matN;
     int e2p;
@@ -228,9 +275,13 @@ private:
     T2Vector PPZPivotCommitted;
     T2Vector PPZCenterCommitted;
     Vector PivotStrainRateCommitted;
+    static Matrix workM66;
     static Vector workV6;
     static T2Vector workT2V;
     double maxPress;
+
+    // move stress computations here
+    int implicitSress(void);
 
     void elast2Plast(void);
     // Called by constructor
@@ -266,4 +317,3 @@ private:
 };
 
 #endif
-
