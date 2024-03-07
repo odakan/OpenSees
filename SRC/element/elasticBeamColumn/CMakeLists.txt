@@ -12,7 +12,6 @@ target_sources(OPS_Element
       ElasticTimoshenkoBeam2d.cpp
       ElasticTimoshenkoBeam3d.cpp
       ModElasticBeam2d.cpp
-      ModElasticBeam3d.cpp
       WheelRail.cpp
     PUBLIC
       ElasticBeam2d.h
@@ -21,7 +20,6 @@ target_sources(OPS_Element
       ElasticTimoshenkoBeam2d.h
       ElasticTimoshenkoBeam3d.h
       ModElasticBeam2d.h
-      ModElasticBeam3d.h
       WheelRail.h
 )
 
