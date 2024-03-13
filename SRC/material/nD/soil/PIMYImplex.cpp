@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/soil/PIMYImplex.cpp,v $
 // $Revision: 1.0 $
-// $Date: 2024-01-05 12:00:0 $
+// $Date: 2024-01-05 12:00:00 $
 
 // Written by:	    Onur Deniz Akan		(onur.akan@iusspavia.it)
 // Based on:        ZHY's PressureIndependMultiYield.cpp
@@ -111,7 +111,7 @@ void* OPS_PIMYImplex()
 	// display kudos
 	static int kudos = 0;
 	if (++kudos == 1)
-		opserr << "PIMYImplex nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, IUSS Pavia \n";
+		opserr << "PIMYImplex nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, C.Tamagnini, IUSS Pavia \n";
 
 	// initialize pointers
 	NDMaterial* theMaterial = nullptr;      // pointer to an nD material to be returned
@@ -571,6 +571,15 @@ int PIMYImplex::setTrialStrain(const Vector& strain)
 	int ndm = ndmx[matN];
 	if (ndmx[matN] == 0) ndm = 2;
 
+	// handle implex time step
+	if (!dtime_is_user_defined) {
+		dtime_n = ops_Dt;
+		if (!dtime_first_set) {
+			dtime_n_commit = dtime_n;
+			dtime_first_set = true;
+		}
+	}
+
 	static Vector temp(6);
 	if (ndm == 3 && strain.Size() == 6)
 		temp = strain;
@@ -607,6 +616,15 @@ int PIMYImplex::setTrialStrainIncr(const Vector& strain)
 	//opserr << "setTrialStrainIncr() - in\n";
 	int ndm = ndmx[matN];
 	if (ndmx[matN] == 0) ndm = 2;
+
+	// handle implex time step
+	if (!dtime_is_user_defined) {
+		dtime_n = ops_Dt;
+		if (!dtime_first_set) {
+			dtime_n_commit = dtime_n;
+			dtime_first_set = true;
+		}
+	}
 
 	static Vector temp(6);
 	if (ndm == 3 && strain.Size() == 6)
@@ -754,8 +772,6 @@ const Vector& PIMYImplex::getStress(void)
 			implicitSress();
 		}
 		else {
-			static Vector workV6_2(6);
-
 			// time factor for explicit extrapolation
 			double time_factor = 1.0;
 			if (dtime_n_commit > 0.0)
@@ -765,9 +781,6 @@ const Vector& PIMYImplex::getStress(void)
 			// otherwise we have to deal with the problem of the opensees pseudo-time step
 			// being the load multiplier in continuation methods...
 			time_factor = 1.0;
-
-			// extrapolate state variables
-			lambda = std::max(0.0, lambda_commit + time_factor * (lambda_commit - lambda_commit_old));
 
 			// compute stress
 			getTangent();
@@ -803,11 +816,17 @@ int PIMYImplex::commitState(void)
 
 	if (loadStage == 1) {
 
+		// keep for implex error calculation
+		double lambda_x = lambda;
+
 		if (implex) {
 			// do an implicit iteration before commit
-			currentStressImplex = trialStress; // store for output
-			implicitSress();
+			currentStressImplex = trialStress;		// store for output
+			implicitSress();						// do implicit correction
 		}
+
+		// compute the error due to extrapolation
+		errorImplex = abs(lambda_x - lambda);	// L2 norm
 
 		// compute some energy results
 		plasticMultiplier += lambda_bar;
@@ -912,7 +931,36 @@ int PIMYImplex::setParameter(const char** argv, int argc, Parameter& param)
 int PIMYImplex::updateParameter(int responseID, Information& info)
 {
 	if (responseID == 1) {
-		loadStagex[matN] = info.theInt;
+		static int switch2Implex = 0;
+		static int switch2Implicit = 0;
+		static int msgtag = 0;
+
+		// reset message if the material has changed
+		if (msgtag != this->getTag()) {
+			switch2Implex = 0;
+			switch2Implicit = 0;
+			msgtag = this->getTag();
+		}
+
+		if (info.theInt == 11) {
+			loadStagex[matN] = 1;
+			doImplex[matN] = true;
+			// display message
+			switch2Implicit = 0;
+			if (++switch2Implex == 1)
+				if (beVerbose[matN]) { opserr << "PIMYImplex::updateParameter() - material " << msgtag << ": switching to IMPL-EX solution...\n"; }
+		}
+		else if (info.theInt == 10) {
+			loadStagex[matN] = 1;
+			doImplex[matN] = false;
+			// display message
+			switch2Implex = 0;
+			if (++switch2Implicit == 1)
+				if (beVerbose[matN]) { opserr << "PIMYImplex::updateParameter() - material " << msgtag << ": switching to IMPLICIT solution...\n"; }
+		}
+		else {
+			loadStagex[matN] = info.theInt;
+		}
 	}
 	else if (responseID == 10) {
 		refShearModulus = info.theDouble;
@@ -976,7 +1024,7 @@ int PIMYImplex::sendSelf(int commitTag, Channel& theChannel)
 		return res;
 	}
 
-	Vector data(33 + numOfSurfaces * 8);
+	Vector data(34 + numOfSurfaces * 8);
 	static Vector temp(6);
 	data(0) = rho;
 	data(1) = refShearModulus;
@@ -1006,9 +1054,10 @@ int PIMYImplex::sendSelf(int commitTag, Channel& theChannel)
 	data(30) = (dtime_first_set) ? (1.0) : (0.0);
 	data(31) = plasticMultiplier;
 	data(32) = spentEnergy;
+	data(33) = errorImplex;
 
 	for (i = 0; i < numOfSurfaces; i++) {
-		int k = 33 + i * 8;
+		int k = 34 + i * 8;
 		data(k) = committedSurfaces[i + 1].size();
 		data(k + 1) = committedSurfaces[i + 1].modulus();
 		temp = committedSurfaces[i + 1].center();
@@ -1054,7 +1103,7 @@ int PIMYImplex::recvSelf(int commitTag, Channel& theChannel,
 	bool implex = (idData(6) == 1.0);
 	bool info = (idData(7) == 1.0);
 
-	Vector data(33 + idData(1) * 8);
+	Vector data(34 + idData(1) * 8);
 	static Vector temp(6);
 
 	res += theChannel.recvVector(this->getDbTag(), commitTag, data);
@@ -1093,6 +1142,7 @@ int PIMYImplex::recvSelf(int commitTag, Channel& theChannel,
 	dtime_first_set = (data(30) == 1.0);
 	plasticMultiplier = data(31);
 	spentEnergy = data(32);
+	errorImplex = data(33);
 
 	if (committedSurfaces != 0) {
 		delete[] committedSurfaces;
@@ -1103,7 +1153,7 @@ int PIMYImplex::recvSelf(int commitTag, Channel& theChannel,
 	committedSurfaces = new MultiYieldSurface[numOfSurfaces + 1];
 
 	for (i = 0; i < numOfSurfaces; i++) {
-		int k = 33 + i * 8;
+		int k = 34 + i * 8;
 		temp(0) = data(k + 2);
 		temp(1) = data(k + 3);
 		temp(2) = data(k + 4);
@@ -1225,6 +1275,9 @@ PIMYImplex::setResponse(const char** argv, int argc, OPS_Stream& output)
 	else if (strcmp(argv[0], "dissipatedEnergy") == 0) {
 		return new MaterialResponse(this, 28, this->getDissipatedEnergy());
 	}
+	else if (strcmp(argv[0], "errorImplex") == 0) {
+		return new MaterialResponse(this, 29, this->getImplexError());
+	}
 	else
 		return 0;
 }
@@ -1304,6 +1357,10 @@ int PIMYImplex::getResponse(int responseID, Information& matInfo)
 	case 28:
 		if (matInfo.theVector != 0)
 			*(matInfo.theVector) = getDissipatedEnergy();
+		return 0;
+	case 29:
+		if (matInfo.theVector != 0)
+			*(matInfo.theVector) = getImplexError();
 		return 0;
 	default:
 		return -1;
@@ -1487,6 +1544,13 @@ const Vector& PIMYImplex::getCommittedStrain(void)
 		workV[2] = temp6[3];
 		return workV;
 	}
+}
+
+const Vector& PIMYImplex::getImplexError(void)
+{
+	static Vector er(1);
+	er(0) = errorImplex;
+	return er;
 }
 
 

@@ -20,7 +20,7 @@
 
 // $Source: /usr/local/cvs/OpenSees/SRC/material/nD/soil/PDMY02Implex.cpp,v $
 // $Revision: 1.0 $
-// $Date: 2024-01-05 12:00:0 $
+// $Date: 2024-01-05 12:00:00 $
 
 // Written by:	    Onur Deniz Akan		(onur.akan@iusspavia.it)
 // Based on:        ZHY's PressureDependMultiYield02.cpp
@@ -134,7 +134,7 @@ void* OPS_PDMY02Implex(void)
     // display kudos
     static int kudos = 0;
     if (++kudos == 1)
-        opserr << "PDMY02Implex nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, IUSS Pavia \n";
+        opserr << "PDMY02Implex nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, C.Tamagnini, IUSS Pavia \n";
 
     // initialize pointers
     NDMaterial* theMaterial = nullptr;      // pointer to an nD material to be returned
@@ -911,6 +911,15 @@ int PDMY02Implex::setTrialStrain(const Vector& strain)
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
+    // handle implex time step
+    if (!dtime_is_user_defined) {
+        dtime_n = ops_Dt;
+        if (!dtime_first_set) {
+            dtime_n_commit = dtime_n;
+            dtime_first_set = true;
+        }
+    }
+
     if (ndm == 3 && strain.Size() == 6)
         workV6 = strain;
     else if (ndm == 2 && strain.Size() == 3) {
@@ -945,6 +954,15 @@ int PDMY02Implex::setTrialStrainIncr(const Vector& strain)
 {
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
+
+    // handle implex time step
+    if (!dtime_is_user_defined) {
+        dtime_n = ops_Dt;
+        if (!dtime_first_set) {
+            dtime_n_commit = dtime_n;
+            dtime_first_set = true;
+        }
+    }
 
     if (ndm == 3 && strain.Size() == 6)
         workV6 = strain;
@@ -1084,7 +1102,6 @@ const Matrix& PDMY02Implex::getTangent(void)
             theTangent *= ((2.0 / 3.0) * modulusFactor * refShearModulus * lambda * chi);
             theTangent.addMatrix(1.0, IIdev(), 2 * refShearModulus * modulusFactor * (1.0 - lambda * chi));
             theTangent.addMatrix(1.0, IIvol(), refBulkModulus * modulusFactor * (1.0 - (1.0 / 3.0) * lambda * kappa));
-            //opserr << theTangent;
         }
     }
 
@@ -1184,12 +1201,21 @@ const Vector& PDMY02Implex::getStress(void)
             implicitSress();
         }
         else {
+            // time factor for explicit extrapolation
+            double time_factor = 1.0;
+            if (dtime_n_commit > 0.0)
+                time_factor = dtime_n / dtime_n_commit;
+            // note: the implex method just wants the ratio of the new to the old time step
+            // not the real time step, so it is just fine to assume it to 1.
+            // otherwise we have to deal with the problem of the opensees pseudo-time step
+            // being the load multiplier in continuation methods...
+            time_factor = 1.0;
+
             // compute stress
             getTangent();
             workV6.addMatrixVector(0.0, theTangent, strainRate.t2Vector(1), 1.0);
             workV6.addVector(1.0, currentStress.t2Vector(), 1.0);
             trialStress.setData(workV6);
-            //opserr << workV6;
         }
     }
     if (ndm == 3)
@@ -1218,15 +1244,25 @@ int PDMY02Implex::commitState(void)
 
     if (loadStage == 1) {
 
+        // keep for implex error calculation
+        double lambda_x = lambda;                                       
+        double chi_x = chi;
+        double kappa_x = kappa;
+
         if (implex) {
             // do an implicit iteration before commit
-            currentStressImplex = trialStress; // store for output
-            implicitSress();
+            currentStressImplex = trialStress;                              // store for output
+            implicitSress();                                                // do implicit correction
         }
 
         // step-normalize chi and kappa
         chi = (lambda > 0) ? (chi / lambda) : (0.0);
         kappa = (lambda > 0) ? (kappa / lambda) : (0.0);
+
+        // compute the error due to extrapolation
+        errorImplex = sqrt((lambda_x - lambda) * (lambda_x - lambda) +      // L2 norm
+                           ((chi_x - chi) * (chi_x - chi)) +
+                           ((kappa_x - kappa) * (kappa_x - kappa)));
 
         // compute some energy results
         spentDistortionEnergy += plasticDeviatoricStressNorm * lambda;
@@ -1326,27 +1362,6 @@ int PDMY02Implex::getOrder(void) const
 
 int PDMY02Implex::setParameter(const char** argv, int argc, Parameter& param)
 {
-    /*if (argc < 1)
-      return -1;
-
-    if (strcmp(argv[0],"updateMaterialStage") == 0) {
-      if (argc < 2)
-        return -1;
-      int matTag = atoi(argv[1]);
-      if (this->getTag() == matTag)
-        return param.addObject(1, this);
-      else
-        return -1;
-    }
-
-    else if (strcmp(argv[0],"shearModulus") == 0)
-      return param.addObject(10, this);
-
-    else if (strcmp(argv[0],"bulkModulus") == 0)
-      return param.addObject(11, this);
-
-    return -1;*/
-
     if (argc < 2)
         return -1;
 
@@ -1379,7 +1394,36 @@ int PDMY02Implex::updateParameter(int responseID, Information& info)
 {
 
     if (responseID == 1) {
-        loadStagex[matN] = info.theInt;
+        static int switch2Implex = 0;
+        static int switch2Implicit = 0;
+        static int msgtag = 0;
+
+        // reset message if the material has changed
+        if (msgtag != this->getTag()) {
+            switch2Implex = 0;
+            switch2Implicit = 0;
+            msgtag = this->getTag();
+        }
+
+        if (info.theInt == 11) {
+            loadStagex[matN] = 1;
+            doImplex[matN] = true;
+            // display message
+            switch2Implicit = 0;
+            if (++switch2Implex == 1)
+                if (beVerbose[matN]) { opserr << "PDMY02Implex::updateParameter() - material " << msgtag << ": switching to IMPL-EX solution...\n"; }
+        }
+        else if (info.theInt == 10) {
+            loadStagex[matN] = 1;
+            doImplex[matN] = false;
+            // display message
+            switch2Implex = 0;
+            if (++switch2Implicit == 1)
+                if (beVerbose[matN]) { opserr << "PDMY02Implex::updateParameter() - material " << msgtag << ": switching to IMPLICIT solution...\n"; }
+        }
+        else {
+            loadStagex[matN] = info.theInt;
+        }
     }
     else if (responseID == 10) {
         refShearModulusx[matN] = info.theDouble;
@@ -1458,7 +1502,7 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
         return res;
     }
 
-    Vector data(78 + numOfSurfaces * 8);
+    Vector data(79 + numOfSurfaces * 8);
     data(0) = rho;
     data(1) = einit;
     data(2) = refShearModulus;
@@ -1527,9 +1571,10 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
     data(75) = plasticMultiplier;
     data(76) = spentDistortionEnergy;
     data(77) = spentDilationEnergy;
+    data(78) = errorImplex;
 
     for (i = 0; i < numOfSurfaces; i++) {
-        int k = 78 + i * 8;
+        int k = 79 + i * 8;
         data(k) = committedSurfaces[i + 1].size();
         data(k + 1) = committedSurfaces[i + 1].modulus();
         workV6 = committedSurfaces[i + 1].center();
@@ -1574,7 +1619,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     bool implex = (idData(6) == 1.0);
     bool info = (idData(7) == 1.0);
 
-    Vector data(78 + idData(1) * 8);
+    Vector data(79 + idData(1) * 8);
     res += theChannel.recvVector(this->getDbTag(), commitTag, data);
     if (res < 0) {
         opserr << "PDMY02Implex::recvSelf -- could not recv Vector\n";
@@ -1650,6 +1695,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     plasticMultiplier = data(75);
     spentDistortionEnergy = data(76);
     spentDilationEnergy = data(77);
+    errorImplex = data(78);
 
     if (committedSurfaces != 0) {
         delete[] committedSurfaces;
@@ -1660,7 +1706,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     committedSurfaces = new MultiYieldSurface[numOfSurfaces + 1];
 
     for (i = 0; i < numOfSurfaces; i++) {
-        int k = 78 + i * 8;
+        int k = 79 + i * 8;
         workV6(0) = data(k + 2);
         workV6(1) = data(k + 3);
         workV6(2) = data(k + 4);
@@ -1858,6 +1904,9 @@ PDMY02Implex::setResponse(const char** argv, int argc, OPS_Stream& s)
     else if (strcmp(argv[0], "dissipatedEnergy") == 0) {
         return new MaterialResponse(this, 28, this->getDissipatedEnergy());
     }
+    else if (strcmp(argv[0], "errorImplex") == 0) {
+        return new MaterialResponse(this, 29, this->getImplexError());
+    }
     else
         return 0;
 }
@@ -1981,6 +2030,10 @@ int PDMY02Implex::getResponse(int responseID, Information& matInfo)
     case 28:
         if (matInfo.theVector != 0)
             *(matInfo.theVector) = getDissipatedEnergy();
+        return 0;
+    case 29:
+        if (matInfo.theVector != 0)
+            *(matInfo.theVector) = getImplexError();
         return 0;
     default:
         return -1;
@@ -2149,6 +2202,12 @@ const Vector& PDMY02Implex::getDissipatedEnergy(void)
     return de;
 }
 
+const Vector& PDMY02Implex::getImplexError(void)
+{
+    static Vector er(1);
+    er(0) = errorImplex;
+    return er;
+}
 
 
 // NOTE: surfaces[0] is not used

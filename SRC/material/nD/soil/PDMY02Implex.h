@@ -36,13 +36,13 @@
  +--------------------------------------------------------------------------------+
  |                                                                                |
  |         Authors: Onur Deniz Akan (IUSS),                                       |
- +                  Guido Camata, Enrico Spacone (UNICH)                          +
- |                  and Carlo G. Lai (UNIPV)                                      |
+ +                  Guido Camata, Enrico Spacone (UNICH),                         +
+ |                  Carlo G. Lai (UNIPV) and Claudio Tamagnini (UNIPG)            |
  |                                                                                |
  +      Istituto Universitario di Studi Superiori di Pavia          (IUSS)        +
  |		Universita degli Studi 'G. d'Annunzio' Chieti - Pescara	    (UNICH)       |
  |      Universita degli Studi di Pavia                             (UNIPV)       |
- +			                                                                      +
+ +		Universita degli Studi di Perugia                           (UNIPG)       +
  |                                                                                |
  |           Email: onur.akan@iusspavia.it                                        |
  +                                                                                +
@@ -127,6 +127,7 @@ public:
     const Vector& getStrain(void);
     const Vector& getCommittedStress(bool isImplex = false);
     const Vector& getStressToRecord(int numOutput, bool isImplex = false); // Added by Alborz Ghofrani - UW
+    const Vector& getImplexError(void);
     const Vector& getCommittedStrain(void);
     const Vector& getDissipatedEnergy(void);
     const Vector& getImplexSateVariables(void);
@@ -200,8 +201,8 @@ private:
     static double pAtm;
     static double* Hvx;
     static double* Pvx;
-    static bool* doImplex;                 // solve implicit by default
-    static bool* beVerbose;                // give internal solution info
+    static bool* doImplex;                  // solve implicit by default
+    static bool* beVerbose;                 // give internal solution info
 
     // internal
     static double* residualPressx;
@@ -229,9 +230,10 @@ private:
     double spentDistortionEnergy = 0.0;
     double spentDilationEnergy = 0.0;
     double spentEnergy = 0.0;
-    T2Vector currentStressImplex;           // extrapolated stress as a material result
+    T2Vector currentStressImplex;               // extrapolated stress as a material result
     double plasticDeviatoricStressNorm = 0.0;
     double plasticVolumetricStressNorm = 0.0;
+    double errorImplex = 0.0;                   // L2 norm of implex error vector (distance between extrapolated and corrected implex state variables)
 
     int matN;
     int e2p;
