@@ -117,6 +117,8 @@ class TriSurfaceLoad : public Element
     Vector dcrd2;             // current coordinates of node 2
     Vector dcrd3;             // current coordinates of node 3
 
+    int MyTag;                // what is my name?
+
     static double oneOverRoot3;
     static double GsPts[1][1];
 

@@ -147,7 +147,7 @@ void OpenSeesReliabilityCommands::wipe() {
 
     if (theProbabilityTransformation != 0) {
         delete theProbabilityTransformation;
-        theProbabilityTransformation = 0;
+        theReliabilityConvergenceCheck = 0;
     }
     if (theRandomNumberGenerator != 0) {
         delete theRandomNumberGenerator;
@@ -2252,8 +2252,8 @@ int OPS_gradientEvaluator() {
             return -1;
         }
         Integrator *sensAlgo = cmds->getSensitivityAlgorithm();
-        if (sensAlgo == 0 && strcmp(type,"OpenSees") == 0) {
-            opserr << "WARNING: OpenSees integrator must be defined before "
+        if (sensAlgo == 0) {
+            opserr << "WARNING: integrator must be defined before "
                       "gradient evaluator\n";
             return -1;
         }
@@ -2586,7 +2586,7 @@ int OPS_runFORMAnalysis() {
     // Check for essential ingredients
     FunctionEvaluator *theFunctionEvaluator = cmds->getFunctionEvaluator();
     if (theFunctionEvaluator == 0) {
-        opserr << "Need theGFunEvaluator before a FORMAnalysis can "
+        opserr << "Need theGFunEvaluator before a FOSMAnalysis can "
                   "be created\n";
         return -1;
     }
@@ -2595,7 +2595,7 @@ int OPS_runFORMAnalysis() {
         cmds->getFindDesignPointAlgorithm();
     if (theFindDesignPointAlgorithm == 0) {
         opserr << "Need theFindDesignPointAlgorithm before a "
-                  "FORMAnalysis "
+                  "FOSMAnalysis "
                   "can be created\n";
         return -1;
     }
@@ -2604,7 +2604,7 @@ int OPS_runFORMAnalysis() {
         cmds->getProbabilityTransformation();
     if (theProbabilityTransformation == 0) {
         opserr << "Need theProbabilityTransformation before a "
-                  "FORMAnalysis "
+                  "FOSMAnalysis "
                   "can be created\n";
         return -1;
     }

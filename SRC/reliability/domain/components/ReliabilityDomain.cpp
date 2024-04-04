@@ -95,36 +95,10 @@ ReliabilityDomain::ReliabilityDomain(Domain *passedDomain):
 void
 ReliabilityDomain::clearAll()
 {
-  if (theRandomVariablesPtr != 0) {
+  if (theRandomVariablesPtr != 0)
     theRandomVariablesPtr->clearAll();
-    numRandomVariables = 0;
-  }
-  if (theLimitStateFunctionsPtr != 0) {
-    theLimitStateFunctionsPtr->clearAll();
-    numLimitStateFunctions = 0;
-  }
-  if (theCutsetsPtr != 0) {
-    theCutsetsPtr->clearAll();
-    numCutsets = 0;
-  }
- 
-  if (theCorrelationCoefficientsPtr != 0) 
-    theCorrelationCoefficientsPtr->clearAll();
-  if (theModulatingFunctionsPtr != 0)
-    theModulatingFunctionsPtr->clearAll();
-  if (theSpectraPtr != 0)
-    theSpectraPtr->clearAll();
-  if (theFiltersPtr != 0)
-    theFiltersPtr->clearAll();
 
-  if (theDesignVariablesPtr != 0) 
-    theDesignVariablesPtr->clearAll();
-  if (theDesignVariablePositionersPtr != 0) 
-    theDesignVariablePositionersPtr->clearAll();
-  if (theConstraintFunctionsPtr != 0) 
-    theConstraintFunctionsPtr->clearAll();
-  if (theObjectiveFunctionsPtr != 0) 
-    theObjectiveFunctionsPtr->clearAll();
+  // Need to do the other stuff -- MHS
 }
 
 ReliabilityDomain::~ReliabilityDomain()
@@ -133,6 +107,10 @@ ReliabilityDomain::~ReliabilityDomain()
     theRandomVariablesPtr->clearAll();
     delete theRandomVariablesPtr;
   }
+  if (theCorrelationCoefficientsPtr != 0) {
+    theCorrelationCoefficientsPtr->clearAll();
+    delete theCorrelationCoefficientsPtr;
+  }
   if (theLimitStateFunctionsPtr != 0) {
     theLimitStateFunctionsPtr->clearAll();
     delete theLimitStateFunctionsPtr;
@@ -140,10 +118,6 @@ ReliabilityDomain::~ReliabilityDomain()
   if (theCutsetsPtr != 0) {
     theCutsetsPtr->clearAll();
     delete theCutsetsPtr;
-  }
-  if (theCorrelationCoefficientsPtr != 0) {
-    theCorrelationCoefficientsPtr->clearAll();
-    delete theCorrelationCoefficientsPtr;
   }
   if (theModulatingFunctionsPtr != 0) {
     theModulatingFunctionsPtr->clearAll();
@@ -191,7 +165,7 @@ ReliabilityDomain::~ReliabilityDomain()
     delete theSpectrumIter;
 
   if (rvIndex != 0)
-    delete [] rvIndex;
+      delete [] rvIndex;
   if (lsfIndex != 0)
     delete [] lsfIndex;
   if (cutsetIndex != 0)
