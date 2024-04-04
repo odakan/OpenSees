@@ -223,6 +223,8 @@
     <ClCompile Include="..\..\..\SRC\material\nD\PlateRebarMaterial.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\SmearedSteelDoubleLayerT2DMaterial01\SmearedSteelDoubleLayerT2DMaterial01.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PIMYImplex.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\UANDESmaterials\SAniSandMS.cpp" />
@@ -692,6 +694,8 @@
     <ClInclude Include="..\..\..\SRC\material\nD\PlateRebarMaterial.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\SmearedSteelDoubleLayerT2DMaterial01\SmearedSteelDoubleLayerT2DMaterial01.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PIMYImplex.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\UVCmultiaxial.h" />

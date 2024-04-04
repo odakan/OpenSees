@@ -435,6 +435,8 @@
 #define ND_TAG_PressureDependMultiYield		101
 #define ND_TAG_PressureIndependMultiYield		102
 #define ND_TAG_PressureDependMultiYield02		103
+#define ND_TAG_PIMYImplex			102011 // Deniz Akan, IUSS Pavia
+#define ND_TAG_PDMY02Implex			103011 // Deniz Akan, IUSS Pavia
 #define ND_TAG_ReinforcedConcretePlaneStress  104
 #define ND_TAG_FAReinforcedConcretePlaneStress  105
 #define ND_TAG_FAFourSteelRCPlaneStress  106
@@ -620,7 +622,6 @@
 #define ELEMENT_TAGS_WrapperElement      2
 #define ELE_TAG_ElasticBeam2d            3
 #define ELE_TAG_ModElasticBeam2d         4
-#define ELE_TAG_ModElasticBeam3d         41234
 #define ELE_TAG_ElasticBeam3d            5
 #define ELE_TAG_ElasticBeamWarping3d            5001
 #define ELE_TAG_Beam2d    	         6

@@ -52,11 +52,9 @@
 const int ZeroLengthContact2D::numberNodes = 2 ;
 
 // static data for 2D
-Matrix  ZeroLengthContact2D::stiff4(2*numberNodes,2*numberNodes) ;
-Vector  ZeroLengthContact2D::resid4(2*numberNodes) ;
-
-Matrix  ZeroLengthContact2D::stiff6(3*numberNodes,3*numberNodes) ;
-Vector  ZeroLengthContact2D::resid6(3*numberNodes) ;
+Matrix  ZeroLengthContact2D::stiff(2*numberNodes,2*numberNodes) ;
+Vector  ZeroLengthContact2D::resid(2*numberNodes) ;
+Matrix  ZeroLengthContact2D::zeroMatrix(2*numberNodes,2*numberNodes) ;
 
 void* OPS_ZeroLengthContact2D()
 {
@@ -110,7 +108,8 @@ ZeroLengthContact2D::ZeroLengthContact2D(int tag,
 					 double frictionRatio,  const Vector& normal )
   :Element(tag,ELE_TAG_ZeroLengthContact2D),
    connectedExternalNodes(numberNodes),
-   N(2*numberNodes), T(2*numberNodes), ContactNormal(2)
+   N(2*numberNodes), T(2*numberNodes), ContactNormal(2),
+   Ki(0), load(0)
 {
     // ensure the connectedExternalNode ID is of correct size & set values
     if (connectedExternalNodes.Size() != 2)
@@ -145,7 +144,8 @@ ZeroLengthContact2D::ZeroLengthContact2D(int tag,
 ZeroLengthContact2D::ZeroLengthContact2D(void)
   :Element(0,ELE_TAG_ZeroLengthContact2D),
   connectedExternalNodes(numberNodes),
-  N(2*numberNodes), T(2*numberNodes), ContactNormal(2)
+  N(2*numberNodes), T(2*numberNodes), ContactNormal(2),
+  Ki(0), load(0)
 {
 
   //opserr<<this->getTag()<< " new ZeroLengthContact2D::null constructor" <<endln;
@@ -167,6 +167,12 @@ ZeroLengthContact2D::~ZeroLengthContact2D()
 
   //opserr<<this->getTag()<<" ZeroLengthContact2D::destructor" <<endln;
 
+
+  if (load != 0)
+    delete load;
+
+  if (Ki != 0)
+    delete Ki;
 
 }
 
@@ -275,11 +281,6 @@ ZeroLengthContact2D::setDomain(Domain *theDomain)
 	if (dofNd1 == 2 && dofNd2 == 2) {
 	numDOF = 4;
 	}
-	else if (dofNd1 == 3 && dofNd2 == 3) {
-	  stiff6.Zero();
-	  resid6.Zero();
-	numDOF = 6;
-	}	
     else {
     opserr << "WARNING ZeroLengthContact2D::setDomain cannot handle " << dofNd1 <<
  	"dofs at nodes in " << dofNd1 << " d problem\n";
@@ -458,31 +459,8 @@ ZeroLengthContact2D::getTangentStiff(void)
   //opserr<< stiff ;
 
 
-  if (numDOF == 4)
-    return stiff4;
-  else {
-    stiff6(0,0) = stiff4(0,0);
-    stiff6(1,0) = stiff4(1,0);
-    stiff6(0,1) = stiff4(0,1);
-    stiff6(1,1) = stiff4(1,1);
 
-    stiff6(3,3) = stiff4(2,2);
-    stiff6(4,3) = stiff4(3,2);
-    stiff6(3,4) = stiff4(2,3);
-    stiff6(4,4) = stiff4(3,3);    
-
-    stiff6(0,3) = stiff4(0,2);
-    stiff6(1,3) = stiff4(1,2);
-    stiff6(0,4) = stiff4(0,3);
-    stiff6(1,4) = stiff4(1,3);
-
-    stiff6(3,0) = stiff4(2,0);
-    stiff6(4,0) = stiff4(3,0);
-    stiff6(3,1) = stiff4(2,1);
-    stiff6(4,1) = stiff4(3,1);
-
-    return stiff6;
-  }
+  return stiff ;
 
 
 
@@ -513,31 +491,8 @@ ZeroLengthContact2D::getInitialStiff(void)
   formResidAndTangent( tang_flag ) ;
 
 
-  if (numDOF == 4)
-    return stiff4;
-  else {
-    stiff6(0,0) = stiff4(0,0);
-    stiff6(1,0) = stiff4(1,0);
-    stiff6(0,1) = stiff4(0,1);
-    stiff6(1,1) = stiff4(1,1);
 
-    stiff6(3,3) = stiff4(2,2);
-    stiff6(4,3) = stiff4(3,2);
-    stiff6(3,4) = stiff4(2,3);
-    stiff6(4,4) = stiff4(3,3);    
-
-    stiff6(0,3) = stiff4(0,2);
-    stiff6(1,3) = stiff4(1,2);
-    stiff6(0,4) = stiff4(0,3);
-    stiff6(1,4) = stiff4(1,3);
-
-    stiff6(3,0) = stiff4(2,0);
-    stiff6(4,0) = stiff4(3,0);
-    stiff6(3,1) = stiff4(2,1);
-    stiff6(4,1) = stiff4(3,1);
-
-    return stiff6;
-  }
+  return stiff ;
 
 }
 
@@ -553,13 +508,10 @@ ZeroLengthContact2D::getDamp(void)
 
     // no damp
 
-  if (numDOF == 4) {
-    stiff4.Zero();
-    return stiff4;
-  } else {
-    stiff6.Zero();
-    return stiff6;
-  }
+ 	zeroMatrix.Zero();
+
+	return zeroMatrix;
+
 }
 
 
@@ -573,13 +525,11 @@ ZeroLengthContact2D::getMass(void)
 {
 
     // no mass
-  if (numDOF == 4) {
-    stiff4.Zero();
-    return stiff4;
-  } else {
-    stiff6.Zero();
-    return stiff6;
-  }
+
+ 	zeroMatrix.Zero();
+
+	return zeroMatrix;
+
 }
 
 
@@ -618,15 +568,7 @@ ZeroLengthContact2D::getResistingForce()
 
   //opserr<< "resid="<<resid;
 
-  if (numDOF == 4)
-    return resid4;
-  else {
-    resid6(0) = resid4(0);
-    resid6(1) = resid4(1);
-    resid6(3) = resid4(2);
-    resid6(4) = resid4(3);
-    return resid6;
-  }
+  return resid ;
 }
 
 
@@ -641,100 +583,22 @@ ZeroLengthContact2D::getResistingForceIncInertia()
 
   //opserr<< resid;
 
-  if (numDOF == 4)
-    return resid4;
-  else {
-    resid6(0) = resid4(0);
-    resid6(1) = resid4(1);
-    resid6(3) = resid4(2);
-    resid6(4) = resid4(3);
-    return resid6;
-  }
+  return  resid ;
 }
 
 
 int
 ZeroLengthContact2D::sendSelf(int commitTag, Channel &theChannel)
 {
-  int res = 0;
-
-  int dbTag = this->getDbTag();
-
-  static ID idData(5);
-  idData(0) = this->getTag();
-  idData(1) = connectedExternalNodes(0);
-  idData(2) = connectedExternalNodes(1);  
-  idData(3) = numDOF;
-  idData(4) = ContactFlag;
-
-  res += theChannel.sendID(dbTag, commitTag, idData);
-  if (res < 0) {
-    opserr << "ZeroLengthContact2D::sendSelf -- failed to send ID data" << endln;
-    return res;
-  }
-
-  static Vector data(10);
-  data(0) = pressure;
-  data(1) = lambda;
-  data(2) = t1;
-  data(3) = t2;
-  data(4) = gap_n;
-  data(5) = Kn;
-  data(6) = Kt;
-  data(7) = fs;
-  data(8) = stickPt;
-  data(9) = xi;
-  
-  res += theChannel.sendVector(dbTag, commitTag, data);
-  if (res < 0) {
-    opserr << "ZeroLengthContact2D::sendSelf -- failed to send Vector data" << endln;
-    return res;
-  }
-  
-  return res;
+ // doing nothing here
+	return 0;
 }
 
 int
 ZeroLengthContact2D::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBroker)
 {
-  int res = 0;
-
-  int dbTag = this->getDbTag();
-
-  static ID idData(5);
-  res += theChannel.recvID(dbTag, commitTag, idData);
-  if (res < 0) {
-    opserr << "ZeroLengthContact2D::recvSelf -- failed to receive ID data" << endln;
-    return res;
-  }
-  
-  this->setTag(idData(0));
-  connectedExternalNodes(0) = idData(1);
-  connectedExternalNodes(1) = idData(2);
-  numDOF = idData(3);
-  ContactFlag = idData(4);
-
-  static Vector data(10);
-  res += theChannel.recvVector(dbTag, commitTag, data);
-  if (res < 0) {
-    opserr << "ZeroLengthContact2D::recvSelf -- failed to receive Vector data" << endln;
-    return res;
-  }
-
-  pressure = data(0);
-  lambda = data(1);
-  t1 = data(2);
-  t2 = data(3);
-  gap_n = data(4);
-  gap = gap_n;
-  Kn = data(5);
-  Kt = data(6);
-  fs = data(7);
-  stickPt = data(8);
-  xi = data(9);
-  
-  return res;
- 
+// doing nothing here
+	return 0;
 }
 
 
@@ -762,11 +626,11 @@ Response*
 ZeroLengthContact2D::setResponse(const char **argv, int argc, OPS_Stream &output)
 {
      if (strcmp(argv[0],"force") == 0 || strcmp(argv[0],"forces") == 0)
-       return new ElementResponse(this, 1, Vector(numDOF));
+     return new ElementResponse(this, 1, resid);
 
      // tangent stiffness matrix
      else if (strcmp(argv[0],"stiff") == 0 || strcmp(argv[0],"stiffness") == 0)
-       return new ElementResponse(this, 2, Matrix(numDOF,numDOF));
+     return new ElementResponse(this, 2, stiff);
 
 	 // contact pressure
      else if (strcmp(argv[0],"pressure")== 0)
@@ -823,21 +687,12 @@ ZeroLengthContact2D::getResponse(int responseID, Information &eleInfo)
       // DEFINE:
 	  // gap = (U_primary-U_secondary) \dot (ContactNormal),
 	  // defines overlapped normal distance, always keep positive (+) when contacted
-      ///
-      // get current trial position
-   //const Vector &U_secondary = nodePointers[0]->getCrds() + nodePointers[0]->getTrialDisp();
-   //const Vector &U_primary= nodePointers[1]->getCrds() + nodePointers[1]->getTrialDisp();
-   Vector U_secondary(2);
-   Vector U_primary(2);   
-   const Vector &XI = nodePointers[0]->getCrds();
-   const Vector &XJ = nodePointers[1]->getCrds();
-   const Vector &UI = nodePointers[0]->getTrialDisp();
-   const Vector &UJ = nodePointers[1]->getTrialDisp();
-   U_secondary(0) = XI(0) + UI(0);
-   U_secondary(1) = XI(1) + UI(1);
-   U_primary(0) = XJ(0) + UJ(0);
-   U_primary(1) = XJ(1) + UJ(1);
-   
+      ///*
+		   const Vector   // get current trial position
+	  		       &U_secondary = nodePointers[0]->getCrds() + nodePointers[0]->getTrialDisp();
+
+           const Vector
+	  		       &U_primary= nodePointers[1]->getCrds() + nodePointers[1]->getTrialDisp();
 	       gap=0;
 		   int i;
 		   for (i=0; i<2; i++){
@@ -890,8 +745,8 @@ void  ZeroLengthContact2D::formResidAndTangent( int tang_flag )
 
 
 	// trial displacement vectors
- 	static Vector DispTrialS(2); // trial disp for secondary node
-	static Vector DispTrialP(2); // trial disp for primary node
+ 	Vector DispTrialS(2); // trial disp for secondary node
+	Vector DispTrialP(2); // trial disp for primary node
 	// trial frictional force vectors (in local coordinate)
     double t_trial;
     double TtrNorm;
@@ -902,8 +757,6 @@ void  ZeroLengthContact2D::formResidAndTangent( int tang_flag )
     int i, j;
 
     //zero stiffness and residual
-    Matrix &stiff = stiff4;
-    Vector &resid = resid4;
     stiff.Zero( ) ;
     resid.Zero( ) ;
 
@@ -924,15 +777,9 @@ void  ZeroLengthContact2D::formResidAndTangent( int tang_flag )
 	    pressure = Kn*gap ;  // pressure is positive if in contact
        // pressure = Kn*gap + lambda;  // changed for augmented lagrange
 
-	    //DispTrialS=nodePointers[0]->getTrialDisp();
-	    //DispTrialP=nodePointers[1]->getTrialDisp();
-	    const Vector &UI = nodePointers[0]->getTrialDisp();
-	    const Vector &UJ = nodePointers[1]->getTrialDisp();	    
-	    DispTrialS(0) = UI(0);
-	    DispTrialS(1) = UI(1);
-	    DispTrialP(0) = UJ(0);
-	    DispTrialP(1) = UJ(1);	    
-	    
+		DispTrialS=nodePointers[0]->getTrialDisp();
+        DispTrialP=nodePointers[1]->getTrialDisp();
+
         //opserr<<"DispTrialS " << DispTrialS;
         //opserr<<"DispTrialP " << DispTrialP;
 

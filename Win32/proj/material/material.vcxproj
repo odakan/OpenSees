@@ -124,6 +124,8 @@
     <ClCompile Include="..\..\..\SRC\material\nD\PlateFiberMaterialThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\PlateFromPlaneStressMaterialThermal.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.cpp" />
+    <ClCompile Include="..\..\..\SRC\material\nD\soil\PIMYImplex.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.cpp" />
     <ClCompile Include="..\..\..\SRC\material\nD\stressDensityModel\StressDensityModel.cpp" />
@@ -547,6 +549,8 @@
     <ClInclude Include="..\..\..\SRC\material\nD\PlateFiberMaterialThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\PlateFromPlaneStressMaterialThermal.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\PlateRebarMaterialThermal.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PDMY02Implex.h" />
+    <ClInclude Include="..\..\..\SRC\material\nD\soil\PIMYImplex.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\soil\PressureDependMultiYield03.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\stressDensityModel\stressDensity.h" />
     <ClInclude Include="..\..\..\SRC\material\nD\stressDensityModel\StressDensityModel.h" />

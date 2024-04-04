@@ -86,7 +86,6 @@ void* OPS_ComponentElement2d();
 void* OPS_ComponentElement3d();
 void* OPS_ZeroLengthImpact3D();
 void* OPS_ModElasticBeam2d();
-void* OPS_ModElasticBeam3d();
 void* OPS_ElasticTimoshenkoBeam2d();
 void* OPS_ElasticTimoshenkoBeam3d();
 extern "C" void* OPS_PY_Macro2D();
@@ -684,8 +683,6 @@ namespace {
 	functionMap.insert(std::make_pair("zeroLengthImpact3D", &OPS_ZeroLengthImpact3D));
 	functionMap.insert(std::make_pair("ModElasticBeam2d", &OPS_ModElasticBeam2d));
 	functionMap.insert(std::make_pair("modElasticBeam2d", &OPS_ModElasticBeam2d));
-	functionMap.insert(std::make_pair("ModElasticBeam3d", &OPS_ModElasticBeam3d));
-	functionMap.insert(std::make_pair("modElasticBeam3d", &OPS_ModElasticBeam3d));
 	functionMap.insert(std::make_pair("ElasticTimoshenkoBeam", &OPS_ElasticTimoshenkoBeam));
 	functionMap.insert(std::make_pair("elasticTimoshenkoBeam", &OPS_ElasticTimoshenkoBeam));
 	functionMap.insert(std::make_pair("pyMacro2D", &OPS_PY_Macro2D));

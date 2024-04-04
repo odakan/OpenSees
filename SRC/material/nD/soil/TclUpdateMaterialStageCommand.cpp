@@ -7,6 +7,8 @@
 #include <TclModelBuilder.h>
 #include <PressureIndependMultiYield.h>
 #include <PressureDependMultiYield.h>
+#include <PIMYImplex.h>
+#include <PDMY02Implex.h>
 #include <FluidSolidPorousMaterial.h>
 #include <Information.h>
 #include <UniaxialMaterial.h>
@@ -171,6 +173,7 @@ TclModelBuilderUpdateParameterCommand(ClientData clientData,
   else {
     opserr << "WARNING UpdateParameter: The tagged is not a "<<endln;
     opserr << "PressureDependMultiYield/PressureIndependMultiYield/FluidSolidPorous material. " << endln;
+	opserr << "PDMY02Implex/PIMYImplex material. " << endln;
     return TCL_ERROR;		
   }
   
