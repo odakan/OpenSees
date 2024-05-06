@@ -60,8 +60,8 @@ jobs:
         cd ./build
         cd ../EXAMPLES/ExamplePython/
         export PYTHONPATH="../../build/lib/"
-        python -c "import sys; print(sys.path)"
-        python example_variable_analysis.py
+        python3 -c "import sys; print(sys.path)"
+        python3 example_variable_analysis.py
 #        # Simple MP sanity test
 #        - name: Verification OpenSeesPyMP
 #          run: |
@@ -79,6 +79,8 @@ jobs:
           python-version: "3.11"
       - name: Install Library
         run: |
+         brew install gcc
+         brew install gfortran
          ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
          brew install hdf5
          brew install open-mpi
