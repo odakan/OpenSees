@@ -127,9 +127,7 @@ public:
     const Vector& getStrain(void);
     const Vector& getCommittedStress(bool isImplex = false);
     const Vector& getStressToRecord(int numOutput, bool isImplex = false); // Added by Alborz Ghofrani - UW
-    const Vector& getImplexError(void);
     const Vector& getCommittedStrain(void);
-    const Vector& getDissipatedEnergy(void);
     const Vector& getImplexSateVariables(void);
 
     // Accepts the current trial strain values as being on the solution path, and updates
@@ -211,29 +209,47 @@ private:
     double* mGredu;
 
     // implex state variables
-    double lambda = 0;                      // step n+1 plastic multiplier
-    double lambda_commit = 0;               // step n   plastic multiplier 
-    double lambda_commit_old = 0;           // step n-1 plastic multiplier
-    double chi = 0;                         // step n+1 plastic distortion deformability
-    double chi_commit = 0;                  // step n   plastic distortion deformability
-    double chi_commit_old = 0;              // step n-1 plastic distortion deformability
-    double kappa = 0;                       // step n+1 normalized plastic dilatancy
-    double kappa_commit = 0;                // step n   normalized plastic dilatancy
-    double kappa_commit_old = 0;            // step n-1 normalized plastic dilatancy
+    double lambda = 0.0;                    // step n+1 plastic multiplier
+    double lambda_commit = 0.0;             // step n   plastic multiplier 
+    double lambda_commit_old = 0.0;         // step n-1 plastic multiplier
+    double chi = 0.0;                       // step n+1 plastic distortion deformability
+    double chi_commit = 0.0;                // step n   plastic distortion deformability
+    double chi_commit_old = 0.0;            // step n-1 plastic distortion deformability
+    double iota = 0.0;                        
+    double iota_commit = 0.0;
+    double iota_commit_old = 0.0;
+    double ksi = 0.0;
+    double ksi_commit = 0.0;
+    double ksi_commit_old = 0.0;
+    double kappa = 0.0;                     // step n+1 normalized plastic dilatancy
+    double kappa_commit = 0.0;              // step n   normalized plastic dilatancy
+    double kappa_commit_old = 0.0;          // step n-1 normalized plastic dilatancy
     double dtime_n = 0.0;                   // time factor
     double dtime_n_commit = 0.0;            // committed time factor
     bool dtime_is_user_defined = false;
     bool dtime_first_set = false;
 
+    double maxCumuDilateStrainOcta_bar = 0.0;
+    double maxCumuDilateStrainOcta_bar_commit = 0.0;
+    double cumuDilateStrainOcta_bar = 0.0;
+    double cumuDilateStrainOcta_bar_commit = 0.0;
+    bool isCS = false;
+    bool isCS_commit = false;
+    double shearLoading_bar = 0.0;
+    double shearLoading_bar_commit = 0.0;
+    double currentRatio_bar = 0.0;
+    double currentRatio_bar_commit = 0.0;
+    double trialRatio_bar = 0.0;
+    double trialRatio_bar_commit = 0.0;
+    double contactStressVolume_bar = 0.0;
+    double contactStressVolume_bar_commit = 0.0;
+    double contactRatio_bar = 0.0;
+    double contactRatio_bar_commit = 0.0;
+    int onPPZ_bar = 0;
+    int onPPZ_bar_commit = 0;
+
     // new results
-    double plasticMultiplier = 0.0;
-    double spentDistortionEnergy = 0.0;
-    double spentDilationEnergy = 0.0;
-    double spentEnergy = 0.0;
     T2Vector currentStressImplex;               // extrapolated stress as a material result
-    double plasticDeviatoricStressNorm = 0.0;
-    double plasticVolumetricStressNorm = 0.0;
-    double errorImplex = 0.0;                   // L2 norm of implex error vector (distance between extrapolated and corrected implex state variables)
 
     int matN;
     int e2p;
@@ -284,6 +300,7 @@ private:
 
     // move stress computations here
     int implicitSress(void);
+    int updateImplex(void);     // explicit stage
 
     void elast2Plast(void);
     // Called by constructor

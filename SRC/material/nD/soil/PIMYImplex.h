@@ -113,9 +113,7 @@ public:
     const Vector& getStrain(void);
     const Vector& getCommittedStress(bool isImplex = false);
     const Vector& getStressToRecord(int numOutput, bool isImplex = false); // Added by Alborz Ghofrani - UW
-    const Vector& getImplexError(void);
     const Vector& getImplexSateVariables(void);
-    const Vector& getDissipatedEnergy(void);
     const Vector& getCommittedStrain(void);
 
     // Accepts the current trial strain values as being on the solution path, and updates 
@@ -197,18 +195,19 @@ private:
     double lambda = 0.0;                     // step n+1 plastic multiplier
     double lambda_commit = 0.0;              // step n   plastic multiplier 
     double lambda_commit_old = 0.0;          // step n-1 plastic multiplier
+    double chi = 0.0;
+    double chi_commit = 0.0;                // step n   plastic multiplier 
+    double chi_commit_old = 0.0;            // step n-1 plastic multiplier
+    double ksi = 0.0;
+    double ksi_commit = 0.0;
+    double ksi_commit_old = 0.0;
     double dtime_n = 0.0;                    // time factor
     double dtime_n_commit = 0.0;             // committed time factor
     bool dtime_is_user_defined = false;
     bool dtime_first_set = false;
 
-    // new results
+    // implex results
     T2Vector currentStressImplex;   // extrapolated stress as a material result
-    double lambda_bar = 0.0;
-    double plasticStressNorm = 0.0;
-    double plasticMultiplier = 0.0;
-    double spentEnergy = 0.0;
-    double errorImplex = 0.0;       // L2 norm of implex error vector (distance between extrapolated and corrected implex state variables)
 
     // move stress computation here
     int implicitSress(void);

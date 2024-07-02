@@ -69,7 +69,8 @@ static const Matrix& IIvol()
 static const Matrix& IIdev()
 {
     // return 4th order deviatoric operator 
-    // basis of c is contravariant (i.e., operates on strain and leads to stress)
+    // basis of c is contravariant 
+    // (i.e., operates on a strain-like tensor and leads to a stress-like tensor)
     static Matrix c(6, 6);
     c(0, 0) = 2.0 / 3.0;
     c(0, 1) = -1.0 / 3.0;
@@ -83,6 +84,27 @@ static const Matrix& IIdev()
     c(3, 3) = 0.5;
     c(4, 4) = 0.5;
     c(5, 5) = 0.5;
+    return c;
+}
+
+static const Matrix& IIdev_mix()
+{
+    // return 4th order deviatoric operator 
+    // basis of c is Covariant-Contravariant 
+    // (i.e., operates on a stress-like tensor and leads to a stress-like tensor)
+    static Matrix c(6, 6);
+    c(0, 0) = 2.0 / 3.0;
+    c(0, 1) = -1.0 / 3.0;
+    c(0, 2) = -1.0 / 3.0;
+    c(1, 0) = -1.0 / 3.0;
+    c(1, 1) = 2.0 / 3.0;
+    c(1, 2) = -1.0 / 3.0;
+    c(2, 0) = -1.0 / 3.0;
+    c(2, 1) = -1.0 / 3.0;
+    c(2, 2) = 2.0 / 3.0;
+    c(3, 3) = 1.0;
+    c(4, 4) = 1.0;
+    c(5, 5) = 1.0;
     return c;
 }
 
@@ -908,6 +930,7 @@ void PDMY02Implex::elast2Plast(void)
 
 int PDMY02Implex::setTrialStrain(const Vector& strain)
 {
+    bool implex = doImplex[matN];
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
@@ -939,7 +962,7 @@ int PDMY02Implex::setTrialStrain(const Vector& strain)
     //strainRate.setData(workV6-currentStrain.t2Vector(1),1);
     workV6 -= currentStrain.t2Vector(1);
     strainRate.setData(workV6, 1);
-
+    if (implex) updateImplex();
     return 0;
 }
 
@@ -952,6 +975,7 @@ int PDMY02Implex::setTrialStrain(const Vector& strain, const Vector& rate)
 
 int PDMY02Implex::setTrialStrainIncr(const Vector& strain)
 {
+    bool implex = doImplex[matN];
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
@@ -981,6 +1005,7 @@ int PDMY02Implex::setTrialStrainIncr(const Vector& strain)
     }
 
     strainRate.setData(workV6, 1);
+    if (implex) updateImplex();
     return 0;
 }
 
@@ -1072,36 +1097,26 @@ const Matrix& PDMY02Implex::getTangent(void)
                 }
         }
         else {
-            // time factor for explicit extrapolation
-            double time_factor = 1.0;
-            if (dtime_n_commit > 0.0)
-                time_factor = dtime_n / dtime_n_commit;
-            // note: the implex method just wants the ratio of the new to the old time step
-            // not the real time step, so it is just fine to assume it to 1.
-            // otherwise we have to deal with the problem of the opensees pseudo-time step
-            // being the load multiplier in continuation methods...
-            time_factor = 1.0;
-
-            // extrapolate state variables
-            //modulusFactor = modulusFactor;
-            //for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
-            activeSurfaceNum = committedActiveSurf;
-            chi = std::max(0.0, chi_commit + time_factor * (chi_commit - chi_commit_old));
-            kappa = std::max(0.0, kappa_commit + time_factor * (kappa_commit - kappa_commit_old));
-            lambda = lambda_commit + time_factor * (lambda_commit - lambda_commit_old);
-
             // compute consistent tangent
-            theTangent.Zero();
+            double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
             const Vector& identity = I1();
             const Vector& center = committedSurfaces[activeSurfaceNum].center();
+            const Matrix& IImixed = IIdev_mix();
+
+            // deviatoric component 2
+            theTangent.Zero();
             for (int i = 0; i < 6; i++) {
                 for (int j = 0; j < 6; j++) {
                     theTangent(i, j) += identity(i) * center(j);
                 }
             }
-            theTangent *= ((2.0 / 3.0) * modulusFactor * refShearModulus * lambda * chi);
-            theTangent.addMatrix(1.0, IIdev(), 2 * refShearModulus * modulusFactor * (1.0 - lambda * chi));
-            theTangent.addMatrix(1.0, IIvol(), refBulkModulus * modulusFactor * (1.0 - (1.0 / 3.0) * lambda * kappa));
+            theTangent *= ((2.0 / 3.0) * refShearModulus * modulusFactor * lambda_bar * ksi);
+
+            // deviatoric component 1
+            theTangent.addMatrix(1.0, IIdev(), 2.0 * refShearModulus * modulusFactor * (1.0 - 2.0 * refShearModulus * modulusFactor * lambda_bar * ksi));
+
+            // volumetric component
+            theTangent.addMatrix(1.0, IIvol(), (1.0 / 3.0) * refBulkModulus * modulusFactor * (1.0 - 3.0 * lambda * kappa * refBulkModulus * modulusFactor));
         }
     }
 
@@ -1201,21 +1216,30 @@ const Vector& PDMY02Implex::getStress(void)
             implicitSress();
         }
         else {
-            // time factor for explicit extrapolation
-            double time_factor = 1.0;
-            if (dtime_n_commit > 0.0)
-                time_factor = dtime_n / dtime_n_commit;
-            // note: the implex method just wants the ratio of the new to the old time step
-            // not the real time step, so it is just fine to assume it to 1.
-            // otherwise we have to deal with the problem of the opensees pseudo-time step
-            // being the load multiplier in continuation methods...
-            time_factor = 1.0;
+            // compute implex stress
+            double refShearModulus = refShearModulusx[matN];
+            double refBulkModulus = refBulkModulusx[matN];
+            double residualPress = residualPressx[matN];
+            double conHeig = trialStress.volume() - residualPress;
+            double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
+            double volume = 0.0;
 
-            // compute stress
-            getTangent();
-            workV6.addMatrixVector(0.0, theTangent, strainRate.t2Vector(1), 1.0);
-            workV6.addVector(1.0, currentStress.t2Vector(), 1.0);
+            // trial stress
+            theTangent = 2.0 * refShearModulus * modulusFactor * IIdev() + (1.0/3.0) * refBulkModulus * modulusFactor * IIvol();
+            workV6.addVector(0.0, currentStress.t2Vector(), 1.0);
+            workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
             trialStress.setData(workV6);
+
+            // compute plastic strain
+            workV6.addVector(0.0, theSurfaces[activeSurfaceNum].center(), conHeig); // get the center
+            workV6.addVector(-1.0, trialStress.deviator(), 1.0);                    // get the shifted deviator					
+            workV6 *= lambda_bar * ksi;												// compute the contact stress and then the plastic strain
+            volume = 3 * refBulkModulus * modulusFactor * lambda * kappa;
+
+            // correct stress
+            workV6.addVector(-2.0 * refShearModulus * modulusFactor, trialStress.deviator(), 1.0);	// correct the stress deviator
+            volume = trialStress.volume() * (1 - volume);
+            trialStress.setData(workV6, volume);
         }
     }
     if (ndm == 3)
@@ -1244,11 +1268,6 @@ int PDMY02Implex::commitState(void)
 
     if (loadStage == 1) {
 
-        // keep for implex error calculation
-        double lambda_x = lambda;                                       
-        double chi_x = chi;
-        double kappa_x = kappa;
-
         if (implex) {
             // do an implicit iteration before commit
             currentStressImplex = trialStress;                              // store for output
@@ -1256,19 +1275,9 @@ int PDMY02Implex::commitState(void)
         }
 
         // step-normalize chi and kappa
-        chi = (lambda > 0) ? (chi / lambda) : (0.0);
-        kappa = (lambda > 0) ? (kappa / lambda) : (0.0);
-
-        // compute the error due to extrapolation
-        errorImplex = sqrt((lambda_x - lambda) * (lambda_x - lambda) +      // L2 norm
-                           ((chi_x - chi) * (chi_x - chi)) +
-                           ((kappa_x - kappa) * (kappa_x - kappa)));
-
-        // compute some energy results
-        spentDistortionEnergy += plasticDeviatoricStressNorm * lambda;
-        spentDilationEnergy += abs(plasticVolumetricStressNorm) * lambda;
-        spentEnergy = spentDistortionEnergy + spentDilationEnergy;
-        plasticMultiplier += lambda;
+        chi = (lambda > 1e-10) ? (chi * lambda) : (0.0);
+        iota = (lambda > 1e-10) ? (iota / lambda) : (0.0);
+        kappa = (lambda > 1e-10) ? (kappa / lambda) : (0.0);
 
         // commit implex variables
         lambda_commit_old = lambda_commit;
@@ -1277,6 +1286,19 @@ int PDMY02Implex::commitState(void)
         kappa_commit = kappa;
         chi_commit_old = chi_commit;
         chi_commit = chi;
+        iota_commit_old = iota_commit;
+        iota_commit = iota;
+        ksi_commit_old = ksi_commit;
+        ksi_commit = ksi;
+        contactStressVolume_bar_commit = contactStressVolume_bar;
+        maxCumuDilateStrainOcta_bar_commit = maxCumuDilateStrainOcta_bar;
+        cumuDilateStrainOcta_bar_commit = cumuDilateStrainOcta_bar;
+        isCS_commit = isCS;
+        shearLoading_bar_commit = shearLoading_bar;
+        currentRatio_bar_commit = currentRatio_bar;
+        trialRatio_bar_commit = trialRatio_bar;
+        contactRatio_bar_commit = contactRatio_bar;
+        onPPZ_bar_commit = onPPZ_bar;
 
         // other internal variables
         currentStress = trialStress;
@@ -1318,6 +1340,30 @@ int PDMY02Implex::commitState(void)
 
 int PDMY02Implex::revertToLastCommit(void)
 {
+    int loadStage = loadStagex[matN];
+
+    if (loadStage == 1) {
+        lambda = lambda_commit;
+        lambda_commit = lambda_commit_old;
+        kappa = kappa_commit;
+        kappa_commit = kappa_commit_old;
+        chi = chi_commit;
+        chi_commit = chi_commit_old;
+        iota = iota_commit;
+        iota_commit = iota_commit_old;
+        ksi = ksi_commit;
+        ksi_commit = ksi_commit_old;
+        contactStressVolume_bar = contactStressVolume_bar_commit;
+        maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta_bar_commit;
+        cumuDilateStrainOcta_bar = cumuDilateStrainOcta_bar_commit;
+        isCS = isCS_commit;
+        shearLoading_bar = shearLoading_bar_commit;
+        currentRatio_bar = currentRatio_bar_commit;
+        trialRatio_bar = trialRatio_bar_commit;
+        contactRatio_bar = contactRatio_bar_commit;
+        onPPZ_bar = onPPZ_bar_commit;
+    }
+
     return 0;
 }
 
@@ -1568,10 +1614,6 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
     data(72) = dtime_n_commit;
     data(73) = (dtime_is_user_defined) ? (1.0) : (0.0);
     data(74) = (dtime_first_set) ? (1.0) : (0.0);
-    data(75) = plasticMultiplier;
-    data(76) = spentDistortionEnergy;
-    data(77) = spentDilationEnergy;
-    data(78) = errorImplex;
 
     for (i = 0; i < numOfSurfaces; i++) {
         int k = 79 + i * 8;
@@ -1692,10 +1734,6 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     dtime_n_commit = data(72);
     dtime_is_user_defined = (data(73) == 1.0);
     dtime_first_set = (data(74) == 1.0);
-    plasticMultiplier = data(75);
-    spentDistortionEnergy = data(76);
-    spentDilationEnergy = data(77);
-    errorImplex = data(78);
 
     if (committedSurfaces != 0) {
         delete[] committedSurfaces;
@@ -1901,12 +1939,6 @@ PDMY02Implex::setResponse(const char** argv, int argc, OPS_Stream& s)
     else if (strcmp(argv[0], "stateVarsImplex") == 0) {
         return new MaterialResponse(this, 27, this->getImplexSateVariables());
     }
-    else if (strcmp(argv[0], "dissipatedEnergy") == 0) {
-        return new MaterialResponse(this, 28, this->getDissipatedEnergy());
-    }
-    else if (strcmp(argv[0], "errorImplex") == 0) {
-        return new MaterialResponse(this, 29, this->getImplexError());
-    }
     else
         return 0;
 }
@@ -2026,14 +2058,6 @@ int PDMY02Implex::getResponse(int responseID, Information& matInfo)
     case 27:
         if (matInfo.theVector != 0)
             *(matInfo.theVector) = getImplexSateVariables();
-        return 0;
-    case 28:
-        if (matInfo.theVector != 0)
-            *(matInfo.theVector) = getDissipatedEnergy();
-        return 0;
-    case 29:
-        if (matInfo.theVector != 0)
-            *(matInfo.theVector) = getImplexError();
         return 0;
     default:
         return -1;
@@ -2189,26 +2213,10 @@ const Vector& PDMY02Implex::getCommittedStrain(void)
 
 const Vector& PDMY02Implex::getImplexSateVariables(void)
 {
-    static Vector sv(3);
-    sv(0) = lambda; sv(1) = chi; sv(2) = kappa;
+    static Vector sv(4);
+    sv(0) = lambda; sv(1) = chi; sv(2) = ksi; sv(3) = kappa;
     return sv;
 }
-
-const Vector& PDMY02Implex::getDissipatedEnergy(void)
-{
-    static Vector de(4);
-    de(0) = plasticMultiplier; de(1) = spentDistortionEnergy;
-    de(2) = spentDilationEnergy; de(3) = spentEnergy;
-    return de;
-}
-
-const Vector& PDMY02Implex::getImplexError(void)
-{
-    static Vector er(1);
-    er(0) = errorImplex;
-    return er;
-}
-
 
 // NOTE: surfaces[0] is not used
 void PDMY02Implex::setUpSurfaces(double* gredu)
@@ -2375,6 +2383,7 @@ void PDMY02Implex::deviatorScaling(T2Vector& stress,
     double coneHeight = stress.volume() - residualPress;
 
     if (surfaceNum < numOfSurfaces && diff < 0.) {
+        //opserr << "PDMY02Implex::deviatorScaling() - surfaceNum < numOfSurfaces!\n";
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         double deviaSz = sqrt(sz * sz + diff);
         static Vector devia(6);
@@ -2390,6 +2399,7 @@ void PDMY02Implex::deviatorScaling(T2Vector& stress,
     }
 
     if (surfaceNum == numOfSurfaces && fabs(diff) > LOW_LIMIT) {
+        //opserr << "PDMY02Implex::deviatorScaling() - surfaceNum == numOfSurfaces!\n";
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         //workV6 = stress.deviator() * sz/sqrt(diff+sz*sz);
         workV6 = stress.deviator();
@@ -2576,6 +2586,10 @@ PDMY02Implex::getContactStress(T2Vector& contactStress)
     double Ms = sqrt(3. / 2. * (workV6 && workV6));
     //workV6 = workV6 * theSurfaces[activeSurfaceNum].size()*(-conHeig) / Ms + center*conHeig;
     workV6.addVector(theSurfaces[activeSurfaceNum].size() * (-conHeig) / Ms, center, conHeig);
+    
+    // correct implex state variables
+    ksi = theSurfaces[activeSurfaceNum].size() * (-1.0 * conHeig) / Ms;
+
     //return T2Vector(workV6,trialStress.volume());
     contactStress.setData(workV6, trialStress.volume());
 }
@@ -2685,9 +2699,21 @@ double PDMY02Implex::getPlasticPotential(const T2Vector& contactStress,
         //if (contractRule<-5.0e4) contractRule = -5.0e4;
         if (onPPZ > 0) onPPZ = 0;
         if (onPPZ != -1) PPZTranslation(contactStress);
+
     }
 
-    if (isCriticalState(contactStress)) plasticPotential = 0;
+    // implicit correction of implex variables
+    cumuDilateStrainOcta_bar = cumuDilateStrainOcta;
+    maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta;
+    isCS = isCriticalState(contactStress);
+    shearLoading_bar = shearLoading;
+    currentRatio_bar = currentRatio;
+    trialRatio_bar = trialRatio;
+    contactStressVolume_bar = contactStress.volume();
+    contactRatio_bar = contactRatio;
+    onPPZ_bar = onPPZ;
+
+    if (isCS) plasticPotential = 0;
     return plasticPotential;
 }
 
@@ -2960,6 +2986,8 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
 {
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
+    double dlambda = 0.0; // change in lambda (implex variable)
+    double dkappa = 0.0; // change in kappa (implex variable)
 
     static T2Vector contactStress;
     getContactStress(contactStress);
@@ -2970,53 +2998,70 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
     double loadingFunc = getLoadingFunc(contactStress, surfNormal,
         &plasticPotential, crossedSurface);
     double volume = tVolume - plasticPotential * 3 * refBulkModulus * modulusFactor * loadingFunc;
-    plasticVolumetricStressNorm = plasticPotential * 3 * refBulkModulus * modulusFactor * loadingFunc;
 
-    // update implex state variables
-    // compute norm of stress deviator and pressure
-    double residualPress = residualPressx[matN];
-    double conHeig = contactStress.volume() - residualPress;
-    workV6 = contactStress.deviator();
-    const Vector& center = theSurfaces[activeSurfaceNum].center();
-    double sz = theSurfaces[activeSurfaceNum].size();
-    double volumetric = conHeig * ((center && center) - 2. / 3. * sz * sz) - (workV6 && center);
-    workV6.addVector(1.0, center, -conHeig);
-    workV6 *= 3.0;
-    workT2V.setData(workV6, volumetric);
-
-    // update variables
-    lambda += loadingFunc;
-    chi += loadingFunc / workT2V.t2VectorLength();
-    kappa += 3 * loadingFunc * plasticPotential / conHeig;
-
-    //workV6 = trialStress.deviator()
-    //	         - surfNormal.deviator()*2*refShearModulus*modulusFactor*loadingFunc;
     workV6 = trialStress.deviator();
 
     if (volume > 0. && volume != tVolume) {
         double coeff = tVolume / (tVolume - volume);
-        coeff *= -2 * refShearModulus * modulusFactor * loadingFunc;
+        coeff *= -2.0 * refShearModulus * modulusFactor * loadingFunc;
         workV6.addVector(1.0, surfNormal.deviator(), coeff);
         volume = 0.;
-        const Vector& xs = surfNormal.deviator();
-        plasticDeviatoricStressNorm = (xs && xs) * -1.0 * coeff;
+        dlambda = coeff;
+        dkappa = (loadingFunc > 1e10) ? (tVolume / (3 * refBulkModulus * modulusFactor * loadingFunc)) : (0.0);
     }
     else if (volume > 0.) {
         volume = 0.;
+        dlambda = 0.0;
+        dkappa = tVolume / (3 * refBulkModulus * modulusFactor * loadingFunc);
     }
     else {
-        double coeff = -2 * refShearModulus * modulusFactor * loadingFunc;
+        double coeff = -2.0 * refShearModulus * modulusFactor * loadingFunc;
         workV6.addVector(1.0, surfNormal.deviator(), coeff);
-        const Vector& xs = surfNormal.deviator();
-        plasticDeviatoricStressNorm = (xs && xs) * -1.0 * coeff;
+        dlambda = coeff;
+        dkappa = plasticPotential;
     }
-    /*
-      if (volume>0.)volume = 0.;
-        double coeff = -2*refShearModulus*modulusFactor*loadingFunc;
-    workV6.addVector(1.0, surfNormal.deviator(), coeff);
-  */
+
     trialStress.setData(workV6, volume);
     deviatorScaling(trialStress, theSurfaces, activeSurfaceNum);
+
+    // implicit correction of implex state variables
+        // compute norm of stress deviator and pressure
+
+    // SU version 2
+    double residualPress = residualPressx[matN];
+    double conHeig = contactStress.volume() - residualPress;
+    workV6 = contactStress.deviator();
+    static Vector center(6);
+    center = theSurfaces[activeSurfaceNum].center();
+    double sz = theSurfaces[activeSurfaceNum].size();
+    double pstar = conHeig * ((center && center) - 2. / 3. * sz * sz) - (workV6 && center);
+    workV6.addVector(1.0, center, -conHeig);
+    workV6 *= 3.0;
+    workT2V.setData(workV6, volume);
+
+    /*
+    // SU version 1
+    double residualPress = residualPressx[matN];
+    double conHeig = contactStress.volume() - residualPress;
+    workV6.addVector(0.0, contactStress.deviator(), 1.0);
+    workV6.addVector(1.0, theSurfaces[activeSurfaceNum].center(), -conHeig);
+    */
+
+        // update variables
+    dlambda /= -2.0 * refShearModulus * modulusFactor; // numerically more stable this way
+    lambda += dlambda;
+
+    /*
+    chi version 1
+    chi += (dlambda > 1e-10) ? (sqrt(workV6 && workV6) / dlambda) : (0.0);
+    */
+    
+    // chi version 2
+    chi += (dlambda > 1e-10) ? (workT2V.t2VectorLength() / dlambda) : (0.0);
+    iota += dlambda * pstar / conHeig;
+
+    kappa += dlambda * dkappa / conHeig;
+
 
     if (isCrossingNextSurface()) {
         activeSurfaceNum++;
@@ -3154,8 +3199,8 @@ int PDMY02Implex::implicitSress(void) {
     lambda = 0.0;
     chi = 0.0;
     kappa = 0.0;
-    plasticDeviatoricStressNorm = 0.0;
-    plasticVolumetricStressNorm = 0.0;
+    ksi = 0.0;
+    iota = 0.0;
 
     for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
     activeSurfaceNum = committedActiveSurf;
@@ -3227,6 +3272,94 @@ int PDMY02Implex::implicitSress(void) {
             //opserr<<i<<" "<<activeSurfaceNum<<" "<<is<<" "<<subStrainRate.t2Vector()[3]<<endln;
         }
     }
+
+    return 0;
+}
+
+int PDMY02Implex::updateImplex(void) {
+
+    // time factor for explicit extrapolation
+    double time_factor = 1.0;
+    if (dtime_n_commit > 0.0)
+        time_factor = dtime_n / dtime_n_commit;
+    // note: the implex method just wants the ratio of the new to the old time step
+    // not the real time step, so it is just fine to assume it to 1.
+    // otherwise we have to deal with the problem of the opensees pseudo-time step
+    // being the load multiplier in continuation methods...
+    time_factor = 0.0;
+
+    // compute volumetric behavior
+    double residualPress = residualPressx[matN];
+    double stressRatioPT = stressRatioPTx[matN];
+    double contractParam1 = contractParam1x[matN];
+    double contractParam2 = contractParam2x[matN];
+    double contractParam3 = contractParam3x[matN];
+    double dilateParam1 = dilateParam1x[matN];
+    double dilateParam2 = dilateParam2x[matN];
+    double dilateParam3 = dilateParam3x[matN];
+
+    double plasticPotential, contractRule, shearLoading, angle;
+
+    // extrapolate contact ratio
+    isCS = isCS_commit;
+    shearLoading_bar = shearLoading_bar_commit;
+    currentRatio_bar = currentRatio_bar_commit;
+    trialRatio_bar = trialRatio_bar_commit;
+    contactRatio_bar = contactRatio_bar_commit;
+    cumuDilateStrainOcta_bar = cumuDilateStrainOcta_bar_commit;
+    maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta_bar_commit;
+    contactStressVolume_bar = std::min(-residualPress, contactStressVolume_bar_commit);
+
+    // compute the volumetric behavior
+    double factorPT = contactRatio_bar / stressRatioPT;
+
+    if (factorPT >= 1. && trialRatio_bar >= currentRatio_bar && shearLoading_bar >= 0.) {  //dilation
+        //updatePPZ(contactStress);
+        onPPZ_bar = onPPZ_bar_commit;
+        if (onPPZ_bar == 1)
+            plasticPotential = 0.0;
+        else if (onPPZ_bar == 2) {
+            factorPT -= 1.0;
+            double ppp = pow((fabs(contactStressVolume_bar) + fabs(residualPress)) / pAtm, -dilateParam3);
+            plasticPotential = ppp * factorPT * (factorPT) * (dilateParam1 + pow(cumuDilateStrainOcta_bar, dilateParam2));
+            if (plasticPotential < 0.) plasticPotential = -plasticPotential;
+            if (plasticPotential > 5.0e4) plasticPotential = 5.0e4;
+        }
+        else {
+            opserr << "FATAL: Wrong onPPZ value: " << onPPZ_bar << endln;
+            exit(-1);
+        }
+    }
+    else {  //contraction
+        if (currentRatio_bar == 0.) angle = 1.0;
+        else {
+            static double dSR = currentRatio_bar - currentRatio_bar_commit;
+            angle = (dSR >= 0) ? 1.0 : -1.0;
+        }
+        factorPT = factorPT * angle - 1.0;
+        contractRule = pow((fabs(contactStressVolume_bar) + fabs(residualPress)) / pAtm, contractParam3);
+        if (contractRule < 0.1) contractRule = 0.1;
+        plasticPotential = -(factorPT) * (factorPT) * (contractParam1 + maxCumuDilateStrainOcta_bar * contractParam2) * contractRule;
+        if (plasticPotential > 0.) plasticPotential = -plasticPotential;
+        if (onPPZ_bar > 0) onPPZ_bar = 0;
+        //if (onPPZ_bar != -1) PPZTranslation(contactStress);
+    }
+
+    if (isCS) { // neutral phase
+        plasticPotential = 0.0;
+        opserr << "neutral phase!\n";
+    }
+
+
+    // finally compute the kappa
+    kappa = plasticPotential / contactStressVolume_bar;
+
+    // deviatoric variables
+    activeSurfaceNum = committedActiveSurf;
+    modulusFactor = modulusFactor;
+    lambda = lambda_commit;// + time_factor * (lambda_commit - lambda_commit_old);
+    chi = chi_commit;// + time_factor * (chi_commit - chi_commit_old);
+    ksi = ksi_commit + time_factor * (ksi_commit - ksi_commit_old);
 
     return 0;
 }

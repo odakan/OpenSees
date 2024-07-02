@@ -697,13 +697,16 @@ const Matrix& PIMYImplex::getTangent(void)
 			// not the real time step, so it is just fine to assume it to 1.
 			// otherwise we have to deal with the problem of the opensees pseudo-time step
 			// being the load multiplier in continuation methods...
-			time_factor = 1.0;
+			time_factor = 0.0;
 
 			// extrapolate state variables
-			lambda = std::max(0.0, lambda_commit + time_factor * (lambda_commit - lambda_commit_old));
+			lambda = lambda_commit + time_factor * (lambda_commit - lambda_commit_old);
+			chi = chi_commit; //+ time_factor * (chi_commit - chi_commit_old);
+			ksi = ksi_commit; //+ time_factor * (ksi_commit - ksi_commit_old);
+			double lambda_bar = (chi > 0.0) ? (lambda / chi) : (0.0);
 
 			// compute consistent tangent
-			theTangent.addMatrix(0.0, IIdev(), 2 * refShearModulus * (1 - lambda));
+			theTangent.addMatrix(0.0, IIdev(), 2.0 * refShearModulus * (1.0 - lambda_bar * ksi * 2.0 * refShearModulus));
 			theTangent.addMatrix(1.0, IIvol(), refBulkModulus);
 		}
 	}
@@ -731,7 +734,7 @@ const Matrix& PIMYImplex::getInitialTangent(void)
 	int ndm = ndmx[matN];
 	if (ndmx[matN] == 0) ndm = 3;
 
-	theTangent = 2 * refShearModulus * IIdev() + refBulkModulus * IIvol();
+	theTangent = 2.0 * refShearModulus * IIdev() + refBulkModulus * IIvol();
 
 	if (ndm == 3)
 		return theTangent;
@@ -762,7 +765,7 @@ const Vector& PIMYImplex::getStress(void)
 	if (loadStage == 1 && e2p == 0) elast2Plast();
 
 	if (loadStage != 1) {  //linear elastic
-		theTangent = 2 * refShearModulus * IIdev() + refBulkModulus * IIvol();
+		theTangent = 2.0 * refShearModulus * IIdev() + refBulkModulus * IIvol();
 		workV6.addVector(0.0, currentStress.t2Vector(), 1.0);
 		workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
 		trialStress.setData(workV6);
@@ -780,13 +783,29 @@ const Vector& PIMYImplex::getStress(void)
 			// not the real time step, so it is just fine to assume it to 1.
 			// otherwise we have to deal with the problem of the opensees pseudo-time step
 			// being the load multiplier in continuation methods...
-			time_factor = 1.0;
+			time_factor = 0.0;
 
-			// compute stress
-			getTangent();
-			workV6.addMatrixVector(0.0, theTangent, strainRate.t2Vector(1), 1.0);
-			workV6.addVector(1.0, currentStress.t2Vector(), 1.0);
+			// extrapolate state variables
+			lambda = lambda_commit + time_factor * (lambda_commit - lambda_commit_old);
+			chi = chi_commit;// +time_factor * (chi_commit - chi_commit_old);
+			ksi = ksi_commit;// +time_factor * (ksi_commit - ksi_commit_old);
+			double lambda_bar = (chi > 0.0) ? (lambda / chi) : (0.0);
+
+			// compute implex stress
+				// trial stress
+			theTangent = 2.0 * refShearModulus * IIdev() + refBulkModulus * IIvol();
+			workV6.addVector(0.0, currentStress.t2Vector(), 1.0);
+			workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
 			trialStress.setData(workV6);
+
+			// compute plastic strain	
+			workV6.addVector(0.0, theSurfaces[activeSurfaceNum].center(), 1.0);		// get the center
+			workV6.addVector(-1.0, trialStress.deviator(), 1.0);					// get the shifted deviator
+			workV6 *= lambda_bar * ksi;												// compute the contact stress and then the plastic strain
+
+			// correct stress
+			workV6.addVector(-2.0 * refShearModulus, trialStress.deviator(), 1.0);	// correct the stress deviator
+			trialStress.setData(workV6, trialStress.volume());						// update trial stress
 		}
 	}
 
@@ -816,25 +835,19 @@ int PIMYImplex::commitState(void)
 
 	if (loadStage == 1) {
 
-		// keep for implex error calculation
-		double lambda_x = lambda;
-
 		if (implex) {
 			// do an implicit iteration before commit
 			currentStressImplex = trialStress;		// store for output
 			implicitSress();						// do implicit correction
 		}
 
-		// compute the error due to extrapolation
-		errorImplex = abs(lambda_x - lambda);	// L2 norm
-
-		// compute some energy results
-		plasticMultiplier += lambda_bar;
-		spentEnergy += plasticStressNorm * lambda_bar;
-
 		// commit implex variables
+		chi_commit_old = chi_commit;
+		chi_commit = chi;
 		lambda_commit_old = lambda_commit;
 		lambda_commit = lambda;
+		ksi_commit_old = ksi_commit;
+		ksi_commit = ksi;
 
 		committedActiveSurf = activeSurfaceNum;
 		for (int i = 1; i <= numOfSurfaces; i++) committedSurfaces[i] = theSurfaces[i];
@@ -856,6 +869,25 @@ int PIMYImplex::commitState(void)
 
 int PIMYImplex::revertToLastCommit(void)
 {
+	int loadStage = loadStagex[matN];
+	int numOfSurfaces = numOfSurfacesx[matN];
+
+	if (loadStage == 1) {
+		// revert implex variables
+		chi_commit = chi_commit_old;
+		chi = chi_commit;
+		lambda_commit = lambda_commit_old;
+		lambda = lambda_commit;
+		ksi_commit = ksi_commit_old;
+		ksi = ksi_commit;
+
+		activeSurfaceNum = committedActiveSurf;
+		for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
+	}
+
+	trialStress = currentStress;
+	//currentStrain is always the lastest comitted (step n)
+
 	return 0;
 }
 
@@ -1048,16 +1080,19 @@ int PIMYImplex::sendSelf(int commitTag, Channel& theChannel)
 	data(24) = lambda;
 	data(25) = lambda_commit;
 	data(26) = lambda_commit_old;
-	data(27) = dtime_n;
-	data(28) = dtime_n_commit;
-	data(29) = (dtime_is_user_defined) ? (1.0) : (0.0);
-	data(30) = (dtime_first_set) ? (1.0) : (0.0);
-	data(31) = plasticMultiplier;
-	data(32) = spentEnergy;
-	data(33) = errorImplex;
+	data(27) = chi;
+	data(28) = chi_commit;
+	data(29) = chi_commit_old;
+	data(30) = ksi;
+	data(31) = ksi_commit;
+	data(32) = ksi_commit_old;
+	data(33) = dtime_n;
+	data(34) = dtime_n_commit;
+	data(35) = (dtime_is_user_defined) ? (1.0) : (0.0);
+	data(36) = (dtime_first_set) ? (1.0) : (0.0);
 
 	for (i = 0; i < numOfSurfaces; i++) {
-		int k = 34 + i * 8;
+		int k = 37 + i * 8;
 		data(k) = committedSurfaces[i + 1].size();
 		data(k + 1) = committedSurfaces[i + 1].modulus();
 		temp = committedSurfaces[i + 1].center();
@@ -1136,13 +1171,16 @@ int PIMYImplex::recvSelf(int commitTag, Channel& theChannel,
 	lambda = data(24);
 	lambda_commit = data(25);
 	lambda_commit_old = data(26);
-	dtime_n = data(27);
-	dtime_n_commit = data(28);
-	dtime_is_user_defined = (data(29) == 1.0);
-	dtime_first_set = (data(30) == 1.0);
-	plasticMultiplier = data(31);
-	spentEnergy = data(32);
-	errorImplex = data(33);
+	chi = data(27);
+	chi_commit = data(28);
+	chi_commit_old = data(29);
+	ksi = data(30);
+	ksi_commit = data(31);
+	ksi_commit_old = data(32);
+	dtime_n = data(33);
+	dtime_n_commit = data(34);
+	dtime_is_user_defined = (data(35) == 1.0);
+	dtime_first_set = (data(36) == 1.0);
 
 	if (committedSurfaces != 0) {
 		delete[] committedSurfaces;
@@ -1153,7 +1191,7 @@ int PIMYImplex::recvSelf(int commitTag, Channel& theChannel,
 	committedSurfaces = new MultiYieldSurface[numOfSurfaces + 1];
 
 	for (i = 0; i < numOfSurfaces; i++) {
-		int k = 34 + i * 8;
+		int k = 37 + i * 8;
 		temp(0) = data(k + 2);
 		temp(1) = data(k + 3);
 		temp(2) = data(k + 4);
@@ -1272,12 +1310,6 @@ PIMYImplex::setResponse(const char** argv, int argc, OPS_Stream& output)
 	else if (strcmp(argv[0], "stateVarsImplex") == 0) {
 		return new MaterialResponse(this, 27, this->getImplexSateVariables());
 	}
-	else if (strcmp(argv[0], "dissipatedEnergy") == 0) {
-		return new MaterialResponse(this, 28, this->getDissipatedEnergy());
-	}
-	else if (strcmp(argv[0], "errorImplex") == 0) {
-		return new MaterialResponse(this, 29, this->getImplexError());
-	}
 	else
 		return 0;
 }
@@ -1353,14 +1385,6 @@ int PIMYImplex::getResponse(int responseID, Information& matInfo)
 	case 27:
 		if (matInfo.theVector != 0)
 			*(matInfo.theVector) = getImplexSateVariables();
-		return 0;
-	case 28:
-		if (matInfo.theVector != 0)
-			*(matInfo.theVector) = getDissipatedEnergy();
-		return 0;
-	case 29:
-		if (matInfo.theVector != 0)
-			*(matInfo.theVector) = getImplexError();
 		return 0;
 	default:
 		return -1;
@@ -1517,16 +1541,11 @@ const Vector& PIMYImplex::getStressToRecord(int numOutput, bool isImplex)
 
 const Vector& PIMYImplex::getImplexSateVariables(void)
 {
-	static Vector sv(1);
+	static Vector sv(3);
 	sv(0) = lambda;
+	sv(1) = chi;
+	sv(2) = ksi;
 	return sv;
-}
-
-const Vector& PIMYImplex::getDissipatedEnergy(void)
-{
-	static Vector de(2);
-	de(0) = plasticMultiplier; de(1) = spentEnergy;
-	return de;
 }
 
 const Vector& PIMYImplex::getCommittedStrain(void)
@@ -1545,14 +1564,6 @@ const Vector& PIMYImplex::getCommittedStrain(void)
 		return workV;
 	}
 }
-
-const Vector& PIMYImplex::getImplexError(void)
-{
-	static Vector er(1);
-	er(0) = errorImplex;
-	return er;
-}
-
 
 // NOTE: surfaces[0] is not used
 void PIMYImplex::setUpSurfaces(double* gredu)
@@ -1847,6 +1858,9 @@ PIMYImplex::getContactStress(T2Vector& contactStress)
 	devia *= theSurfaces[activeSurfaceNum].size() / Ms;
 	devia += center;
 
+	// correct implex state variables
+	ksi = theSurfaces[activeSurfaceNum].size() / Ms;
+
 	contactStress.setData(devia, trialStress.volume());
 }
 
@@ -1915,19 +1929,16 @@ void PIMYImplex::stressCorrection(int crossedSurface)
 	double loadingFunc = getLoadingFunc(contactStress, surfaceNormal, crossedSurface);
 	static Vector devia(6);
 
-	// update implex state variables
-	// compute norm of stress deviator and pressure
-	devia = theSurfaces[activeSurfaceNum].center();
+	// correct implex state variables
+		// lambda
+	lambda += loadingFunc;
+		// chi
+	devia.addVector(0.0, theSurfaces[activeSurfaceNum].center(), 1.0);
 	devia.addVector(-1.0, contactStress.deviator(), 1.0);
-
-	// update implex variables
-	lambda += loadingFunc / sqrt(devia && devia);
-	// for output
-	lambda_bar += loadingFunc;
+	chi += sqrt(devia && devia);
 
 	//devia = trialStress.deviator() - surfaceNormal * 2 * refShearModulus * loadingFunc;
-	devia.addVector(0.0, surfaceNormal, -2 * refShearModulus * loadingFunc);
-	plasticStressNorm += sqrt(devia && devia);
+	devia.addVector(0.0, surfaceNormal, -2.0 * refShearModulus * loadingFunc);
 	devia += trialStress.deviator();
 
 	trialStress.setData(devia, trialStress.volume());
@@ -2054,8 +2065,8 @@ int PIMYImplex::implicitSress(void) {
 
 	// initialize current step implex state variables
 	lambda = 0.0;
-	lambda_bar = 0.0;
-	plasticStressNorm = 0.0;
+	chi = 0.0;
+	ksi = 0.0;
 
 	for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
 	activeSurfaceNum = committedActiveSurf;
