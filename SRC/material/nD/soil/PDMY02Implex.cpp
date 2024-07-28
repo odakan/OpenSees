@@ -1101,22 +1101,26 @@ const Matrix& PDMY02Implex::getTangent(void)
             double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
             const Vector& identity = I1();
             const Vector& center = committedSurfaces[activeSurfaceNum].center();
-            const Matrix& IImixed = IIdev_mix();
+            const Matrix& IId = IIdev();
+            const Matrix& IIv = IIvol();
 
             // deviatoric component 2
             theTangent.Zero();
             for (int i = 0; i < 6; i++) {
                 for (int j = 0; j < 6; j++) {
-                    theTangent(i, j) += identity(i) * center(j);
+                    // ContrCovVariant <= ContraVariant = InVariant * ContraVariant
+                    theTangent(i, j) += identity(i) * center(j) + (j>2) * identity(i) * center(j);
                 }
             }
-            theTangent *= ((2.0 / 3.0) * refShearModulus * modulusFactor * lambda_bar * ksi);
+            // no need to double dot (I x alpha) with IIdev since surface center, alpha is a deviatoric tensor and I is invariant.
+            // hence, (Ixa):IIdev = (Ixa) always.
+            theTangent *= (2.0 * refShearModulus * modulusFactor * (1.0 - ksi) * lambda_bar * refBulkModulus * modulusFactor);
 
             // deviatoric component 1
-            theTangent.addMatrix(1.0, IIdev(), 2.0 * refShearModulus * modulusFactor * (1.0 - 2.0 * refShearModulus * modulusFactor * lambda_bar * ksi));
+            theTangent.addMatrix(1.0, IId, 2.0 * refShearModulus * modulusFactor * (1.0 - 6.0 * lambda_bar * ksi * refShearModulus * modulusFactor));
 
             // volumetric component
-            theTangent.addMatrix(1.0, IIvol(), (1.0 / 3.0) * refBulkModulus * modulusFactor * (1.0 - 3.0 * lambda * kappa * refBulkModulus * modulusFactor));
+            theTangent.addMatrix(1.0, IIv, (1.0 / 3.0) * refBulkModulus * modulusFactor * (1.0 - 3.0 * lambda * kappa * refBulkModulus * modulusFactor));
         }
     }
 
@@ -1220,7 +1224,6 @@ const Vector& PDMY02Implex::getStress(void)
             double refShearModulus = refShearModulusx[matN];
             double refBulkModulus = refBulkModulusx[matN];
             double residualPress = residualPressx[matN];
-            double conHeig = trialStress.volume() - residualPress;
             double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
             double volume = 0.0;
 
@@ -1231,14 +1234,16 @@ const Vector& PDMY02Implex::getStress(void)
             trialStress.setData(workV6);
 
             // compute plastic strain
-            workV6.addVector(0.0, theSurfaces[activeSurfaceNum].center(), conHeig); // get the center
-            workV6.addVector(-1.0, trialStress.deviator(), 1.0);                    // get the shifted deviator					
-            workV6 *= lambda_bar * ksi;												// compute the contact stress and then the plastic strain
-            volume = 3 * refBulkModulus * modulusFactor * lambda * kappa;
+            double conHeig = trialStress.volume() - residualPress;
+            workV6.addVector(0.0, theSurfaces[activeSurfaceNum].center(), conHeig); // get the center (trial)
+            workV6.addVector(-1.0, trialStress.deviator(), 1.0);                    // get the shifted deviator (trial)
+            workV6 = 3 * ksi * workV6 + conHeig * iota * I1();                      // compute the contact stress and get normal to the yield surface
+            workV6 *= lambda_bar;			 									    // compute the plastic strain
+            volume = 3 * refBulkModulus * modulusFactor * lambda * kappa;           // compute volumetric stress reduction coeff.
 
             // correct stress
             workV6.addVector(-2.0 * refShearModulus * modulusFactor, trialStress.deviator(), 1.0);	// correct the stress deviator
-            volume = trialStress.volume() * (1 - volume);
+            volume = trialStress.volume() * (1.0 - volume);
             trialStress.setData(workV6, volume);
         }
     }
@@ -3034,7 +3039,7 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
     static Vector center(6);
     center = theSurfaces[activeSurfaceNum].center();
     double sz = theSurfaces[activeSurfaceNum].size();
-    double pstar = conHeig * ((center && center) - 2. / 3. * sz * sz) - (workV6 && center);
+    double volumetric = conHeig * ((center && center) - 2. / 3. * sz * sz) - (workV6 && center);
     workV6.addVector(1.0, center, -conHeig);
     workV6 *= 3.0;
     workT2V.setData(workV6, volume);
@@ -3058,8 +3063,7 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
     
     // chi version 2
     chi += (dlambda > 1e-10) ? (workT2V.t2VectorLength() / dlambda) : (0.0);
-    iota += dlambda * pstar / conHeig;
-
+    iota += dlambda * volumetric / conHeig;
     kappa += dlambda * dkappa / conHeig;
 
 
@@ -3288,6 +3292,7 @@ int PDMY02Implex::updateImplex(void) {
     // being the load multiplier in continuation methods...
     time_factor = 0.0;
 
+    /*
     // compute volumetric behavior
     double residualPress = residualPressx[matN];
     double stressRatioPT = stressRatioPTx[matN];
@@ -3353,6 +3358,7 @@ int PDMY02Implex::updateImplex(void) {
 
     // finally compute the kappa
     kappa = plasticPotential / contactStressVolume_bar;
+    */
 
     // deviatoric variables
     activeSurfaceNum = committedActiveSurf;
@@ -3360,6 +3366,8 @@ int PDMY02Implex::updateImplex(void) {
     lambda = lambda_commit;// + time_factor * (lambda_commit - lambda_commit_old);
     chi = chi_commit;// + time_factor * (chi_commit - chi_commit_old);
     ksi = ksi_commit + time_factor * (ksi_commit - ksi_commit_old);
+    iota = iota_commit;
+    kappa = kappa_commit;
 
     return 0;
 }
