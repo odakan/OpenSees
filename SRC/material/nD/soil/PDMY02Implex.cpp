@@ -1106,6 +1106,7 @@ const Matrix& PDMY02Implex::getTangent(void)
 
             // deviatoric component 2
             theTangent.Zero();
+            /*
             for (int i = 0; i < 6; i++) {
                 for (int j = 0; j < 6; j++) {
                     // ContrCovVariant <= ContraVariant = InVariant * ContraVariant
@@ -1115,6 +1116,7 @@ const Matrix& PDMY02Implex::getTangent(void)
             // no need to double dot (I x alpha) with IIdev since surface center, alpha is a deviatoric tensor and I is invariant.
             // hence, (Ixa):IIdev = (Ixa) always.
             theTangent *= (2.0 * refShearModulus * modulusFactor * (1.0 - ksi) * lambda_bar * refBulkModulus * modulusFactor);
+            */
 
             // deviatoric component 1
             theTangent.addMatrix(1.0, IId, 2.0 * refShearModulus * modulusFactor * (1.0 - 6.0 * lambda_bar * ksi * refShearModulus * modulusFactor));
