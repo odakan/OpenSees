@@ -1,14 +1,33 @@
-// $Revision: 1.16 $
-// $Date: 2009-10-07 20:14:00 $
-// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/soil/PDMY02Implex.cpp,v $
+/* ****************************************************************** **
+**    OpenSees - Open System for Earthquake Engineering Simulation    **
+**          Pacific Earthquake Engineering Research Center            **
+**                                                                    **
+**                                                                    **
+** (C) Copyright 1999, The Regents of the University of California    **
+** All Rights Reserved.                                               **
+**                                                                    **
+** Commercial use of this program without express permission of the   **
+** University of California, Berkeley, is strictly prohibited.  See   **
+** file 'COPYRIGHT'  in main directory for information on usage and   **
+** redistribution,  and for a DISCLAIMER OF ALL WARRANTIES.           **
+**                                                                    **
+** Developed by:                                                      **
+**   Frank McKenna (fmckenna@ce.berkeley.edu)                         **
+**   Gregory L. Fenves (fenves@ce.berkeley.edu)                       **
+**   Filip C. Filippou (filippou@ce.berkeley.edu)                     **
+**                                                                    **
+** ****************************************************************** */
 
-// Written: ZHY
-// Created: May 2004
-// Last Modified: September 2009
+// $Source: /usr/local/cvs/OpenSees/SRC/material/nD/soil/PDMY02Implex.cpp,v $
+// $Revision: 1.0 $
+// $Date: 2024-01-05 12:00:00 $
+
+// Written by:	    Onur Deniz Akan		(onur.akan@iusspavia.it)
+// Based on:        ZHY's PressureDependMultiYield02.cpp
+// Created:         December 2023
+// Last Modified:
 //
-// PDMY02Implex.cpp
-// -------------------
-//
+// Description: This file contains the implementation for the PDMY02Implex function.
 
 #include <math.h>
 #include <stdlib.h>
@@ -21,7 +40,7 @@
 #include <elementAPI.h>
 #include <MultiYieldSurface.h>
 
-const Vector& I1()
+static const Vector& I1()
 {
     // return 2nd order identity tensor 
     // basis of c is independent of the matrix representation
@@ -30,7 +49,7 @@ const Vector& I1()
     return c;
 }
 
-const Matrix& IIvol()
+static const Matrix& IIvol()
 {
     // return 4th order volumetric operator 
     // basis of c is independent of the matrix representation
@@ -47,10 +66,11 @@ const Matrix& IIvol()
     return c;
 }
 
-const Matrix& IIdev()
+static const Matrix& IIdev()
 {
     // return 4th order deviatoric operator 
-    // basis of c is contravariant (i.e., operates on strain and leads to stress)
+    // basis of c is contravariant 
+    // (i.e., operates on a strain-like tensor and leads to a stress-like tensor)
     static Matrix c(6, 6);
     c(0, 0) = 2.0 / 3.0;
     c(0, 1) = -1.0 / 3.0;
@@ -67,9 +87,33 @@ const Matrix& IIdev()
     return c;
 }
 
+static const Matrix& IIdev_mix()
+{
+    // return 4th order deviatoric operator 
+    // basis of c is Covariant-Contravariant 
+    // (i.e., operates on a stress-like tensor and leads to a stress-like tensor)
+    static Matrix c(6, 6);
+    c(0, 0) = 2.0 / 3.0;
+    c(0, 1) = -1.0 / 3.0;
+    c(0, 2) = -1.0 / 3.0;
+    c(1, 0) = -1.0 / 3.0;
+    c(1, 1) = 2.0 / 3.0;
+    c(1, 2) = -1.0 / 3.0;
+    c(2, 0) = -1.0 / 3.0;
+    c(2, 1) = -1.0 / 3.0;
+    c(2, 2) = 2.0 / 3.0;
+    c(3, 3) = 1.0;
+    c(4, 4) = 1.0;
+    c(5, 5) = 1.0;
+    return c;
+}
+
 int PDMY02Implex::matCount = 0;
-int* PDMY02Implex::loadStagex = 0;  //=0 if elastic; =1 if plastic
-int* PDMY02Implex::ndmx = 0;  //num of dimensions (2 or 3)
+int* PDMY02Implex::loadStagex = 0;          //=0 if elastic; =1 if plastic
+int* PDMY02Implex::ndmx = 0;                //num of dimensions (2 or 3)
+int* PDMY02Implex::numOfSurfacesx = 0;
+bool* PDMY02Implex::doImplex = false;
+bool* PDMY02Implex::beVerbose = false;
 double* PDMY02Implex::rhox = 0;
 double* PDMY02Implex::refShearModulusx = 0;
 double* PDMY02Implex::refBulkModulusx = 0;
@@ -78,7 +122,6 @@ double* PDMY02Implex::peakShearStrainx = 0;
 double* PDMY02Implex::refPressurex = 0;
 double* PDMY02Implex::cohesionx = 0;
 double* PDMY02Implex::pressDependCoeffx = 0;
-int* PDMY02Implex::numOfSurfacesx = 0;
 double* PDMY02Implex::phaseTransfAnglex = 0;
 double* PDMY02Implex::contractParam1x = 0;
 double* PDMY02Implex::contractParam2x = 0;
@@ -88,7 +131,7 @@ double* PDMY02Implex::dilateParam2x = 0;
 double* PDMY02Implex::liquefyParam1x = 0;
 double* PDMY02Implex::liquefyParam2x = 0;
 double* PDMY02Implex::dilateParam3x = 0;
-double* PDMY02Implex::einitx = 0;    //initial void ratio
+double* PDMY02Implex::einitx = 0;           //initial void ratio
 double* PDMY02Implex::volLimit1x = 0;
 double* PDMY02Implex::volLimit2x = 0;
 double* PDMY02Implex::volLimit3x = 0;
@@ -96,131 +139,420 @@ double* PDMY02Implex::residualPressx = 0;
 double* PDMY02Implex::stressRatioPTx = 0;
 double* PDMY02Implex::Hvx = 0;
 double* PDMY02Implex::Pvx = 0;
-bool* PDMY02Implex::doImplex = false;
 
 double PDMY02Implex::pAtm = 101.;
 
+Matrix PDMY02Implex::theTangent(6, 6);
 T2Vector PDMY02Implex::trialStrain;
 T2Vector PDMY02Implex::subStrainRate;
+
+Matrix PDMY02Implex::workM66(6, 6);
 Vector PDMY02Implex::workV6(6);
 T2Vector PDMY02Implex::workT2V;
-const	double pi = 3.14159265358979;
+const double pi = 3.14159265358979;
 
-//double check;
-
-void* OPS_PDMY02Implex()
+void* OPS_PDMY02Implex(void)
 {
-    const int numParam = 13;
-    const int totParam = 26;
-    int tag;
-    double param[totParam];
-    param[numParam] = 20;
-    param[numParam + 1] = 5.0;
-    param[numParam + 2] = 3.;
-    param[numParam + 3] = 1.;
-    param[numParam + 4] = 0.;
-    param[numParam + 5] = 0.6;
-    param[numParam + 6] = 0.9;
-    param[numParam + 7] = 0.02;
-    param[numParam + 8] = 0.7;
-    param[numParam + 9] = 101.;
-    param[numParam + 10] = 0.1;
-    param[numParam + 11] = 0.;
-    param[numParam + 12] = 1.;
+    // display kudos
+    static int kudos = 0;
+    if (++kudos == 1)
+        opserr << "PDMY02Implex nDmaterial - Written: OD.Akan, G.Camata, E.Spacone, CG.Lai, C.Tamagnini, IUSS Pavia \n";
 
-    int argc = OPS_GetNumRemainingInputArgs() + 2;
-    const char* arg[] = { "nd", "rho", "refShearModul",
-            "refBulkModul", "frictionAng",
-            "peakShearStra", "refPress", "pressDependCoe",
-            "phaseTransformAngle", "contractionParam1",
-            "contractionParam3","dilationParam1","dilationParam3",
-            "numberOfYieldSurf (=20)",
-            "contractionParam2=5.0", "dilationParam2=3.0",
-            "liquefactionParam1=1.0", "liquefactionParam2=0.0",
-            "e (=0.6)", "volLimit1 (=0.9)", "volLimit2 (=0.02)",
-            "volLimit3 (=0.7)", "Atmospheric pressure (=101)", "cohesi (=.1)",
-            "Hv (=0)", "Pv (=1.)" };
-    if (argc < (3 + numParam)) {
-        opserr << "WARNING insufficient arguments\n";
-        opserr << "Want: nDMaterial PDMY02Implex tag? " << arg[0];
-        opserr << "? " << "\n";
-        opserr << arg[1] << "? " << arg[2] << "? " << arg[3] << "? " << "\n";
-        opserr << arg[4] << "? " << arg[5] << "? " << arg[6] << "? " << "\n";
-        opserr << arg[7] << "? " << arg[8] << "? " << arg[9] << "? " << "\n";
-        opserr << arg[10] << "? " << arg[11] << "? " << arg[12] << "? " << "\n";
-        opserr << arg[13] << "? " << arg[14] << "? " << arg[15] << "? " << "\n";
-        opserr << arg[16] << "? " << arg[17] << "? " << arg[18] << "? " << "\n";
-        opserr << arg[19] << "? " << arg[20] << "? " << arg[21] << "? " << "\n";
-        opserr << arg[22] << "? " << arg[23] << "? " << "\n";
-        return 0;
+    // initialize pointers
+    NDMaterial* theMaterial = nullptr;      // pointer to an nD material to be returned
+    static double* custom_curve = nullptr;  // pointer to user input G reduction curve
+
+    // initialize material parameters
+    int tag = -1; double Gref = -1.0; double Kref = -1.0;
+    double fAngle = -1.0; double gPeak = -1.0; double Pref = -1.0;
+    double mPow = -1.0; double ptAngle = -1.0; double c1 = -1.0; double c3 = -1.0;
+    double d1 = -1.0; double d3 = -1.0;
+
+    // optional parameters with default values
+    int maxTNYS = 80; double rho = 0.0;
+    int TNYS = 20; double c2 = 5.0; double d2 = 3.0; double l1 = 1.0;
+    double l2 = 0.0; double eV = 0.6; double csl1 = 0.9; double csl2 = 0.02;
+    double csl3 = 0.7; double Patm = 101.0; double cohesion = 0.1;
+    double hv = 0.0; double pv = 1.0;
+    int implexFlag = 0; int verboseFlag = 0;
+
+    // begin recieving
+    int numArgs = OPS_GetNumRemainingInputArgs();
+    int numData = 1;
+
+    // check if help is requested
+    if (numArgs < 3) {
+        while (OPS_GetNumRemainingInputArgs() > 0) {
+            const char* inputstring = OPS_GetString();
+            // recive print help flag, print material command use and quit
+            if (strcmp(inputstring, "-help") == 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - Code terminated since '-help' is the first option in the nDmaterial PDMY02Implex declaration.\n";
+                opserr << "                            Remove or move the '-help' option further along the declaration to continue...\n";
+                exit(-1);
+            }
+        }
     }
 
-    int numdata = 1;
-    if (OPS_GetIntInput(&numdata, &tag) < 0) {
-        opserr << "WARNING invalid PDMY02Implex tag" << "\n";
-        return 0;
+    // check mandatory inputs
+    if (numArgs < 12) {
+        opserr << "FATAL: OPS_PDMY02Implex() - please define the following minimum parameters:\n";
+        opserr << "nDMaterial PDMY02Implex tag? -G Gref? -K Kref? -P Pref? -fAngle frictionAngle? -gPeak peakShearStrain? -ptAngle phaseTransformAngle?\n";
+        opserr << "                            -c1 contractionParam1? -c3 contractionParam3? -d1 dilationParam1? -d3 dilationParam3\n";
+        return theMaterial;
     }
 
-    int in = 17;
-    for (int i = 3; (i < argc && i < in); i++)
-        if (OPS_GetDoubleInput(&numdata, &param[i - 3]) < 0) {
-            opserr << "WARNING invalid " << arg[i - 3] << "\n";
-            opserr << "nDMaterial PDMY02Implex: " << tag << "\n";
-            return 0;
+    // input #1 - recieve unique material tag
+    if (OPS_GetInt(&numData, &tag) != 0) {
+        opserr << "FATAL: OPS_PDMY02Implex() - invalid tag? (must be followed by an integer)\n\n";
+        return theMaterial;
+    }
+
+    // continue with the remaining inputs
+    while (OPS_GetNumRemainingInputArgs() > 0) {
+        const char* inputstring = OPS_GetString();
+
+        // input #2 - recieve material bulk modulus at reference pressure
+        if (strcmp(inputstring, "-Kref") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &Kref) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid Kref value after flag: -K (must be followed by a double)\n";
+                return theMaterial;
+            }
         }
 
-    static double* gredu = 0;
-
-    // user defined yield surfaces
-    if (param[numParam] < 0 && param[numParam] > -100) {
-        param[numParam] = -int(param[numParam]);
-        gredu = new double[int(2 * param[numParam])];
-
-        for (int i = 0; i < 2 * param[numParam]; i++)
-            if (OPS_GetDoubleInput(&numdata, &gredu[i]) < 0) {
-                opserr << "WARNING invalid " << " double" << "\n";
-                opserr << "nDMaterial PressureIndependMultiYield: " << tag << "\n";
-                return 0;
+        // input #3 - recieve material shear modulus at reference pressure
+        if (strcmp(inputstring, "-Gref") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &Gref) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid Gref value after flag: -G (must be followed by a double)\n";
+                return theMaterial;
             }
-    }
+        }
 
-    if (gredu != 0) {
-        for (int i = in + int(2 * param[numParam]); i < argc; i++)
-            if (OPS_GetDoubleInput(&numdata, &param[i - 3 - int(2 * param[numParam])]) < 0) {
-                opserr << "WARNING invalid " << " double" << "\n";
-                opserr << "nDMaterial PDMY02Implex: " << tag << "\n";
-                return 0;
+        // input #4 - recieve material reference pressure
+        if (strcmp(inputstring, "-Pref") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &Pref) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid Pref value after flag: -P (must be followed by a double)\n";
+                return theMaterial;
             }
-    }
-    else {
-        for (int i = in; i < argc; i++)
-            if (OPS_GetDoubleInput(&numdata, &param[i - 3]) < 0) {
-                opserr << "WARNING invalid " << " double" << "\n";
-                opserr << "nDMaterial PDMY02Implex: " << tag << "\n";
-                return 0;
+        }
+
+        // input #5 - recieve material mass density
+        if (strcmp(inputstring, "-rho") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &rho) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid rho value after flag: -r (must be followed by a double)\n";
+                return theMaterial;
             }
+        }
+
+        // input #6 - recieve material elastic modulus update power
+        if (strcmp(inputstring, "-mPow") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &mPow) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid pressDependCoe value after flag: -mPow (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #7 - recieve total number of yield surfaces
+        if (strcmp(inputstring, "-tnys") == 0 || strcmp(inputstring, "-TNYS") == 0) {
+            numData = 1;
+            if (OPS_GetIntInput(&numData, &TNYS) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid tnys value after flag: -tnys (must be followed by an integer)\n";
+                return theMaterial;
+            }
+            if (abs(TNYS) > maxTNYS || TNYS == 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid tnys value! (must be an integer tnys <= " << maxTNYS << " and tnys cannot be 0)\n";
+                return theMaterial;
+            }
+            if (TNYS < 0) {
+                // recieve user input yield surfaces
+                TNYS = abs(TNYS);	// make sure TNYS is a positive integer
+                custom_curve = new double[int(2 * TNYS)];
+                for (int i = 0; i < int(2 * TNYS); i++) {
+                    if (OPS_GetDoubleInput(&numData, &custom_curve[i]) < 0) {
+                        opserr << "WARNING invalid " << " double" << "\n";
+                        opserr << "nDMaterial PressureIndependMultiYield: " << tag << "\n";
+                        return 0;
+                    }
+                }
+            }
+
+        }
+
+        // input #8 - recieve yield surface cohesion
+        if (strcmp(inputstring, "-cohesion") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &cohesion) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid cohesion value after flag: -cohesion (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #9 - recieve yield surface friction angle
+        if (strcmp(inputstring, "-fAngle") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &fAngle) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid frictionAngle value after flag: -fAngle (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #10 - recieve yield surface dilatancy angle
+        if (strcmp(inputstring, "-ptAngle") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &ptAngle) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid phaseTransformAngle value after flag: -ptAngle (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #11 - recieve yield surface peak shear strain
+        if (strcmp(inputstring, "-gPeak") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &gPeak) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid peakShearStrain value after flag: -gPeak (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #12 - recieve material integration type
+        if (strcmp(inputstring, "-implex") == 0) {
+            implexFlag = 1;
+        }
+
+        // input #13 - recieve contractionParam1
+        if (strcmp(inputstring, "-c1") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &c1) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid contractionParam1 value after flag: -c1 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #14 - recieve contractionParam2
+        if (strcmp(inputstring, "-c2") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &c2) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid contractionParam2 value after flag: -c2 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #15 - recieve contractionParam3
+        if (strcmp(inputstring, "-c3") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &c3) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid contractionParam3 value after flag: -c3 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #16 - recieve dilationParam1
+        if (strcmp(inputstring, "-d1") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &d1) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid dilationParam1 value after flag: -d1 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #17 - recieve dilationParam2
+        if (strcmp(inputstring, "-d2") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &d2) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid dilationParam2 value after flag: -d2 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #18 - recieve dilationParam3
+        if (strcmp(inputstring, "-d3") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &d3) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid dilationParam3 value after flag: -d3 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #19 - recieve liquefac1
+        if (strcmp(inputstring, "-l1") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &l1) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid liquefac1 value after flag: -l1 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #20 - recieve liquefac2
+        if (strcmp(inputstring, "-l2") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &l2) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid liquefac2 value after flag: -l2 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #21 - recieve void ratio
+        if (strcmp(inputstring, "-e") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &eV) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid voidRatio value after flag: -e (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #22 - recieve volLimit1
+        if (strcmp(inputstring, "-csl1") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &csl1) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid volLimit1 value after flag: -csl1 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #23 - recieve volLimit2
+        if (strcmp(inputstring, "-csl2") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &csl2) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid volLimit2 value after flag: -csl2 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #24 - recieve volLimit3
+        if (strcmp(inputstring, "-csl3") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &csl3) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid volLimit3 value after flag: -csl3 (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #25 - recieve Patm
+        if (strcmp(inputstring, "-Patm") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &Patm) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid atmospheric pressure value after flag: -Patm (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #26 - recieve verbosity paramter
+        if (strcmp(inputstring, "-info") == 0) {
+            verboseFlag = 1;
+        }
+
+        // input #27 - recieve hv paramter
+        if (strcmp(inputstring, "-hv") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &hv) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid hv value after flag: -hv (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
+
+        // input #28 - recieve pv paramter
+        if (strcmp(inputstring, "-pv") == 0) {
+            numData = 1;
+            if (OPS_GetDoubleInput(&numData, &pv) < 0) {
+                opserr << "FATAL: OPS_PDMY02Implex() - invalid pv value after flag: -pv (must be followed by a double)\n";
+                return theMaterial;
+            }
+        }
     }
 
+    // do a value check
+    if (tag < 0) { opserr << "FATAL: OPS_PDMY02Implex() - tag < 0!\n"; return theMaterial; }
+    if (rho < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - rho < 0!\n"; return theMaterial; }
+    if (Gref < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - Gref < 0!\n"; return theMaterial; }
+    if (Kref < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - Kref < 0!\n"; return theMaterial; }
+    if (Pref < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - Pref < 0!\n"; return theMaterial; }
+    if (mPow < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - mPow < 0!\n"; return theMaterial; }
+    if (fAngle < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - fAngle < 0!\n"; return theMaterial; }
+    if (gPeak < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - gPeak < 0!\n"; return theMaterial; }
+    if (ptAngle < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - ptAngle < 0!\n"; return theMaterial; }
+    if (TNYS < 0) { opserr << "FATAL: OPS_PDMY02Implex() - TNYS < 0!\n"; return theMaterial; }
+    if (c1 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - c1 < 0!\n"; return theMaterial; }
+    if (c2 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - c2 < 0!\n"; return theMaterial; }
+    if (c3 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - c3 < 0!\n"; return theMaterial; }
+    if (d1 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - d1 < 0!\n"; return theMaterial; }
+    if (d2 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - d2 < 0!\n"; return theMaterial; }
+    if (d3 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - d3 < 0!\n"; return theMaterial; }
+    if (l1 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - l1 < 0!\n"; return theMaterial; }
+    if (l2 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - l2 < 0!\n"; return theMaterial; }
+    if (eV < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - eV < 0!\n"; return theMaterial; }
+    if (csl1 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - csl1 < 0!\n"; return theMaterial; }
+    if (csl2 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - csl2 < 0!\n"; return theMaterial; }
+    if (csl3 < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - csl3 < 0!\n"; return theMaterial; }
+    if (Patm < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - Patm < 0!\n"; return theMaterial; }
+    if (cohesion < 0.0) { opserr << "FATAL: OPS_PDMY02Implex() - cohesion < 0!\n"; return theMaterial; }
+    if (implexFlag < 0) { opserr << "FATAL: OPS_PDMY02Implex() - integrationType < 0!\n"; return theMaterial; }
 
-    PDMY02Implex* temp =
-        new PDMY02Implex(tag, param[0], param[1], param[2],
-            param[3], param[4], param[5],
-            param[6], param[7], param[8],
-            param[9], param[10], param[11],
-            param[12], param[13], gredu, param[14],
-            param[15], param[16], param[17],
-            param[18], param[19], param[20], param[21],
-            param[22], param[23], param[24], param[25]);
-
-    if (gredu != 0) {
-        delete[] gredu;
-        gredu = 0;
+    if (verboseFlag == 1) {
+        opserr << "\nOPS_PDMY02Implex\n";
+        opserr << "------------------------\n";
+        opserr << "tag      : " << tag << "\n";
+        opserr << "rho      : " << rho << "\n";
+        opserr << "Gref     : " << Gref << "\n";
+        opserr << "Kref     : " << Kref << "\n";
+        opserr << "Pref     : " << Pref << "\n";
+        opserr << "mPow     : " << mPow << "\n";
+        opserr << "fAngle   : " << fAngle << "\n";
+        opserr << "gPeak    : " << gPeak << "\n";
+        opserr << "ptAngle  : " << ptAngle << "\n";
+        opserr << "TNYS     : " << TNYS << "\n";
+        opserr << "c1       : " << c1 << "\n";
+        opserr << "c2       : " << c2 << "\n";
+        opserr << "c3       : " << c3 << "\n";
+        opserr << "d1       : " << d1 << "\n";
+        opserr << "d2       : " << d2 << "\n";
+        opserr << "d3       : " << d3 << "\n";
+        opserr << "l1       : " << l1 << "\n";
+        opserr << "l2       : " << l2 << "\n";
+        opserr << "eV       : " << eV << "\n";
+        opserr << "csl1     : " << csl1 << "\n";
+        opserr << "csl2     : " << csl2 << "\n";
+        opserr << "csl3     : " << csl3 << "\n";
+        opserr << "Patm     : " << Patm << "\n";
+        opserr << "cohesion : " << cohesion << "\n";
+        if (implexFlag == 1) {
+            opserr << "solution : IMPL-EX\n";
+        }
+        else {
+            opserr << "solution : implicit\n";
+        }
+        if (custom_curve != nullptr) {
+            opserr << "G/Gmax   : custom curve\n";
+        }
+        else {
+            opserr << "G/Gmax   : hyperbolic\n";
+        }
+        opserr << "\n";
     }
 
-    return temp;
+    // create a PDMY02Implex nDmaterial object
+    theMaterial = new PDMY02Implex(tag, rho, Gref, Kref, fAngle, gPeak, Pref, mPow, ptAngle, c1, c3, d1, d3,
+        TNYS, custom_curve, c2, d2, l1, l2, eV, csl1, csl2, csl3, Patm, cohesion,
+        hv, pv, implexFlag, verboseFlag);
+
+    if (theMaterial == nullptr) {
+        opserr << "FATAL: OPS_PDMY02Implex() - cannot create PDMY02Implex material with tag: " << tag << "\n";
+        return theMaterial;
+    }
+
+    // free the memory
+    if (custom_curve != nullptr) {
+        delete[] custom_curve;
+        custom_curve = nullptr;
+    }
+
+    return theMaterial;
 }
 
-PDMY02Implex::PDMY02Implex(int tag, int nd,
+PDMY02Implex::PDMY02Implex(int tag,
     double r, double refShearModul,
     double refBulkModul, double frictionAng,
     double peakShearStra, double refPress,
@@ -239,13 +571,26 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
     double ei,
     double volLim1, double volLim2, double volLim3,
     double atm, double cohesi,
-    double hv, double pv)
+    double hv, double pv, int implexFlag, int verboseFlag)
     : NDMaterial(tag, ND_TAG_PDMY02Implex), currentStress(),
     trialStress(), updatedTrialStress(), currentStrain(), strainRate(),
     PPZPivot(), PPZCenter(), PPZPivotCommitted(), PPZCenterCommitted(),
     PivotStrainRate(6), PivotStrainRateCommitted(6), check(0)
 {
-    int implexFlag = 1;
+    // handle solution options
+        // handle dimension
+    int nd = 0;
+    if (OPS_GetNDM() == 2) {		// PlaneStrain
+        nd = 2;
+    }
+    else if (OPS_GetNDM() == 3) {	// ThreeDimensional
+        nd = 3;
+    }
+    else {
+        opserr << "FATAL: MultiYieldSurfaceHardeningSoftening() - unknown model dimension...\n";
+        exit(-1);
+    }
+
     if (nd != 2 && nd != 3) {
         opserr << "FATAL:PDMY02Implex:: dimension error" << endln;
         opserr << "Dimension has to be 2 or 3, you give nd= " << nd << endln;
@@ -348,6 +693,7 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
         double* temp25 = Hvx;
         double* temp26 = Pvx;
         bool* temp27 = doImplex;
+        bool* temp28 = beVerbose;
 
         loadStagex = new int[matCount + 20];
         ndmx = new int[matCount + 20];
@@ -378,6 +724,7 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
         Hvx = new double[matCount + 20];
         Pvx = new double[matCount + 20];
         doImplex = new bool[matCount + 20];
+        beVerbose = new bool[matCount + 20];
 
         for (int i = 0; i < matCount; i++) {
             loadStagex[i] = temp1[i];
@@ -409,6 +756,7 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
             Hvx[i] = temp25[i];
             Pvx[i] = temp26[i];
             doImplex[i] = temp27[i];
+            beVerbose[i] = temp28[i];
         }
 
         if (matCount > 0) {
@@ -419,7 +767,7 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
             delete[] temp15; delete[] temp16;
             delete[] temp17; delete[] temp18; delete[] temp19; delete[] temp20;
             delete[] temp21; delete[] temp22; delete[] temp23; delete[] temp24;
-            delete[] temp25; delete[] temp26; delete[] temp27;
+            delete[] temp25; delete[] temp26; delete[] temp27; delete[] temp28;
         }
     }
 
@@ -450,6 +798,7 @@ PDMY02Implex::PDMY02Implex(int tag, int nd,
     Hvx[matCount] = hv;
     Pvx[matCount] = pv;
     doImplex[matCount] = (implexFlag == 1);
+    beVerbose[matCount] = (verboseFlag == 1);
 
     residualPressx[matCount] = 0.;
     stressRatioPTx[matCount] = 0.;
@@ -581,10 +930,18 @@ void PDMY02Implex::elast2Plast(void)
 
 int PDMY02Implex::setTrialStrain(const Vector& strain)
 {
+    bool implex = doImplex[matN];
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
-    bool implex = doImplex[matN];
+    // handle implex time step
+    if (!dtime_is_user_defined) {
+        dtime_n = ops_Dt;
+        if (!dtime_first_set) {
+            dtime_n_commit = dtime_n;
+            dtime_first_set = true;
+        }
+    }
 
     if (ndm == 3 && strain.Size() == 6)
         workV6 = strain;
@@ -605,16 +962,7 @@ int PDMY02Implex::setTrialStrain(const Vector& strain)
     //strainRate.setData(workV6-currentStrain.t2Vector(1),1);
     workV6 -= currentStrain.t2Vector(1);
     strainRate.setData(workV6, 1);
-
-    // update internal variables
-    if (implex) {
-        updateInternal(true, true);  // explicit_phase?, do_tangent?
-        currentStressImplex = trialStress;
-    }
-    else {
-        updateInternal(false, true);  // explicit_phase?, do_tangent?
-    }
-
+    if (implex) updateImplex();
     return 0;
 }
 
@@ -627,10 +975,18 @@ int PDMY02Implex::setTrialStrain(const Vector& strain, const Vector& rate)
 
 int PDMY02Implex::setTrialStrainIncr(const Vector& strain)
 {
+    bool implex = doImplex[matN];
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 2;
 
-    bool implex = doImplex[matN];
+    // handle implex time step
+    if (!dtime_is_user_defined) {
+        dtime_n = ops_Dt;
+        if (!dtime_first_set) {
+            dtime_n_commit = dtime_n;
+            dtime_first_set = true;
+        }
+    }
 
     if (ndm == 3 && strain.Size() == 6)
         workV6 = strain;
@@ -649,16 +1005,7 @@ int PDMY02Implex::setTrialStrainIncr(const Vector& strain)
     }
 
     strainRate.setData(workV6, 1);
-
-    // update internal variables
-    if (implex) {
-        updateInternal(true, true);  // explicit_phase?, do_tangent?
-        currentStressImplex = trialStress;
-    }
-    else {
-        updateInternal(false, true);  // explicit_phase?, do_tangent?
-    }
-
+    if (implex) updateImplex();
     return 0;
 }
 
@@ -671,39 +1018,8 @@ int PDMY02Implex::setTrialStrainIncr(const Vector& strain, const Vector& rate)
 
 const Matrix& PDMY02Implex::getTangent(void)
 {
-    int ndm = ndmx[matN];
-    if (ndmx[matN] == 0) ndm = 3;
-
-    if (ndm == 3)
-        return theTangent;
-    else {
-        static Matrix workM(3, 3);
-        workM(0, 0) = theTangent(0, 0);
-        workM(0, 1) = theTangent(0, 1);
-        workM(0, 2) = 0.;
-
-        workM(1, 0) = theTangent(1, 0);
-        workM(1, 1) = theTangent(1, 1);
-        workM(1, 2) = 0.;
-
-        workM(2, 0) = 0.;
-        workM(2, 1) = 0.;
-        workM(2, 2) = theTangent(3, 3);
-
-        /* non-symmetric stiffness
-           workM(0,2) = theTangent(0,3);
-           workM(1,2) = theTangent(1,3);
-           workM(2,0) = theTangent(3,0);
-           workM(2,1) = theTangent(3,1);
-        */
-        return workM;
-    }
-}
-
-
-const Matrix& PDMY02Implex::getInitialTangent(void)
-{
     int loadStage = loadStagex[matN];
+    bool implex = doImplex[matN];
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
     double pressDependCoeff = pressDependCoeffx[matN];
@@ -718,25 +1034,97 @@ const Matrix& PDMY02Implex::getInitialTangent(void)
     }
     if (loadStage == 2 && initPress == refPressure)
         initPress = currentStress.volume();
-    double factor;
-    if (loadStage == 0)
-        factor = 1.;
-    else if (loadStage == 2) {
-        factor = (initPress - residualPress) / (refPressure - residualPress);
-        if (factor <= 1.e-10) factor = 1.e-10;
-        else factor = pow(factor, pressDependCoeff);
-        factor = (1.e-10 > factor) ? 1.e-10 : factor;
-    }
-    else if (loadStage == 1)
-        factor = getModulusFactor(currentStress);
 
-    for (int i = 0; i < 6; i++)
-        for (int j = 0; j < 6; j++) {
-            theTangent(i, j) = 0.;
-            if (i == j) theTangent(i, j) += refShearModulus * factor;
-            if (i < 3 && j < 3 && i == j) theTangent(i, j) += refShearModulus * factor;
-            if (i < 3 && j < 3) theTangent(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
+    if (loadStage == 0 || loadStage == 2) {  //linear elastic
+        double factor;
+        if (loadStage == 0)
+            factor = 1.0;
+        else {
+            factor = (initPress - residualPress) / (refPressure - residualPress);
+            if (factor <= 1.e-10) factor = 1.e-10;
+            else factor = pow(factor, pressDependCoeff);
+            factor = (1.e-10 > factor) ? 1.e-10 : factor;
         }
+        for (int i = 0; i < 6; i++)
+            for (int j = 0; j < 6; j++) {
+                theTangent(i, j) = 0.;
+                if (i == j)
+                    theTangent(i, j) += refShearModulus * factor;
+                if (i < 3 && j < 3 && i == j)
+                    theTangent(i, j) += refShearModulus * factor;
+                if (i < 3 && j < 3)
+                    theTangent(i, j) += (refBulkModulus - 2. * refShearModulus / 3.) * factor;
+            }
+    }
+    else {
+        if (!implex) {
+            double coeff1, coeff2, coeff3, coeff4;
+            double factor = getModulusFactor(updatedTrialStress);
+            double shearModulus = factor * refShearModulus;
+            double bulkModulus = factor * refBulkModulus;
+
+            // volumetric plasticity
+            if (Hvx[matN] != 0. && trialStress.volume() <= maxPress
+                && strainRate.volume() < 0. && loadStage == 1) {
+                double tp = fabs(trialStress.volume() - residualPress);
+                bulkModulus = (bulkModulus * Hvx[matN] * pow(tp, Pvx[matN])) / (bulkModulus + Hvx[matN] * pow(tp, Pvx[matN]));
+            }
+
+            if (loadStage != 0 && activeSurfaceNum > 0) {
+                factor = getModulusFactor(trialStress);
+                shearModulus = factor * refShearModulus;
+                bulkModulus = factor * refBulkModulus;
+                getSurfaceNormal(trialStress, workT2V);
+                workV6 = workT2V.deviator();
+                double volume = workT2V.volume();
+                double Ho = 9. * bulkModulus * volume * volume + 2. * shearModulus * (workV6 && workV6);
+                double plastModul = factor * theSurfaces[activeSurfaceNum].modulus();
+                coeff1 = 9. * bulkModulus * bulkModulus * volume * volume / (Ho + plastModul);
+                coeff2 = 4. * shearModulus * shearModulus / (Ho + plastModul);
+            }
+
+            else {
+                coeff1 = coeff2 = coeff3 = coeff4 = 0.;
+                workV6.Zero();
+            }
+
+            for (int i = 0; i < 6; i++)
+                for (int j = 0; j < 6; j++) {
+                    theTangent(i, j) = -coeff2 * workV6[i] * workV6[j];
+                    if (i == j) theTangent(i, j) += shearModulus;
+                    if (i < 3 && j < 3 && i == j) theTangent(i, j) += shearModulus;
+                    if (i < 3 && j < 3) theTangent(i, j) += (bulkModulus - 2. * shearModulus / 3. - coeff1);
+                }
+        }
+        else {
+            // compute consistent tangent
+            double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
+            const Vector& identity = I1();
+            const Vector& center = committedSurfaces[activeSurfaceNum].center();
+            const Matrix& IId = IIdev();
+            const Matrix& IIv = IIvol();
+
+            // deviatoric component 2
+            theTangent.Zero();
+            /*
+            for (int i = 0; i < 6; i++) {
+                for (int j = 0; j < 6; j++) {
+                    // ContrCovVariant <= ContraVariant = InVariant * ContraVariant
+                    theTangent(i, j) += identity(i) * center(j) + (j>2) * identity(i) * center(j);
+                }
+            }
+            // no need to double dot (I x alpha) with IIdev since surface center, alpha is a deviatoric tensor and I is invariant.
+            // hence, (Ixa):IIdev = (Ixa) always.
+            theTangent *= (2.0 * refShearModulus * modulusFactor * (1.0 - ksi) * lambda_bar * refBulkModulus * modulusFactor);
+            */
+
+            // deviatoric component 1
+            theTangent.addMatrix(1.0, IId, 2.0 * refShearModulus * modulusFactor * (1.0 - 6.0 * lambda_bar * ksi * refShearModulus * modulusFactor));
+
+            // volumetric component
+            theTangent.addMatrix(1.0, IIv, (1.0 / 3.0) * refBulkModulus * modulusFactor * (1.0 - 3.0 * lambda * kappa * refBulkModulus * modulusFactor));
+        }
+    }
 
     if (ndm == 3)
         return theTangent;
@@ -744,21 +1132,67 @@ const Matrix& PDMY02Implex::getInitialTangent(void)
         static Matrix workM(3, 3);
         workM(0, 0) = theTangent(0, 0);
         workM(0, 1) = theTangent(0, 1);
-        workM(0, 2) = 0.;
-
+        workM(0, 2) = theTangent(0, 3);
         workM(1, 0) = theTangent(1, 0);
         workM(1, 1) = theTangent(1, 1);
-        workM(1, 2) = 0.;
-
-        workM(2, 0) = 0.;
-        workM(2, 1) = 0.;
+        workM(1, 2) = theTangent(1, 3);
+        workM(2, 0) = theTangent(3, 0);
+        workM(2, 1) = theTangent(3, 1);
         workM(2, 2) = theTangent(3, 3);
+        return workM;
+    }
+}
 
-        /* non-symmetric stiffness
-            workM(0,2) = theTangent(0,3);
-            workM(1,2) = theTangent(1,3);
-            workM(2,0) = theTangent(3,0);
-            workM(2,1) = theTangent(3,1);*/
+
+const Matrix& PDMY02Implex::getInitialTangent(void)
+{
+    int loadStage = loadStagex[matN];
+    double refShearModulus = refShearModulusx[matN];
+    double refBulkModulus = refBulkModulusx[matN];
+    double pressDependCoeff = pressDependCoeffx[matN];
+    double refPressure = refPressurex[matN];
+    double residualPress = residualPressx[matN];
+    int ndm = ndmx[matN];
+
+    double factor = 1.0;
+
+    if (ndmx[matN] == 0) ndm = 3;
+
+    if (loadStage == 1 && e2p == 0) {
+        initPress = currentStress.volume();
+        elast2Plast();
+    }
+    if (loadStage == 2 && initPress == refPressure)
+        initPress = currentStress.volume();
+
+    if (loadStage == 0) {
+        factor = 1.0;
+    }
+    else if (loadStage == 2) {
+        factor = (initPress - residualPress) / (refPressure - residualPress);
+        if (factor <= 1.e-10) factor = 1.e-10;
+        else factor = pow(factor, pressDependCoeff);
+        factor = (1.e-10 > factor) ? 1.e-10 : factor;
+    }
+    else if (loadStage == 1) {
+        factor = getModulusFactor(currentStress);
+    }
+
+    theTangent = 2 * refShearModulus * factor * IIdev() + refBulkModulus * factor * IIvol();
+
+    if (ndm == 3)
+        return theTangent;
+    else {
+        static Matrix workM(3, 3);
+        workM(0, 0) = theTangent(0, 0);
+        workM(0, 1) = theTangent(0, 1);
+        workM(0, 2) = theTangent(0, 3);
+        workM(1, 0) = theTangent(1, 0);
+        workM(1, 1) = theTangent(1, 1);
+        workM(1, 2) = theTangent(1, 3);
+        workM(2, 0) = theTangent(3, 0);
+        workM(2, 1) = theTangent(3, 1);
+        workM(2, 2) = theTangent(3, 3);
         return workM;
     }
 }
@@ -766,9 +1200,55 @@ const Matrix& PDMY02Implex::getInitialTangent(void)
 
 const Vector& PDMY02Implex::getStress(void)
 {
+    int loadStage = loadStagex[matN];
+    int numOfSurfaces = numOfSurfacesx[matN];
+    bool implex = doImplex[matN];
     int ndm = ndmx[matN];
     if (ndmx[matN] == 0) ndm = 3;
 
+    if (loadStage == 1 && e2p == 0) {
+        initPress = currentStress.volume();
+        elast2Plast();
+    }
+
+    if (loadStage != 1) {  //linear elastic
+        getTangent();
+        workV6 = currentStress.t2Vector();
+        workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
+        trialStress.setData(workV6);
+    }
+    else {
+        if (!implex) {
+            implicitSress();
+        }
+        else {
+            // compute implex stress
+            double refShearModulus = refShearModulusx[matN];
+            double refBulkModulus = refBulkModulusx[matN];
+            double residualPress = residualPressx[matN];
+            double lambda_bar = (chi > 1e-10) ? (lambda / chi) : (0.0);
+            double volume = 0.0;
+
+            // trial stress
+            theTangent = 2.0 * refShearModulus * modulusFactor * IIdev() + (1.0 / 3.0) * refBulkModulus * modulusFactor * IIvol();
+            workV6.addVector(0.0, currentStress.t2Vector(), 1.0);
+            workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
+            trialStress.setData(workV6);
+
+            // compute plastic strain
+            double conHeig = trialStress.volume() - residualPress;
+            workV6.addVector(0.0, theSurfaces[activeSurfaceNum].center(), conHeig); // get the center (trial)
+            workV6.addVector(-1.0, trialStress.deviator(), 1.0);                    // get the shifted deviator (trial)
+            workV6 = 3 * ksi * workV6 + conHeig * iota * I1();                      // compute the contact stress and get normal to the yield surface
+            workV6 *= lambda_bar;			 									    // compute the plastic strain
+            volume = 3 * refBulkModulus * modulusFactor * lambda * kappa;           // compute volumetric stress reduction coeff.
+
+            // correct stress
+            workV6.addVector(-2.0 * refShearModulus * modulusFactor, trialStress.deviator(), 1.0);	// correct the stress deviator
+            volume = trialStress.volume() * (1.0 - volume);
+            trialStress.setData(workV6, volume);
+        }
+    }
     if (ndm == 3)
         return trialStress.t2Vector();
     else {
@@ -790,35 +1270,52 @@ const Vector& PDMY02Implex::getStrain(void)
 int PDMY02Implex::commitState(void)
 {
     int loadStage = loadStagex[matN];
+    bool implex = doImplex[matN];
     int numOfSurfaces = numOfSurfacesx[matN];
 
     if (loadStage == 1) {
-        if (doImplex) {
+
+        if (implex) {
             // do an implicit iteration before commit
-            updateInternal(false, false);  // explicit_phase?, do_tangent?
+            currentStressImplex = trialStress;                              // store for output
+            implicitSress();                                                // do implicit correction
         }
 
-        // normalize chi and kappa
-        //chi = (lambda > 1e-10) ? (chi / lambda) : (0.0);
-        //kappa = (lambda > 1e-10) ? (kappa / lambda) : (0.0);
+        // step-normalize chi and kappa
+        chi = (lambda > 1e-10) ? (chi * lambda) : (0.0);
+        iota = (lambda > 1e-10) ? (iota / lambda) : (0.0);
+        kappa = (lambda > 1e-10) ? (kappa / lambda) : (0.0);
 
         // commit implex variables
         lambda_commit_old = lambda_commit;
         lambda_commit = lambda;
-        chi_commit_old = chi_commit;
-        chi_commit = chi;
         kappa_commit_old = kappa_commit;
         kappa_commit = kappa;
+        chi_commit_old = chi_commit;
+        chi_commit = chi;
+        iota_commit_old = iota_commit;
+        iota_commit = iota;
         ksi_commit_old = ksi_commit;
         ksi_commit = ksi;
+        contactStressVolume_bar_commit = contactStressVolume_bar;
+        maxCumuDilateStrainOcta_bar_commit = maxCumuDilateStrainOcta_bar;
+        cumuDilateStrainOcta_bar_commit = cumuDilateStrainOcta_bar;
+        isCS_commit = isCS;
+        shearLoading_bar_commit = shearLoading_bar;
+        currentRatio_bar_commit = currentRatio_bar;
+        trialRatio_bar_commit = trialRatio_bar;
+        contactRatio_bar_commit = contactRatio_bar;
+        onPPZ_bar_commit = onPPZ_bar;
 
-        // other statve variables
+        // other internal variables
         currentStress = trialStress;
         workV6 = currentStrain.t2Vector();
         workV6 += strainRate.t2Vector();
         currentStrain.setData(workV6);
+
         workV6.Zero();
         strainRate.setData(workV6);
+
         committedActiveSurf = activeSurfaceNum;
         for (int i = 1; i <= numOfSurfaces; i++) committedSurfaces[i] = theSurfaces[i];
         pressureDCommitted = pressureD;
@@ -850,6 +1347,30 @@ int PDMY02Implex::commitState(void)
 
 int PDMY02Implex::revertToLastCommit(void)
 {
+    int loadStage = loadStagex[matN];
+
+    if (loadStage == 1) {
+        lambda = lambda_commit;
+        lambda_commit = lambda_commit_old;
+        kappa = kappa_commit;
+        kappa_commit = kappa_commit_old;
+        chi = chi_commit;
+        chi_commit = chi_commit_old;
+        iota = iota_commit;
+        iota_commit = iota_commit_old;
+        ksi = ksi_commit;
+        ksi_commit = ksi_commit_old;
+        contactStressVolume_bar = contactStressVolume_bar_commit;
+        maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta_bar_commit;
+        cumuDilateStrainOcta_bar = cumuDilateStrainOcta_bar_commit;
+        isCS = isCS_commit;
+        shearLoading_bar = shearLoading_bar_commit;
+        currentRatio_bar = currentRatio_bar_commit;
+        trialRatio_bar = trialRatio_bar_commit;
+        contactRatio_bar = contactRatio_bar_commit;
+        onPPZ_bar = onPPZ_bar_commit;
+    }
+
     return 0;
 }
 
@@ -894,27 +1415,6 @@ int PDMY02Implex::getOrder(void) const
 
 int PDMY02Implex::setParameter(const char** argv, int argc, Parameter& param)
 {
-    /*if (argc < 1)
-      return -1;
-
-    if (strcmp(argv[0],"updateMaterialStage") == 0) {
-      if (argc < 2)
-        return -1;
-      int matTag = atoi(argv[1]);
-      if (this->getTag() == matTag)
-        return param.addObject(1, this);
-      else
-        return -1;
-    }
-
-    else if (strcmp(argv[0],"shearModulus") == 0)
-      return param.addObject(10, this);
-
-    else if (strcmp(argv[0],"bulkModulus") == 0)
-      return param.addObject(11, this);
-
-    return -1;*/
-
     if (argc < 2)
         return -1;
 
@@ -947,7 +1447,36 @@ int PDMY02Implex::updateParameter(int responseID, Information& info)
 {
 
     if (responseID == 1) {
-        loadStagex[matN] = info.theInt;
+        static int switch2Implex = 0;
+        static int switch2Implicit = 0;
+        static int msgtag = 0;
+
+        // reset message if the material has changed
+        if (msgtag != this->getTag()) {
+            switch2Implex = 0;
+            switch2Implicit = 0;
+            msgtag = this->getTag();
+        }
+
+        if (info.theInt == 11) {
+            loadStagex[matN] = 1;
+            doImplex[matN] = true;
+            // display message
+            switch2Implicit = 0;
+            if (++switch2Implex == 1)
+                if (beVerbose[matN]) { opserr << "PDMY02Implex::updateParameter() - material " << msgtag << ": switching to IMPL-EX solution...\n"; }
+        }
+        else if (info.theInt == 10) {
+            loadStagex[matN] = 1;
+            doImplex[matN] = false;
+            // display message
+            switch2Implex = 0;
+            if (++switch2Implicit == 1)
+                if (beVerbose[matN]) { opserr << "PDMY02Implex::updateParameter() - material " << msgtag << ": switching to IMPLICIT solution...\n"; }
+        }
+        else {
+            loadStagex[matN] = info.theInt;
+        }
     }
     else if (responseID == 10) {
         refShearModulusx[matN] = info.theDouble;
@@ -976,37 +1505,6 @@ int PDMY02Implex::updateParameter(int responseID, Information& info)
 
 int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
 {
-    // ndmx[matCount] = nd;
-    // loadStagex[matCount] = 0;   //default
-     //refShearModulusx[matCount] = refShearModul;
-     //refBulkModulusx[matCount] = refBulkModul;
-     //frictionAnglex[matCount] = frictionAng;
-     //peakShearStrainx[matCount] = peakShearStra;
-     //refPressurex[matCount] = -refPress;  //compression is negative
-     //cohesionx[matCount] = cohesi;
-     //pressDependCoeffx[matCount] = pressDependCoe;
-     //numOfSurfacesx[matCount] = numberOfYieldSurf;
-     // rhox[matCount] = r;
-     //phaseTransfAnglex[matCount] = phaseTransformAng;
-     //contractParam1x[matCount] = contractionParam1;
-     //contractParam2x[matCount] = contractionParam2;
-
-     //dilateParam1x[matCount] = dilationParam1;
-     //dilateParam2x[matCount] = dilationParam2;
-     //volLimit1x[matCount] = volLim1;
-     //volLimit2x[matCount] = volLim2;
-     //volLimit3x[matCount] = volLim3;
-     //liquefyParam1x[matCount] = liquefactionParam1;
-     //liquefyParam2x[matCount] = liquefactionParam2;
-     //dilateParam3x[matCount] = dilationParam3;
-     //einitx[matCount] = ei;
-
-       /*
-     contractParam3x[matCount] = contractionParam3;
-     Hvx[matCount] = hv;
-     Pvx[matCount] = pv;
-     */
-
     int loadStage = loadStagex[matN];
     int ndm = ndmx[matN];
     double rho = rhox[matN];
@@ -1036,16 +1534,20 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
     double contractionParam3 = contractParam3x[matN];
     double hv = Hvx[matN];
     double Pv = Pvx[matN];
+    bool implex = doImplex[matN];
+    bool info = beVerbose[matN];
 
     int i, res = 0;
 
-    static ID idData(6);
+    static ID idData(8);
     idData(0) = this->getTag();
     idData(1) = numOfSurfaces;
     idData(2) = loadStage;
     idData(3) = ndm;
     idData(4) = matN;
     idData(5) = matCount;
+    idData(6) = (implex) ? (1.0) : (0.0);
+    idData(7) = (info) ? (1.0) : (0.0);
 
     res += theChannel.sendID(this->getDbTag(), commitTag, idData);
     if (res < 0) {
@@ -1053,7 +1555,7 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
         return res;
     }
 
-    Vector data(69 + numOfSurfaces * 8);
+    Vector data(79 + numOfSurfaces * 8);
     data(0) = rho;
     data(1) = einit;
     data(2) = refShearModulus;
@@ -1106,8 +1608,22 @@ int PDMY02Implex::sendSelf(int commitTag, Channel& theChannel)
     workV6 = PPZCenterCommitted.t2Vector();
     for (i = 0; i < 6; i++) data(i + 56) = workV6[i];
 
+    data(62) = lambda;
+    data(63) = lambda_commit;
+    data(64) = lambda_commit_old;
+    data(65) = chi;
+    data(66) = chi_commit;
+    data(67) = chi_commit_old;
+    data(68) = kappa;
+    data(69) = kappa_commit;
+    data(70) = kappa_commit_old;
+    data(71) = dtime_n;
+    data(72) = dtime_n_commit;
+    data(73) = (dtime_is_user_defined) ? (1.0) : (0.0);
+    data(74) = (dtime_first_set) ? (1.0) : (0.0);
+
     for (i = 0; i < numOfSurfaces; i++) {
-        int k = 62 + i * 8;
+        int k = 79 + i * 8;
         data(k) = committedSurfaces[i + 1].size();
         data(k + 1) = committedSurfaces[i + 1].modulus();
         workV6 = committedSurfaces[i + 1].center();
@@ -1134,7 +1650,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
 {
     int i, res = 0;
 
-    static ID idData(6);
+    static ID idData(8);
     res += theChannel.recvID(this->getDbTag(), commitTag, idData);
     if (res < 0) {
         opserr << "PDMY02Implex::recvelf -- could not recv ID\n";
@@ -1149,8 +1665,10 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     matN = idData(4);
 
     int otherMatCount = idData(5);
+    bool implex = (idData(6) == 1.0);
+    bool info = (idData(7) == 1.0);
 
-    Vector data(69 + idData(1) * 8);
+    Vector data(79 + idData(1) * 8);
     res += theChannel.recvVector(this->getDbTag(), commitTag, data);
     if (res < 0) {
         opserr << "PDMY02Implex::recvSelf -- could not recv Vector\n";
@@ -1210,6 +1728,20 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     for (i = 0; i < 6; i++) workV6[i] = data(i + 56);
     PPZCenterCommitted.setData(workV6);
 
+    lambda = data(62);
+    lambda_commit = data(63);
+    lambda_commit_old = data(64);
+    chi = data(65);
+    chi_commit = data(66);
+    chi_commit_old = data(67);
+    kappa = data(68);
+    kappa_commit = data(69);
+    kappa_commit_old = data(70);
+    dtime_n = data(71);
+    dtime_n_commit = data(72);
+    dtime_is_user_defined = (data(73) == 1.0);
+    dtime_first_set = (data(74) == 1.0);
+
     if (committedSurfaces != 0) {
         delete[] committedSurfaces;
         delete[] theSurfaces;
@@ -1219,7 +1751,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     committedSurfaces = new MultiYieldSurface[numOfSurfaces + 1];
 
     for (i = 0; i < numOfSurfaces; i++) {
-        int k = 62 + i * 8;
+        int k = 79 + i * 8;
         workV6(0) = data(k + 2);
         workV6(1) = data(k + 3);
         workV6(2) = data(k + 4);
@@ -1234,6 +1766,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     double* temp13, * temp14, * temp15, * temp16, * temp17, * temp18, * temp19, * temp20;
     double* temp14a, * temp14b;
     double* temp21, * temp22, * temp23, * temp24, * temp25, * temp26;
+    bool* temp27, * temp28;
 
     if (matCount < otherMatCount) {  // allocate memory if not enough
 
@@ -1265,6 +1798,8 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
         temp24 = stressRatioPTx;
         temp25 = Hvx;
         temp26 = Pvx;
+        temp27 = doImplex;
+        temp28 = beVerbose;
 
         loadStagex = new int[otherMatCount];
         ndmx = new int[otherMatCount];
@@ -1294,6 +1829,8 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
         stressRatioPTx = new double[otherMatCount];
         Hvx = new double[otherMatCount];
         Pvx = new double[otherMatCount];
+        doImplex = new bool[otherMatCount];
+        beVerbose = new bool[otherMatCount];
 
         if (matCount > 0) {
             for (int i = 0; i < matCount; i++) {
@@ -1325,6 +1862,8 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
                 stressRatioPTx[i] = temp24[i];
                 Hvx[i] = temp25[i];
                 Pvx[i] = temp26[i];
+                doImplex[i] = temp27[i];
+                beVerbose[i] = temp28[i];
             }
 
             delete[] temp1; delete[] temp2; delete[] temp3; delete[] temp4;
@@ -1334,7 +1873,7 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
             delete[] temp14a;
             delete[] temp17; delete[] temp18; delete[] temp19; delete[] temp20;
             delete[] temp21; delete[] temp22; delete[] temp23; delete[] temp24;
-            delete[] temp25; delete[] temp26;
+            delete[] temp25; delete[] temp26; delete[] temp27; delete[] temp28;
         }
         matCount = otherMatCount;
     }
@@ -1365,7 +1904,8 @@ int PDMY02Implex::recvSelf(int commitTag, Channel& theChannel,
     volLimit1x[matN] = volLimit1;
     volLimit2x[matN] = volLimit2;
     volLimit3x[matN] = volLimit3;
-
+    doImplex[matN] = implex;
+    beVerbose[matN] = info;
 
     return res;
 }
@@ -1678,28 +2218,12 @@ const Vector& PDMY02Implex::getCommittedStrain(void)
     }
 }
 
-const Vector& PDMY02Implex::getImplexSateVariables(bool energy)
+const Vector& PDMY02Implex::getImplexSateVariables(void)
 {
-    static Vector sv(3);
-    if (energy) {
-
-        // total dissipated energy
-        sv(0) = lambda;
-
-        // dissipated energy by distortion
-        sv(1) = chi;
-
-        // dissipated energy by dilation
-        sv(2) = kappa;
-
-    }
-    else {
-        sv(0) = lambda; sv(1) = chi; sv(2) = kappa;
-    }
-
+    static Vector sv(4);
+    sv(0) = lambda; sv(1) = chi; sv(2) = ksi; sv(3) = kappa;
     return sv;
 }
-
 
 // NOTE: surfaces[0] is not used
 void PDMY02Implex::setUpSurfaces(double* gredu)
@@ -1866,6 +2390,7 @@ void PDMY02Implex::deviatorScaling(T2Vector& stress,
     double coneHeight = stress.volume() - residualPress;
 
     if (surfaceNum < numOfSurfaces && diff < 0.) {
+        //opserr << "PDMY02Implex::deviatorScaling() - surfaceNum < numOfSurfaces!\n";
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         double deviaSz = sqrt(sz * sz + diff);
         static Vector devia(6);
@@ -1881,6 +2406,7 @@ void PDMY02Implex::deviatorScaling(T2Vector& stress,
     }
 
     if (surfaceNum == numOfSurfaces && fabs(diff) > LOW_LIMIT) {
+        //opserr << "PDMY02Implex::deviatorScaling() - surfaceNum == numOfSurfaces!\n";
         double sz = -surfaces[surfaceNum].size() * coneHeight;
         //workV6 = stress.deviator() * sz/sqrt(diff+sz*sz);
         workV6 = stress.deviator();
@@ -2067,6 +2593,10 @@ PDMY02Implex::getContactStress(T2Vector& contactStress)
     double Ms = sqrt(3. / 2. * (workV6 && workV6));
     //workV6 = workV6 * theSurfaces[activeSurfaceNum].size()*(-conHeig) / Ms + center*conHeig;
     workV6.addVector(theSurfaces[activeSurfaceNum].size() * (-conHeig) / Ms, center, conHeig);
+
+    // correct implex state variables
+    ksi = theSurfaces[activeSurfaceNum].size() * (-1.0 * conHeig) / Ms;
+
     //return T2Vector(workV6,trialStress.volume());
     contactStress.setData(workV6, trialStress.volume());
 }
@@ -2176,9 +2706,21 @@ double PDMY02Implex::getPlasticPotential(const T2Vector& contactStress,
         //if (contractRule<-5.0e4) contractRule = -5.0e4;
         if (onPPZ > 0) onPPZ = 0;
         if (onPPZ != -1) PPZTranslation(contactStress);
+
     }
 
-    if (isCriticalState(contactStress)) plasticPotential = 0;
+    // implicit correction of implex variables
+    cumuDilateStrainOcta_bar = cumuDilateStrainOcta;
+    maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta;
+    isCS = isCriticalState(contactStress);
+    shearLoading_bar = shearLoading;
+    currentRatio_bar = currentRatio;
+    trialRatio_bar = trialRatio;
+    contactStressVolume_bar = contactStress.volume();
+    contactRatio_bar = contactRatio;
+    onPPZ_bar = onPPZ;
+
+    if (isCS) plasticPotential = 0;
     return plasticPotential;
 }
 
@@ -2451,6 +2993,8 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
 {
     double refShearModulus = refShearModulusx[matN];
     double refBulkModulus = refBulkModulusx[matN];
+    double dlambda = 0.0; // change in lambda (implex variable)
+    double dkappa = 0.0; // change in kappa (implex variable)
 
     static T2Vector contactStress;
     getContactStress(contactStress);
@@ -2462,46 +3006,68 @@ int PDMY02Implex::stressCorrection(int crossedSurface)
         &plasticPotential, crossedSurface);
     double volume = tVolume - plasticPotential * 3 * refBulkModulus * modulusFactor * loadingFunc;
 
-    // update implex state variables
-    // compute norm of stress deviator and pressure
+    workV6 = trialStress.deviator();
+
+    if (volume > 0. && volume != tVolume) {
+        double coeff = tVolume / (tVolume - volume);
+        coeff *= -2.0 * refShearModulus * modulusFactor * loadingFunc;
+        workV6.addVector(1.0, surfNormal.deviator(), coeff);
+        volume = 0.;
+        dlambda = coeff;
+        dkappa = (loadingFunc > 1e10) ? (tVolume / (3 * refBulkModulus * modulusFactor * loadingFunc)) : (0.0);
+    }
+    else if (volume > 0.) {
+        volume = 0.;
+        dlambda = 0.0;
+        dkappa = tVolume / (3 * refBulkModulus * modulusFactor * loadingFunc);
+    }
+    else {
+        double coeff = -2.0 * refShearModulus * modulusFactor * loadingFunc;
+        workV6.addVector(1.0, surfNormal.deviator(), coeff);
+        dlambda = coeff;
+        dkappa = plasticPotential;
+    }
+
+    trialStress.setData(workV6, volume);
+    deviatorScaling(trialStress, theSurfaces, activeSurfaceNum);
+
+    // implicit correction of implex state variables
+        // compute norm of stress deviator and pressure
+
+    // SU version 2
     double residualPress = residualPressx[matN];
     double conHeig = contactStress.volume() - residualPress;
     workV6 = contactStress.deviator();
     static Vector center(6);
     center = theSurfaces[activeSurfaceNum].center();
-    //workT2V.setData((workV6-center*conHeig)*3., volume);
+    double sz = theSurfaces[activeSurfaceNum].size();
+    double volumetric = conHeig * ((center && center) - 2. / 3. * sz * sz) - (workV6 && center);
     workV6.addVector(1.0, center, -conHeig);
     workV6 *= 3.0;
+    workT2V.setData(workV6, volume);
+
+    /*
+    // SU version 1
+    double residualPress = residualPressx[matN];
+    double conHeig = contactStress.volume() - residualPress;
+    workV6.addVector(0.0, contactStress.deviator(), 1.0);
+    workV6.addVector(1.0, theSurfaces[activeSurfaceNum].center(), -conHeig);
+    */
 
     // update variables
-    lambda += loadingFunc;
-    chi = loadingFunc / workV6.Norm();
-    kappa = loadingFunc * (plasticPotential / conHeig);
+    dlambda /= -2.0 * refShearModulus * modulusFactor; // numerically more stable this way
+    lambda += dlambda;
 
-    //workV6 = trialStress.deviator()
-    //	         - surfNormal.deviator()*2*refShearModulus*modulusFactor*loadingFunc;
-    workV6 = trialStress.deviator();
-
-    if (volume > 0. && volume != tVolume) {
-        double coeff = tVolume / (tVolume - volume);
-        coeff *= -2 * refShearModulus * modulusFactor * loadingFunc;
-        workV6.addVector(1.0, surfNormal.deviator(), coeff);
-        volume = 0.;
-    }
-    else if (volume > 0.) {
-        volume = 0.;
-    }
-    else {
-        double coeff = -2 * refShearModulus * modulusFactor * loadingFunc;
-        workV6.addVector(1.0, surfNormal.deviator(), coeff);
-    }
     /*
-      if (volume>0.)volume = 0.;
-        double coeff = -2*refShearModulus*modulusFactor*loadingFunc;
-    workV6.addVector(1.0, surfNormal.deviator(), coeff);
-  */
-    trialStress.setData(workV6, volume);
-    deviatorScaling(trialStress, theSurfaces, activeSurfaceNum);
+    chi version 1
+    chi += (dlambda > 1e-10) ? (sqrt(workV6 && workV6) / dlambda) : (0.0);
+    */
+
+    // chi version 2
+    chi += (dlambda > 1e-10) ? (workT2V.t2VectorLength() / dlambda) : (0.0);
+    iota += dlambda * volumetric / conHeig;
+    kappa += dlambda * dkappa / conHeig;
+
 
     if (isCrossingNextSurface()) {
         activeSurfaceNum++;
@@ -2585,6 +3151,7 @@ void PDMY02Implex::updateActiveSurface(void)
     }
     X = secondOrderEqn(A, B, C, 1);
 
+    //center -= temp * X;
     center.addVector(1.0, workV6, -X);
     theSurfaces[activeSurfaceNum].setCenter(center);
 }
@@ -2629,238 +3196,180 @@ int PDMY02Implex::isCrossingNextSurface(void)
 }
 
 
-int PDMY02Implex::updateInternal(bool doExplicit, bool doTangent)
-{
-    int loadStage = loadStagex[matN];
+int PDMY02Implex::implicitSress(void) {
+
+    int is;
     int numOfSurfaces = numOfSurfacesx[matN];
-    double refShearModulus = refShearModulusx[matN];
-    double refBulkModulus = refBulkModulusx[matN];
-    double pressDependCoeff = pressDependCoeffx[matN];
-    double refPressure = refPressurex[matN];
-    double residualPress = residualPressx[matN];
 
     // initialize current step implex state variables
-    lambda = 0;
-    chi = 0;
-    kappa = 0;
+    lambda = 0.0;
+    chi = 0.0;
+    kappa = 0.0;
+    ksi = 0.0;
+    iota = 0.0;
+
+    for (int i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
+    activeSurfaceNum = committedActiveSurf;
+    pressureD = pressureDCommitted;
+    onPPZ = onPPZCommitted;
+    PPZSize = PPZSizeCommitted;
+    cumuDilateStrainOcta = cumuDilateStrainOctaCommitted;
+    maxCumuDilateStrainOcta = maxCumuDilateStrainOctaCommitted;
+    cumuTranslateStrainOcta = cumuTranslateStrainOctaCommitted;
+    prePPZStrainOcta = prePPZStrainOctaCommitted;
+    oppoPrePPZStrainOcta = oppoPrePPZStrainOctaCommitted;
+    PPZPivot = PPZPivotCommitted;
+    PivotStrainRate = PivotStrainRateCommitted;
+    PPZCenter = PPZCenterCommitted;
+
+    subStrainRate = strainRate;
+    setTrialStress(currentStress);
+    if (activeSurfaceNum > 0 && isLoadReversal(currentStress)) {
+        updateInnerSurface();
+        activeSurfaceNum = 0;
+    }
+
+    if (activeSurfaceNum == 0 && !isCrossingNextSurface()) {
+        workV6 = currentStrain.t2Vector();
+        workV6.addVector(1.0, strainRate.t2Vector(), 1.0);
+        trialStrain.setData(workV6);
+    }
+    else {
+        int numSubIncre = setSubStrainRate();
+
+        for (int i = 0; i < numSubIncre; i++) {
+            //      trialStrain.setData(currentStrain.t2Vector()
+            //			     + subStrainRate.t2Vector()*(i+1));
+            workV6 = currentStrain.t2Vector();
+            workV6.addVector(1.0, subStrainRate.t2Vector(), (i + 1));
+            trialStrain.setData(workV6);
+
+            if (i == 0) {
+                updatedTrialStress = currentStress;
+                setTrialStress(currentStress);
+                is = isLoadReversal(currentStress);
+            }
+            else {
+                updatedTrialStress = trialStress;
+                workT2V.setData(trialStress.t2Vector());
+                setTrialStress(trialStress);
+                is = isLoadReversal(workT2V);
+            }
+
+            if (activeSurfaceNum > 0 && is) {
+                updateInnerSurface();
+                activeSurfaceNum = 0;
+            }
+            if (activeSurfaceNum == 0 && !isCrossingNextSurface()) continue;
+            if (activeSurfaceNum == 0) activeSurfaceNum++;
+            stressCorrection(0);
+            updateActiveSurface();
+
+            double refBulkModulus = refBulkModulusx[matN];
+            //modulusFactor was calculated in setTrialStress
+            double B = refBulkModulus * modulusFactor;
+            //double deltaD = 3.*subStrainRate.volume()
+            //	         - (trialStress.volume()-updatedTrialStress.volume())/B;
+            //if (deltaD<0) deltaD /=2 ;
+            //pressureD += deltaD;
+            pressureD += 3. * subStrainRate.volume()
+                - (trialStress.volume() - updatedTrialStress.volume()) / B;
+            if (pressureD < 0.) pressureD = 0.;
+            //opserr<<i<<" "<<activeSurfaceNum<<" "<<is<<" "<<subStrainRate.t2Vector()[3]<<endln;
+        }
+    }
+
+    return 0;
+}
+
+int PDMY02Implex::updateImplex(void) {
 
     // time factor for explicit extrapolation
     double time_factor = 1.0;
-    if (doImplex && doExplicit && (dtime_n_commit > 0.0))
+    if (dtime_n_commit > 0.0)
         time_factor = dtime_n / dtime_n_commit;
     // note: the implex method just wants the ratio of the new to the old time step
     // not the real time step, so it is just fine to assume it to 1.
     // otherwise we have to deal with the problem of the opensees pseudo-time step
     // being the load multiplier in continuation methods...
-    time_factor = 1.0;
+    time_factor = 0.0;
 
-    int i, is;
-    if (loadStage == 1 && e2p == 0) {
-        initPress = currentStress.volume();
-        elast2Plast();
-    }
+    /*
+    // compute volumetric behavior
+    double residualPress = residualPressx[matN];
+    double stressRatioPT = stressRatioPTx[matN];
+    double contractParam1 = contractParam1x[matN];
+    double contractParam2 = contractParam2x[matN];
+    double contractParam3 = contractParam3x[matN];
+    double dilateParam1 = dilateParam1x[matN];
+    double dilateParam2 = dilateParam2x[matN];
+    double dilateParam3 = dilateParam3x[matN];
 
-    if (loadStage == 2 && initPress == refPressure)
-        initPress = currentStress.volume();
+    double plasticPotential, contractRule, shearLoading, angle;
 
-    if (loadStage != 1) {  
-        // linear elastic stage
-        // compute tangent
-        double factor;
-        if (loadStage == 0)
-            factor = 1.0;
-        else {
-            factor = (initPress - residualPress) / (refPressure - residualPress);
-            if (factor <= 1.e-10) factor = 1.e-10;
-            else factor = pow(factor, pressDependCoeff);
-            factor = (1.e-10 > factor) ? 1.e-10 : factor;
-        }
-        theTangent = 2 * refShearModulus * factor * IIdev() + refBulkModulus * factor * IIvol();
+    // extrapolate contact ratio
+    isCS = isCS_commit;
+    shearLoading_bar = shearLoading_bar_commit;
+    currentRatio_bar = currentRatio_bar_commit;
+    trialRatio_bar = trialRatio_bar_commit;
+    contactRatio_bar = contactRatio_bar_commit;
+    cumuDilateStrainOcta_bar = cumuDilateStrainOcta_bar_commit;
+    maxCumuDilateStrainOcta_bar = maxCumuDilateStrainOcta_bar_commit;
+    contactStressVolume_bar = std::min(-residualPress, contactStressVolume_bar_commit);
 
-        // compute elastic stress
-        workV6 = currentStress.t2Vector();
-        workV6.addMatrixVector(1.0, theTangent, strainRate.t2Vector(1), 1.0);
-        trialStress.setData(workV6);
+    // compute the volumetric behavior
+    double factorPT = contactRatio_bar / stressRatioPT;
 
-    }
-    else {
-        if (doImplex && doExplicit) {
-            // explicit stage
-            static Vector mflow(6);
-            static Matrix Ce(6, 6);
-            static Matrix workM66(6, 6);
-            static double refShearModulus = refShearModulusx[matN];
-            static double refBulkModulus = refBulkModulusx[matN];
-
-            // extrapolate state variables
-            modulusFactor = modulusFactor;
-            activeSurfaceNum = committedActiveSurf;
-            //for (i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
-            lambda = std::max(0.0, lambda_commit + time_factor * (lambda_commit - lambda_commit_old));
-            chi = std::max(0.0, chi_commit + time_factor * (chi_commit - chi_commit_old));
-            kappa = std::max(0.0, kappa_commit + time_factor * (kappa_commit - kappa_commit_old));
-            ksi = ksi_commit;// +time_factor * (ksi_commit - ksi_commit_old);
-
-            // compute trial stress
-            Ce = 2 * refShearModulus * modulusFactor * IIdev() + refBulkModulus * modulusFactor * IIvol();
-            workV6.addVector(0.0, currentStress.t2Vector(), 1.0);
-            workV6.addMatrixVector(1.0, Ce, strainRate.t2Vector(1), 1.0);
-            trialStress.setData(workV6);
-
-            // compute plastic strain inrement
-            static double conHeig = currentStress.volume() - residualPress;
-            mflow = currentStress.deviator();
-            workV6 = theSurfaces[activeSurfaceNum].center() + ksi * ksi_bar;
-            //opserr << "committed backstress = " << workV6 << "\n";
-            mflow.addVector(1.0, workV6, -conHeig);
-            mflow *= 1.0 * chi;
-            mflow += 3.0 * kappa * conHeig * I1();
-            mflow *= lambda;
-            doubledotProduct(workV6, mflow, Ce);
-
-            // do stress relaxation
-            workV6.addVector(-1.0, trialStress.t2Vector(), 1.0);
-            trialStress.setData(workV6);
-
-            // rephrased (step-constant) consistent tangent
-            if (doTangent) {
-                // initialize with zeros to make sure
-                theTangent.Zero();
-                workM66.Zero();
-
-                // invert the elastic stiffness matrix
-                Ce.Invert(theTangent);
-
-                // evaluate the derivative of the rephrazed flow rule
-                tensorProduct(workM66, theSurfaces[activeSurfaceNum].center(), I1());
-                workM66 -= IIdev();
-                workM66 *= (-1.0 * chi);
-                workM66 += (3.0 * kappa * IIvol());
-                workM66 *= lambda;
-                workM66 += theTangent;
-                workM66.Invert(theTangent);
-            }
+    if (factorPT >= 1. && trialRatio_bar >= currentRatio_bar && shearLoading_bar >= 0.) {  //dilation
+        //updatePPZ(contactStress);
+        onPPZ_bar = onPPZ_bar_commit;
+        if (onPPZ_bar == 1)
+            plasticPotential = 0.0;
+        else if (onPPZ_bar == 2) {
+            factorPT -= 1.0;
+            double ppp = pow((fabs(contactStressVolume_bar) + fabs(residualPress)) / pAtm, -dilateParam3);
+            plasticPotential = ppp * factorPT * (factorPT) * (dilateParam1 + pow(cumuDilateStrainOcta_bar, dilateParam2));
+            if (plasticPotential < 0.) plasticPotential = -plasticPotential;
+            if (plasticPotential > 5.0e4) plasticPotential = 5.0e4;
         }
         else {
-            // implicit stage
-            for (i = 1; i <= numOfSurfaces; i++) theSurfaces[i] = committedSurfaces[i];
-            activeSurfaceNum = committedActiveSurf;
-            pressureD = pressureDCommitted;
-            onPPZ = onPPZCommitted;
-            PPZSize = PPZSizeCommitted;
-            cumuDilateStrainOcta = cumuDilateStrainOctaCommitted;
-            maxCumuDilateStrainOcta = maxCumuDilateStrainOctaCommitted;
-            cumuTranslateStrainOcta = cumuTranslateStrainOctaCommitted;
-            prePPZStrainOcta = prePPZStrainOctaCommitted;
-            oppoPrePPZStrainOcta = oppoPrePPZStrainOctaCommitted;
-            PPZPivot = PPZPivotCommitted;
-            PivotStrainRate = PivotStrainRateCommitted;
-            PPZCenter = PPZCenterCommitted;
-
-            subStrainRate = strainRate;
-            setTrialStress(currentStress);
-            if (activeSurfaceNum > 0 && isLoadReversal(currentStress)) {
-                updateInnerSurface();
-                activeSurfaceNum = 0;
-            }
-
-            if (activeSurfaceNum == 0 && !isCrossingNextSurface()) {
-                workV6 = currentStrain.t2Vector();
-                workV6.addVector(1.0, strainRate.t2Vector(), 1.0);
-                trialStrain.setData(workV6);
-            }
-            else {
-                int numSubIncre = setSubStrainRate();
-
-                for (i = 0; i < numSubIncre; i++) {
-                    //      trialStrain.setData(currentStrain.t2Vector()
-                    //			     + subStrainRate.t2Vector()*(i+1));
-                    workV6 = currentStrain.t2Vector();
-                    workV6.addVector(1.0, subStrainRate.t2Vector(), (i + 1));
-                    trialStrain.setData(workV6);
-
-                    if (i == 0) {
-                        updatedTrialStress = currentStress;
-                        setTrialStress(currentStress);
-                        is = isLoadReversal(currentStress);
-                    }
-                    else {
-                        updatedTrialStress = trialStress;
-                        workT2V.setData(trialStress.t2Vector());
-                        setTrialStress(trialStress);
-                        is = isLoadReversal(workT2V);
-                    }
-
-                    if (activeSurfaceNum > 0 && is) {
-                        updateInnerSurface();
-                        activeSurfaceNum = 0;
-                    }
-                    if (activeSurfaceNum == 0 && !isCrossingNextSurface()) continue;
-                    if (activeSurfaceNum == 0) activeSurfaceNum++;
-                    stressCorrection(0);
-                    updateActiveSurface();
-
-                    double refBulkModulus = refBulkModulusx[matN];
-                    //modulusFactor was calculated in setTrialStress
-                    double B = refBulkModulus * modulusFactor;
-                    //double deltaD = 3.*subStrainRate.volume()
-                    //	         - (trialStress.volume()-updatedTrialStress.volume())/B;
-                    //if (deltaD<0) deltaD /=2 ;
-                    //pressureD += deltaD;
-                    pressureD += 3. * subStrainRate.volume()
-                        - (trialStress.volume() - updatedTrialStress.volume()) / B;
-                    if (pressureD < 0.) pressureD = 0.;
-                    //opserr<<i<<" "<<activeSurfaceNum<<" "<<is<<" "<<subStrainRate.t2Vector()[3]<<endln;
-                }
-            }
-            
-            // compute tangent
-            if (doTangent) {
-                double coeff1, coeff2, coeff3, coeff4;
-                double factor = getModulusFactor(updatedTrialStress);
-                double shearModulus = factor * refShearModulus;
-                double bulkModulus = factor * refBulkModulus;
-
-                // volumetric plasticity
-                if (Hvx[matN] != 0. && trialStress.volume() <= maxPress
-                    && strainRate.volume() < 0. && loadStage == 1) {
-                    double tp = fabs(trialStress.volume() - residualPress);
-                    bulkModulus = (bulkModulus * Hvx[matN] * pow(tp, Pvx[matN])) / (bulkModulus + Hvx[matN] * pow(tp, Pvx[matN]));
-                }
-
-                if (loadStage != 0 && activeSurfaceNum > 0) {
-                    //	 opserr << "PDMY02::getTang() - 5\n";
-                    factor = getModulusFactor(trialStress);
-                    shearModulus = factor * refShearModulus;
-                    bulkModulus = factor * refBulkModulus;
-                    getSurfaceNormal(trialStress, workT2V);
-                    workV6 = workT2V.deviator();
-                    double volume = workT2V.volume();
-                    double Ho = 9. * bulkModulus * volume * volume + 2. * shearModulus * (workV6 && workV6);
-                    double plastModul = factor * theSurfaces[activeSurfaceNum].modulus();
-                    coeff1 = 9. * bulkModulus * bulkModulus * volume * volume / (Ho + plastModul);
-                    coeff2 = 4. * shearModulus * shearModulus / (Ho + plastModul);
-                    // opserr << "PDMY02::getTang() - 6\n";
-                }
-
-                else {
-                    // opserr << "PDMY02::getTang() - 7\n";
-                    coeff1 = coeff2 = coeff3 = coeff4 = 0.;
-                    workV6.Zero();
-                    //opserr << "PDMY02::getTang() - 8\n";
-                }
-
-                for (int i = 0; i < 6; i++)
-                    for (int j = 0; j < 6; j++) {
-                        theTangent(i, j) = -coeff2 * workV6[i] * workV6[j];
-                        if (i == j) theTangent(i, j) += shearModulus;
-                        if (i < 3 && j < 3 && i == j) theTangent(i, j) += shearModulus;
-                        if (i < 3 && j < 3) theTangent(i, j) += (bulkModulus - 2. * shearModulus / 3. - coeff1);
-                    }
-            }
+            opserr << "FATAL: Wrong onPPZ value: " << onPPZ_bar << endln;
+            exit(-1);
         }
     }
+    else {  //contraction
+        if (currentRatio_bar == 0.) angle = 1.0;
+        else {
+            static double dSR = currentRatio_bar - currentRatio_bar_commit;
+            angle = (dSR >= 0) ? 1.0 : -1.0;
+        }
+        factorPT = factorPT * angle - 1.0;
+        contractRule = pow((fabs(contactStressVolume_bar) + fabs(residualPress)) / pAtm, contractParam3);
+        if (contractRule < 0.1) contractRule = 0.1;
+        plasticPotential = -(factorPT) * (factorPT) * (contractParam1 + maxCumuDilateStrainOcta_bar * contractParam2) * contractRule;
+        if (plasticPotential > 0.) plasticPotential = -plasticPotential;
+        if (onPPZ_bar > 0) onPPZ_bar = 0;
+        //if (onPPZ_bar != -1) PPZTranslation(contactStress);
+    }
 
+    if (isCS) { // neutral phase
+        plasticPotential = 0.0;
+        opserr << "neutral phase!\n";
+    }
+
+
+    // finally compute the kappa
+    kappa = plasticPotential / contactStressVolume_bar;
+    */
+
+    // deviatoric variables
+    activeSurfaceNum = committedActiveSurf;
+    modulusFactor = modulusFactor;
+    lambda = lambda_commit;// + time_factor * (lambda_commit - lambda_commit_old);
+    chi = chi_commit;// + time_factor * (chi_commit - chi_commit_old);
+    ksi = ksi_commit + time_factor * (ksi_commit - ksi_commit_old);
+    iota = iota_commit;
+    kappa = kappa_commit;
 
     return 0;
 }
