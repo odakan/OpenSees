@@ -169,8 +169,8 @@ namespace {
 	nDMaterialsMap.insert(std::make_pair("MultiYieldSurfaceClay", &OPS_MultiYieldSurfaceClay));
 	nDMaterialsMap.insert(std::make_pair("PressureDependMultiYield", &OPS_PressureDependMultiYield));
 	nDMaterialsMap.insert(std::make_pair("PressureDependMultiYield02", &OPS_PressureDependMultiYield02));
-	nDMaterialsMap.insert(std::make_pair("PIMYImplex", &OPS_PIMYImplex))
-	nDMaterialsMap.insert(std::make_pair("PDMY02Implex", &OPS_PDMY02Implex))
+	nDMaterialsMap.insert(std::make_pair("PIMYImplex", &OPS_PIMYImplex));
+	nDMaterialsMap.insert(std::make_pair("PDMY02Implex", &OPS_PDMY02Implex));
 	nDMaterialsMap.insert(std::make_pair("FluidSolidPorous", &OPS_FluidSolidPorousMaterial));
 	nDMaterialsMap.insert(std::make_pair("PlaneStressMaterial", &OPS_PlaneStress));
 	nDMaterialsMap.insert(std::make_pair("PlaneStress", &OPS_PlaneStress));
