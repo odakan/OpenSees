@@ -221,7 +221,8 @@ int PythonModule::getDoubleList(int* size, Vector* data)
         }
     }
     else {
-        opserr << "PythonModule::getDoubleList error: input is neither a list nor a tuple\n";
+      // Removing this error message for Path series list inputs -- MHS
+      //opserr << "PythonModule::getDoubleList error: input is neither a list nor a tuple\n";
         return -1;
     }
 
@@ -317,6 +318,18 @@ const char *PythonModule::getStringFromAll(char* buffer, int len) {
 
     return PyString_AS_STRING(o);
 #endif
+}
+
+void*
+PythonModule::getVoidPtr()
+{
+    if (wrapper.getCurrentArg() >= wrapper.getNumberArgs()) {
+        return nullptr;
+    }
+    PyObject *obj =
+        PyTuple_GetItem(wrapper.getCurrentArgv(), wrapper.getCurrentArg());
+    wrapper.incrCurrentArg();
+    return static_cast<void*>(obj);
 }
 
 int
@@ -436,6 +449,11 @@ int PythonModule::setString(std::map<const char*, const char*>& data) {
 
 int PythonModule::setString(std::map<const char*, std::vector<const char*>>& data) {
     wrapper.setOutputs(data);
+    return 0;
+}
+
+int PythonModule::setGenericDict(GenericDict& data) {
+    wrapper.setGenericDictOutput(data);
     return 0;
 }
 

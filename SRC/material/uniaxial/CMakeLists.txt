@@ -73,6 +73,7 @@ target_sources(OPS_Material
     PRIVATE
       ASD_SMA_3K.cpp
       ASDConcrete1DMaterial.cpp
+      ASDSteel1DMaterial.cpp
       BackboneMaterial.cpp
       BarSlipMaterial.cpp
       BilinearOilDamper.cpp
@@ -102,6 +103,7 @@ target_sources(OPS_Material
       ConfinedConcrete01.cpp
       ContinuumUniaxial.cpp
       CreepMaterial.cpp
+      CreepShrinkageACI209.cpp
       CubicSpline.cpp
       DamperMaterial.cpp
       DegradingPinchedBW.cpp
@@ -200,6 +202,7 @@ target_sources(OPS_Material
     PUBLIC
       ASD_SMA_3K.h
       ASDConcrete1DMaterial.h
+      ASDSteel1DMaterial.h
       BackboneMaterial.h
       BarSlipMaterial.h
       BilinearOilDamper.h
@@ -229,6 +232,7 @@ target_sources(OPS_Material
       ConfinedConcrete01.h
       ContinuumUniaxial.h
       CreepMaterial.h
+      CreepShrinkageACI209.h
       CubicSpline.h
       DamperMaterial.h
       DegradingPinchedBW.h
@@ -340,6 +344,14 @@ target_sources(OPS_Material
    Trilinwpd.h
 )
 
+target_sources(OPS_Material
+  PRIVATE
+    QbSandCPT.cpp
+    TzSandCPT.cpp
+  PUBLIC
+    QbSandCPT.h
+    TzSandCPT.h
+)
 
 add_library(OPS_Material_f)
 

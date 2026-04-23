@@ -317,12 +317,12 @@ int OPS_GetDoubleInput(int* numData, double* data)
 {
     int size = *numData;
     for (int i = 0; i < size; i++) {
-        if ((currentArg >= maxArg) || (Tcl_GetDouble(theInterp, currentArgv[currentArg], &data[i]) != TCL_OK)) {
-            //opserr << "OPS_GetDoubleInput -- error reading " << currentArg << endln;
-            return -1;
-        }
-        else
-            currentArg++;
+      if ((currentArg >= maxArg) || (Tcl_GetDouble(theInterp, currentArgv[currentArg], &data[i]) != TCL_OK)) {
+	//opserr << "OPS_GetDoubleInput -- error reading " << currentArg << endln;
+	return -1;
+      }
+      else
+	currentArg++;
     }
 
     return 0;
@@ -331,32 +331,58 @@ int OPS_GetDoubleInput(int* numData, double* data)
 extern "C"
 int OPS_GetDoubleListInput(int* size, Vector* data)
 {
-    TCL_Char** strings;
+  int mySize = 0;
+  double val;
+  
+  if ((currentArg < maxArg) &&
+      (Tcl_GetDouble(theInterp, currentArgv[currentArg], &val) == TCL_OK)) {
 
-    if (Tcl_SplitList(theInterp, currentArgv[currentArg],
-        size, &strings) != TCL_OK) {
-
-        opserr << "ERROR problem splitting list " << currentArgv[currentArg] << " \n";
-        return -1;
+    // its a seriues of double values .. go get values till last arg or not a double
+    (*data)[mySize] = val;
+    mySize++;
+    currentArg++;
+    while ((currentArg < maxArg) &&
+	   (Tcl_GetDouble(theInterp, currentArgv[currentArg], &val) == TCL_OK)) {
+      
+      currentArg++;
+      (*data)[mySize] = val;	
+      mySize++;
     }
+    *size = mySize;
+    
+    return 0;
 
+  } else {
+
+    // it's a list
+    TCL_Char** strings;
+  
+    if (Tcl_SplitList(theInterp, currentArgv[currentArg],
+		      size, &strings) != TCL_OK) {
+      
+      opserr << "ERROR problem splitting list " << currentArgv[currentArg] << " \n";
+      return -1;
+    }
+    
     data->resize(*size);
     for (int i = 0; i < *size; i++) {
-        double value;
-        if (Tcl_GetDouble(theInterp, strings[i], &value) != TCL_OK) {
-            opserr << "ERROR problem reading data value " << strings[i] << " \n";
-            // free up the array of strings .. see tcl man pages as to why
-            Tcl_Free((char*)strings);
-            return -1;
-        }
-        (*data)(i) = value;
+      double value;
+      if (Tcl_GetDouble(theInterp, strings[i], &value) != TCL_OK) {
+	opserr << "ERROR problem reading data value " << strings[i] << " \n";
+	// free up the array of strings .. see tcl man pages as to why
+	Tcl_Free((char*)strings);
+	return -1;
+      }
+      (*data)(i) = value;
     }
     // free up the array of strings .. see tcl man pages as to why
     Tcl_Free((char*)strings);
 
     currentArg++;
-
-    return 0;
+    
+  }
+    
+  return 0;
 }
 
 extern "C"
@@ -571,6 +597,61 @@ extern "C" int OPS_SetStringDictList(
             Tcl_NewStringObj(item.first, strlen(item.first)), obj);
     }
 
+    // set result
+    Tcl_SetObjResult(theInterp, dict);
+
+    return 0;
+}
+
+extern "C" int OPS_SetGenericDict(GenericDict& data) {
+    // Create TCL dictionary
+    Tcl_Obj* dict = Tcl_NewDictObj();
+    
+    for (auto& [key, value] : data) {
+        Tcl_Obj* tclValue = nullptr;
+        
+        // Use std::visit to convert variant to TCL object
+        std::visit([&](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            
+            if constexpr (std::is_same_v<T, int>) {
+                tclValue = Tcl_NewIntObj(arg);
+                
+            } else if constexpr (std::is_same_v<T, double>) {
+                tclValue = Tcl_NewDoubleObj(arg);
+                
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                tclValue = Tcl_NewStringObj(arg.c_str(), -1);
+                
+            } else if constexpr (std::is_same_v<T, std::vector<int>>) {
+                std::vector<Tcl_Obj*> list(arg.size());
+                for (size_t i = 0; i < arg.size(); i++) {
+                    list[i] = Tcl_NewIntObj(arg[i]);
+                }
+                tclValue = Tcl_NewListObj((int)list.size(), &list[0]);
+                
+            } else if constexpr (std::is_same_v<T, std::vector<double>>) {
+                std::vector<Tcl_Obj*> list(arg.size());
+                for (size_t i = 0; i < arg.size(); i++) {
+                    list[i] = Tcl_NewDoubleObj(arg[i]);
+                }
+                tclValue = Tcl_NewListObj((int)list.size(), &list[0]);
+                
+            } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+                std::vector<Tcl_Obj*> list(arg.size());
+                for (size_t i = 0; i < arg.size(); i++) {
+                    list[i] = Tcl_NewStringObj(arg[i].c_str(), -1);
+                }
+                tclValue = Tcl_NewListObj((int)list.size(), &list[0]);
+            }
+        }, value);
+        
+        if (tclValue != nullptr) {
+            Tcl_DictObjPut(theInterp, dict,
+                          Tcl_NewStringObj(key.c_str(), -1), tclValue);
+        }
+    }
+    
     // set result
     Tcl_SetObjResult(theInterp, dict);
 

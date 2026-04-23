@@ -918,6 +918,7 @@ ForceBeamColumn3dThermal::computeReactions(double *p0)
             SectionThermalElong[i] = 0;
         }
         AverageThermalElong = 0;
+        delete dataMixV;
     }
     //Added by Liming for implementation of NodalThermalAction
     else if (type == LOAD_TAG_NodalThermalAction) {
@@ -1002,7 +1003,7 @@ ForceBeamColumn3dThermal::computeReactions(double *p0)
         // Loop over the integration points
         for (int i = 0; i < numSections; i++) {
             // Get section stress resultant
-            Vector* dataMixV;
+            Vector* dataMixV = new Vector(NodalT0->Size() == 9 ? 27 : 33); // 33 is redundant for 15 data points, but just to be safe
             if (NodalT0->Size() == 9) {
                 for (int m = 0; m < 9; m++) {
                     (*dataMixV)(2 * m) = (*NodalT0)(m) + xi[i] * ((*NodalT1)(m) - (*NodalT0)(m)); //Linear temperature interpolation
@@ -1042,6 +1043,7 @@ ForceBeamColumn3dThermal::computeReactions(double *p0)
             //residThermal[4] = s(1);
             double ThermalEloni = SectionThermalElong[i] * wt[i];
             AverageThermalElong += ThermalEloni;
+            delete dataMixV;
         } // for
      } // if
 
@@ -4133,6 +4135,15 @@ ForceBeamColumn3dThermal::setParameter(const char **argv, int argc, Parameter &p
   if (strcmp(argv[0],"rho") == 0) {
     param.setValue(rho);
     return param.addObject(1, this);
+  }
+
+  // damping
+  if (strstr(argv[0], "damp") != 0) {
+
+    if (argc < 2 || !theDamping)
+      return -1;
+
+    return theDamping->setParameter(&argv[1], argc-1, param);
   }
 
   // section response -
