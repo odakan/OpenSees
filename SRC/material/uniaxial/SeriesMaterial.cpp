@@ -38,7 +38,6 @@
 #include <FEM_ObjectBroker.h>
 #include <stdlib.h>
 #include <MaterialResponse.h>
-#include <Parameter.h>
 #include <math.h>
 #include <float.h>
 
@@ -728,34 +727,4 @@ SeriesMaterial::getResponse(int responseID, Information &info)
   default:
     return this->UniaxialMaterial::getResponse(responseID, info);
   }
-}
-
-int
-SeriesMaterial::setParameter(const char **argv, int argc, Parameter &param)
-{
-  if (argc < 1)
-    return -1;
-
-  // Route "material i ..." / "component i ..." to a specific component, so a
-  // parameter on a wrapped material (e.g. an EPPGap gap) is reachable from Tcl
-  // through the Series wrapper. The Series stores COPIES of its components, so
-  // this forwarder is the only way to reach them.
-  if (strcmp(argv[0],"material") == 0 || strcmp(argv[0],"component") == 0) {
-    if (argc < 3)
-      return -1;
-    int matNum = atoi(argv[1]) - 1;
-    if (matNum >= 0 && matNum < numMaterials)
-      return theModels[matNum]->setParameter(&argv[2], argc-2, param);
-    else
-      return -1;
-  }
-
-  // Otherwise broadcast to every component; keep the last one that accepts.
-  int result = -1;
-  for (int i = 0; i < numMaterials; i++) {
-    int res = theModels[i]->setParameter(argv, argc, param);
-    if (res != -1)
-      result = res;
-  }
-  return result;
 }

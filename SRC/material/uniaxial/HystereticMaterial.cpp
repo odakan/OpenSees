@@ -39,7 +39,6 @@
 #include <Channel.h>
 #include <Information.h>
 #include <Parameter.h>
-#include <MaterialResponse.h>
 
 #include <OPS_Globals.h>
 #include <elementAPI.h>
@@ -841,67 +840,6 @@ HystereticMaterial::updateParameter(int parameterID, Information &info)
   this->setEnvelope();
 	
   return 0;
-}
-
-Response*
-HystereticMaterial::setResponse(const char **argv, int argc, OPS_Stream &theOutput)
-{
-  Response *theResponse = 0;
-
-  // Plastic (residual) offsets and peak excursions, exposed for the series
-  // pinching experiment: read rotPu/rotNu each step to drive an EPPGap gap.
-  //   rotPu/rotNu  = zero-stress intercept of the degraded unloading line
-  //                  (the permanent set) on the +/- side  -> "plastic strain"
-  //   rotMax/rotMin = peak +/- excursion (total, damage-inflated) -- NOT plastic
-  if (strcmp(argv[0],"plasticStrainPos") == 0 || strcmp(argv[0],"rotPu") == 0 ||
-      strcmp(argv[0],"plasticStrainNeg") == 0 || strcmp(argv[0],"rotNu") == 0 ||
-      strcmp(argv[0],"rotMax") == 0 || strcmp(argv[0],"rotMin") == 0) {
-
-    theOutput.tag("UniaxialMaterialOutput");
-    theOutput.attr("matType", this->getClassType());
-    theOutput.attr("matTag", this->getTag());
-
-    if (strcmp(argv[0],"plasticStrainPos") == 0 || strcmp(argv[0],"rotPu") == 0) {
-      theOutput.tag("ResponseType", "epsPpos");
-      theResponse = new MaterialResponse(this, 100, 0.0);
-    }
-    else if (strcmp(argv[0],"plasticStrainNeg") == 0 || strcmp(argv[0],"rotNu") == 0) {
-      theOutput.tag("ResponseType", "epsPneg");
-      theResponse = new MaterialResponse(this, 101, 0.0);
-    }
-    else if (strcmp(argv[0],"rotMax") == 0) {
-      theOutput.tag("ResponseType", "rotMax");
-      theResponse = new MaterialResponse(this, 102, 0.0);
-    }
-    else if (strcmp(argv[0],"rotMin") == 0) {
-      theOutput.tag("ResponseType", "rotMin");
-      theResponse = new MaterialResponse(this, 103, 0.0);
-    }
-
-    theOutput.endTag();
-    return theResponse;
-  }
-
-  // Anything else: defer to the base class
-  // (stress / strain / tangent / plasticStrain / energy / stressStrain / ...).
-  return UniaxialMaterial::setResponse(argv, argc, theOutput);
-}
-
-int
-HystereticMaterial::getResponse(int responseID, Information &matInfo)
-{
-  switch (responseID) {
-  case 100:  // positive plastic residual (zero-stress intercept, + unloading)
-    return matInfo.setDouble(TrotPu);
-  case 101:  // negative plastic residual (zero-stress intercept, - unloading)
-    return matInfo.setDouble(TrotNu);
-  case 102:  // peak positive excursion
-    return matInfo.setDouble(TrotMax);
-  case 103:  // peak negative excursion
-    return matInfo.setDouble(TrotMin);
-  default:
-    return UniaxialMaterial::getResponse(responseID, matInfo);
-  }
 }
 
 void
