@@ -68,7 +68,9 @@ class SeriesMaterial : public UniaxialMaterial
 			  OPS_Stream &theOutputStream);
 			  
     int getResponse(int responseID, Information &matInformation);
-    
+
+    int setParameter(const char **argv, int argc, Parameter &param);
+
   protected:
     
   private:

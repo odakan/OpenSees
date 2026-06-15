@@ -79,7 +79,10 @@ class HystereticMaterial : public UniaxialMaterial
 
   int setParameter(const char **argv, int argc, Parameter &param);
   int updateParameter(int parameterID, Information &info);
-  
+
+  Response *setResponse(const char **argv, int argc, OPS_Stream &theOutputStream);
+  int getResponse(int responseID, Information &matInformation);
+
   //by SAJalali
   double getEnergy() { return CenergyD; }
 

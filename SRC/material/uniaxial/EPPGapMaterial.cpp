@@ -381,6 +381,10 @@ EPPGapMaterial::setParameter(const char **argv, int argc, Parameter &param)
     param.setValue(gap);
     return param.addObject(3, this);
   }
+  if (strcmp(argv[0],"minElasticYieldStrain") == 0 || strcmp(argv[0],"gapStrain") == 0) {
+    param.setValue(minElasticYieldStrain);
+    return param.addObject(4, this);
+  }
 
   return 0;
 }
@@ -397,6 +401,15 @@ EPPGapMaterial::updateParameter(int parameterID, Information &info)
     break;
   case 3:
     gap = info.theDouble;
+    // Move the actual contact threshold with the gap so the update takes
+    // effect immediately (mirrors the constructor). Without this, the gap
+    // member changes but minElasticYieldStrain does not, so nothing happens.
+    minElasticYieldStrain = gap;
+    maxElasticYieldStrain = fy/E + gap;
+    break;
+  case 4:
+    // Direct control of the contact edge (independent of the fy/E band).
+    minElasticYieldStrain = info.theDouble;
     break;
   default:
     return -1;
